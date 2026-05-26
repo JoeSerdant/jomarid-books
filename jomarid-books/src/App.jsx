@@ -443,6 +443,42 @@ const ReaderPage = () => {
     </div>
   );
 };
+
+const PublisherDashboard = () => {
+  const [books, setBooks] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [activeUser, setActiveUser] = useState(null);
+
+  useEffect(() => {
+    supabase.from('books').select('*').then(({ data }) => setBooks(data || []));
+    supabase.from('profiles').select('*').then(({ data }) => setProfiles(data || []));
+  }, []);
+
+  const createBook = async (e) => {
+    e.preventDefault();
+    await supabase.from('books').insert([{ title, content }]);
+    alert('Kniha uložena!');
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto py-12 px-4">
+      <h2 className="text-2xl font-black uppercase mb-8">Nakladatelský Panel</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <Card>
+          <h3 className="font-bold mb-4">Vložit novou knihu</h3>
+          <form onSubmit={createBook} className="space-y-4">
+            <input type="text" placeholder="Název" className="w-full p-2 border rounded" onChange={e => setTitle(e.target.value)} />
+            <textarea placeholder="Text knihy" className="w-full p-2 border rounded" rows={4} onChange={e => setContent(e.target.value)} />
+            <Button type="submit">Uložit do fondu</Button>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard = () => {
   const [books, setBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -667,6 +703,16 @@ const createNewUser = async (e) => {
     </div>
   );
 };
+
+// Najdi v App():
+<Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+
+// A pod to vlož:
+<Route path="/publisher" element={
+  <ProtectedRoute roles={['správce', 'nakladatel']}>
+    <PublisherDashboard />
+  </ProtectedRoute>
+} />
 
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
