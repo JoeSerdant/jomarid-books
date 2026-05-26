@@ -190,8 +190,13 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
         {user ? (
           <>
             <Link to="/app" className="no-underline"><Button variant="secondary" className="text-xs">Moje Knihovna</Button></Link>
+            
             {role === 'správce' && (
               <Link to="/admin" className="no-underline"><Button className="text-xs bg-red-600 border-none text-white hover:bg-red-700">Admin Panel</Button></Link>
+            )}
+            
+            {(role === 'správce' || role === 'nakladatel') && (
+              <Link to="/publisher" className="no-underline"><Button className="text-xs bg-purple-600 border-none text-white">Nakladatel</Button></Link>
             )}
           </>
         ) : (
@@ -201,6 +206,7 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
     </nav>
   );
 };
+
 const SettingsModal = ({ isOpen, onClose }) => {
   const { currentTheme, changeTheme } = useTheme();
   if (!isOpen) return null;
@@ -445,21 +451,41 @@ const ReaderPage = () => {
 };
 
 const PublisherDashboard = () => {
-  const [books, setBooks] = useState([]);
+  const [myBooks, setMyBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [activeUser, setActiveUser] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const { user } = useAuth(); // Získáme přihlášeného nakladatele
 
   useEffect(() => {
-    supabase.from('books').select('*').then(({ data }) => setBooks(data || []));
-    supabase.from('profiles').select('*').then(({ data }) => setProfiles(data || []));
-  }, []);
+    if (!user) return;
+    // Načteme jen knihy, které mají publisher_id == přihlášený uživatel
+    supabase.from('books').select('*').eq('publisher_id', user.id).then(({ data }) => setMyBooks(data || []));
+    supabase.from('profiles').select('id, email').then(({ data }) => setProfiles(data || []));
+  }, [user]);
 
   const createBook = async (e) => {
     e.preventDefault();
-    await supabase.from('books').insert([{ title, content }]);
-    alert('Kniha uložena!');
+    const { error } = await supabase.from('books').insert([{ 
+      title, 
+      content, 
+      publisher_id: user.id // Uložíme ID aktuálního nakladatele
+    }]);
+    if (!error) {
+      alert('Kniha publikována!');
+      setTitle(''); setContent('');
+      // refresh po uložení
+      supabase.from('books').select('*').eq('publisher_id', user.id).then(({ data }) => setMyBooks(data || []));
+    }
+  };
+
+  const assignBook = async () => {
+    if (!selectedBookId || !selectedUserId) return alert('Vyber knihu a uživatele');
+    const { error } = await supabase.from('user_books').insert([{ user_id: selectedUserId, book_id: selectedBookId }]);
+    if (error) alert('Chyba: ' + error.message);
+    else alert('Kniha přiřazena uživateli.');
   };
 
   return (
@@ -467,12 +493,24 @@ const PublisherDashboard = () => {
       <h2 className="text-2xl font-black uppercase mb-8">Nakladatelský Panel</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card>
-          <h3 className="font-bold mb-4">Vložit novou knihu</h3>
+          <h3 className="font-bold mb-4">Moje publikace</h3>
           <form onSubmit={createBook} className="space-y-4">
             <input type="text" placeholder="Název" className="w-full p-2 border rounded" onChange={e => setTitle(e.target.value)} />
-            <textarea placeholder="Text knihy" className="w-full p-2 border rounded" rows={4} onChange={e => setContent(e.target.value)} />
-            <Button type="submit">Uložit do fondu</Button>
+            <textarea placeholder="Text" className="w-full p-2 border rounded" rows={4} onChange={e => setContent(e.target.value)} />
+            <Button type="submit">Publikovat</Button>
           </form>
+        </Card>
+        <Card>
+          <h3 className="font-bold mb-4">Přiřadit licenci</h3>
+          <select onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2 mb-2 border rounded">
+            <option>Vyber knihu</option>
+            {myBooks.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+          </select>
+          <select onChange={e => setSelectedUserId(e.target.value)} className="w-full p-2 mb-4 border rounded">
+            <option>Vyber uživatele</option>
+            {profiles.map(p => <option key={p.id} value={p.id}>{p.email}</option>)}
+          </select>
+          <Button onClick={assignBook}>Přiřadit</Button>
         </Card>
       </div>
     </div>
@@ -704,15 +742,16 @@ const createNewUser = async (e) => {
   );
 };
 
-// Najdi v App():
-<Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-
-// A pod to vlož:
-<Route path="/publisher" element={
-  <ProtectedRoute roles={['správce', 'nakladatel']}>
-    <PublisherDashboard />
-  </ProtectedRoute>
-} />
+// ...
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
+            <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+            {/* TADY JE TO MÍSTO */}
+            <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
+          </Routes>
+// ...
 
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
