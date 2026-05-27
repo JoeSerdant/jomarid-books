@@ -564,147 +564,109 @@ const UserLibrary = () => {
   const [likedBookIds, setLikedBookIds] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Načtení knih i lajků uživatele najednou
   const loadLibraryData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Načtení knih se seřazením: Přečtené (true) jdou dospod, ostatní dle času čtení
-      const { data: userBooksData } = await supabase
-        .from('user_books')
+      // 1. Načtení VŠECH knih a k nim vztah k aktuálnímu uživateli
+      const { data: allBooks } = await supabase
+        .from('books')
         .select(`
-          last_read_at,
-          is_read,
-          books(id, title, author, fake_likes, book_likes(count))
-        `)
-        .eq('user_id', user.id)
-        .order('is_read', { ascending: true }) // false (nepřečtené) dřív než true (přečtené)
-        .order('last_read_at', { ascending: false, nullsFirst: false });
-      
-      // Přemapujeme data
-      const filteredBooks = userBooksData?.map(i => {
-        if (!i.books) return null;
-        const b = i.books;
-        const realLikes = b.book_likes?.[0]?.count || 0;
-        const fikes = b.fake_likes || 0;
-        return {
-          id: b.id,
-          title: b.title,
-          author: b.author,
-          likesCount: realLikes + fikes,
-          isRead: i.is_read // Přidáno pro zobrazení odznáčku
-        };
-      }).filter(Boolean) || [];
-      
-      setBooks(filteredBooks);
+          id, title, author, fake_likes,
+          user_books(is_read, user_id),
+          book_likes(count)
+        `);
 
-      // 2. Načtení lajkovaných knih
+      // 2. Načtení lajků
       const { data: likesData } = await supabase
         .from('book_likes')
         .select('book_id')
         .eq('user_id', user.id);
-        
-      if (likesData) {
-        setLikedBookIds(likesData.map(l => l.book_id));
-      }
+      
+      if (likesData) setLikedBookIds(likesData.map(l => l.book_id));
+
+      // 3. Mapování dat
+      const processedBooks = allBooks?.map(b => {
+        const userAccess = b.user_books?.find(ub => ub.user_id === user.id);
+        return {
+          id: b.id,
+          title: b.title,
+          author: b.author,
+          likesCount: (b.book_likes?.[0]?.count || 0) + (b.fake_likes || 0),
+          hasAccess: !!userAccess, // true pokud má záznam v user_books
+          isRead: userAccess?.is_read || false
+        };
+      }) || [];
+
+      // Seřazení: Přístupné knihy první, uvnitř nich nepřečtené první
+      processedBooks.sort((a, b) => b.hasAccess - a.hasAccess || a.isRead - b.isRead);
+      
+      setBooks(processedBooks);
     } catch (error) {
-      console.error("Chyba při načítání dat knihovny:", error);
+      console.error("Chyba:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadLibraryData();
-  }, [user]);
+  useEffect(() => { loadLibraryData(); }, [user]);
 
-  const toggleLike = async (e, bookId) => {
+  // Funkce pro žádost o licenci (jednoduchý mailto)
+  const requestLicense = (e, title) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) return alert('Pro lajkování se musíš přihlásit.');
-
-    const isLiked = likedBookIds.includes(bookId);
-
-    if (isLiked) {
-      const { error } = await supabase.from('book_likes').delete().eq('user_id', user.id).eq('book_id', bookId);
-      if (!error) {
-        setLikedBookIds(prev => prev.filter(id => id !== bookId));
-        setBooks(prevBooks => prevBooks.map(b => b.id === bookId ? { ...b, likesCount: Math.max(0, b.likesCount - 1) } : b));
-      }
-    } else {
-      const { error } = await supabase.from('book_likes').insert([{ user_id: user.id, book_id: bookId }]);
-      if (!error) {
-        setLikedBookIds(prev => [...prev, bookId]);
-        setBooks(prevBooks => prevBooks.map(b => b.id === bookId ? { ...b, likesCount: b.likesCount + 1 } : b));
-      }
-    }
+    window.location.href = `mailto:tvoje@email.cz?subject=Žádost o licenci: ${title}&body=Ahoj, rád bych získal přístup ke knize: ${title}`;
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-20">
-        <Loader2 className="animate-spin mx-auto" />
-      </div>
-    );
-  }
+  if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto" /></div>;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight">Moje schválené svazky</h2>
-          <p className="text-xs opacity-60 mt-0.5">Přihlášen: {user?.email}</p>
+          <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
         </div>
-        <Button variant="danger" onClick={logout} className="text-xs">
-          <LogOut size={14}/> Odhlásit
-        </Button>
+        <Button variant="danger" onClick={logout} className="text-xs"><LogOut size={14}/> Odhlásit</Button>
       </div>
 
-      {books.length === 0 ? (
-        <Card className="text-center py-12 opacity-80">
-          <BookOpen className="mx-auto opacity-30 mb-2" size={40} />
-          <p className="font-bold text-sm uppercase">K vašemu účtu nebyly dosud přiřazeny žádné licenční tituly.</p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {books.map(b => {
-            const isLiked = likedBookIds.includes(b.id);
-            return (
-              <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between relative group ${b.isRead ? 'opacity-70' : ''}`}>
-                  <div>
-                    <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
-                      <Book size={32} className="opacity-20" />
-                      <button 
-                        onClick={(e) => toggleLike(e, b.id)}
-                        className={`absolute top-2 right-2 px-2.5 py-1.5 rounded-full border-none cursor-pointer transition-all active:scale-95 shadow-sm z-10 flex items-center gap-1 font-black text-[10px] select-none ${isLiked ? "bg-red-50 text-red-600" : "bg-white/80 backdrop-blur-sm text-slate-500 hover:text-red-500"}`}
-                      >
-                        <Heart size={12} className={isLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
-                        <span>{b.likesCount}</span>
-                      </button>
-                    </div>
-
-                    <h4 className="font-black uppercase tracking-tight text-sm line-clamp-2 pr-2">{b.title}</h4>
-                    <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1">{b.author}</p>
-                    
-                    {/* 🔥 Odznáček přečteno */}
-                    {b.isRead && (
-                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black uppercase tracking-wider inline-block mt-2">
-                        ✓ Přečteno
-                      </span>
-                    )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        {books.map(b => (
+          b.hasAccess ? (
+            <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
+              <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
+                <div>
+                  <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
+                    <Book size={32} className="opacity-20" />
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-black/5 text-[10px] font-black uppercase flex items-center justify-between text-emerald-600">
-                    <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span> 
-                    <ChevronRight size={12}/>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+                  <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
+                  <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                  {b.isRead && <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">✓ Přečteno</span>}
+                </div>
+                <div className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between text-emerald-600">
+                  <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
+                  <ChevronRight size={12}/>
+                </div>
+              </Card>
+            </Link>
+          ) : (
+            <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
+              <div>
+                <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
+                  <Lock size={32} className="opacity-20" />
+                </div>
+                <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
+                <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+              </div>
+              <button 
+                onClick={(e) => requestLicense(e, b.title)}
+                className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 rounded font-black text-[10px] uppercase cursor-pointer"
+              >
+                Zažádat o licenci
+              </button>
+            </Card>
+          )
+        ))}
+      </div>
     </div>
   );
 };
