@@ -563,7 +563,38 @@ const UserLibrary = () => {
   const [books, setBooks] = useState([]);
   const [likedBookIds, setLikedBookIds] = useState([]);
   const [loading, setLoading] = useState(true);
+// ... na začátku komponenty přidej:
+const { user, logout } = useAuth();
+// Zkus vypnout loading, pokud trvá moc dlouho, ať vidíme interface
+const [loading, setLoading] = useState(true); 
 
+// ... uvnitř return (před gridem knih):
+return (
+  <div className="max-w-6xl mx-auto px-4 py-12">
+    <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
+      <div>
+        <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
+      </div>
+      
+      {/* TADY JE OPRAVA: Tlačítka se zobrazí vždy, pokud jsi přihlášený */}
+      <div className="flex gap-2">
+        <Link to="/admin" className="text-xs bg-black text-white px-3 py-2 rounded">Admin Panel</Link>
+        <Link to="/nakladatel" className="text-xs bg-black text-white px-3 py-2 rounded">Nakladatel</Link>
+        <Button variant="danger" onClick={logout} className="text-xs"><LogOut size={14}/> Odhlásit</Button>
+      </div>
+    </div>
+
+    {loading ? (
+       <div className="text-center py-20">Načítám knihy... (pokud to trvá dlouho, koukni do konzole F12)</div>
+    ) : (
+       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+         {books.length === 0 ? <p>Žádné knihy k zobrazení. Máš je v tabulce 'books'?</p> : books.map(b => (
+            // ... tvůj kód pro vykreslení knih ...
+         ))}
+       </div>
+    )}
+  </div>
+);
   const loadLibraryData = async () => {
     if (!user) return;
     setLoading(true);
