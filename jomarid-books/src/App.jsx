@@ -558,24 +558,6 @@ const LoginPage = () => {
   );
 };
 
-Tenhle kód byl totálně rozbitý, protože se v něm promíchaly dva různé návody přes sebe. Byly tam dvakrát definované stejné stavové proměnné, funkce return byla uprostřed souboru, což úplně zastavilo provádění kódu, a funkce loadLibraryData byla deklarovaná až pod ní, takže se vlastně nikdy nespustila.
-
-Tady je kompletně vyčištěný, uspořádaný a opravený soubor UserLibrary.js.
-
-Tento kód už využívá upravenou logiku: načítá data z tabulek odděleně (což obchází potíže s relacemi) a obsahuje i správné zobrazení tlačítek pro Admin Panel a Nakladatele.
-
-JavaScript
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; // Zkontroluj, zda máš správnou cestu k supabaseClient
-import { useAuth } from '../context/AuthContext'; // Zkontroluj, zda máš správnou cestu k contextu
-import { Loader2, LogOut, Book, Lock, ChevronRight } from 'lucide-react';
-
-// Předpokládám, že Button a Card jsou tvé vlastní komponenty. 
-// Pokud ne, uprav je na obyčejné div / button nebo je správně naimportuj.
-import { Button } from '../components/ui/Button'; 
-import { Card } from '../components/ui/Card';
-
 const UserLibrary = () => {
   const { user, logout } = useAuth();
   const [books, setBooks] = useState([]);
