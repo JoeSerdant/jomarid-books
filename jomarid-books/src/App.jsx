@@ -449,6 +449,7 @@ const ReaderPage = () => {
     </div>
   );
 };
+
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -456,73 +457,139 @@ const PublisherDashboard = () => {
   const [content, setContent] = useState('');
   const [selectedBookId, setSelectedBookId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
-  const { user } = useAuth(); // Získáme přihlášeného nakladatele
+  const { user } = useAuth();
+
+  // Pomocná funkce, která vytáhne uživatelské jméno z e-mailu (vše před @)
+  const getUsername = (email) => {
+    return email ? email.split('@')[0] : '';
+  };
 
   useEffect(() => {
     if (!user) return;
-    // TADY JE TA ZMĚNA: Filtrujeme podle sloupce author, kam ukládáme e-mail nakladatele
-    supabase.from('books').select('*').eq('author', user.email).then(({ data }) => setMyBooks(data || []));
-    supabase.from('profiles').select('id, email').then(({ data }) => setProfiles(data || []));
+
+    const username = getUsername(user.email);
+
+    // Načteme knihy z databáze a vyfiltrujeme JEJICH autorský štítek (uživatelské jméno)
+    supabase.from('books').select('*').then(({ data, error }) => {
+      if (!error && data) {
+        const filteredBooks = data.filter(book => book.author === username);
+        setMyBooks(filteredBooks);
+      }
+    });
+
+    // Načteme čtenáře pro přiřazení licencí
+    supabase.from('profiles').select('id, email').then(({ data }) => {
+      setProfiles(data || []);
+    });
   }, [user]);
 
   const createBook = async (e) => {
     e.preventDefault();
-    if (!title || !content) return alert('Doplňte název a text.');
+    if (!title || !content) return alert('Doplňte název a text knihy.');
 
+    const username = getUsername(user.email);
+
+    // Vkládáme POUZE název, obsah a automaticky vygenerované uživatelské jméno jako autora
     const { error } = await supabase.from('books').insert([{ 
       title, 
       content, 
-      author: user.email // Místo jména autora sem uložíme e-mail přihlášeného nakladatele
+      author: username 
     }]);
 
     if (!error) {
-      alert('Kniha publikována!');
-      setTitle(''); setContent('');
-      // Obnovíme seznam knih
-      supabase.from('books').select('*').eq('author', user.email).then(({ data }) => setMyBooks(data || []));
+      alert('Kniha úspěšně publikována!');
+      setTitle(''); 
+      setContent('');
+      
+      // Refresh seznamu knih nakladatele
+      const { data } = await supabase.from('books').select('*');
+      if (data) {
+        setMyBooks(data.filter(book => book.author === username));
+      }
     } else {
-      alert('Chyba při ukládání: ' + error.message);
+      alert('Chyba při publikování: ' + error.message);
     }
   };
 
   const assignBook = async () => {
-    if (!selectedBookId || !selectedUserId) return alert('Vyber knihu a uživatele');
-    const { error } = await supabase.from('user_books').insert([{ user_id: selectedUserId, book_id: selectedBookId }]);
-    if (error) alert('Tento uživatel již k této knize přístup má.');
-    else alert('Kniha úspěšně přiřazena uživateli.');
+    if (!selectedBookId || !selectedUserId) return alert('Vyberte knihu a uživatele');
+    
+    const { error } = await supabase.from('user_books').insert([{ 
+      user_id: selectedUserId, 
+      book_id: selectedBookId 
+    }]);
+    
+    if (error) alert('Chyba nebo uživatel již tuto knihu má: ' + error.message);
+    else alert('Kniha byla úspěšně přiřazena uživateli!');
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
-      <h2 className="text-2xl font-black uppercase mb-8">Nakladatelský Panel</h2>
+    <div className="max-w-4xl mx-auto py-12 px-4 text-slate-900">
+      <h2 className="text-2xl font-black uppercase mb-8 text-current">Nakladatelský Panel</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* FORMULÁŘ NA NOVOU KNIHU */}
         <Card>
           <h3 className="font-bold mb-4">Vložit novou knihu</h3>
           <form onSubmit={createBook} className="space-y-4">
-            <input type="text" placeholder="Název knihy" value={title} className="w-full p-3 border rounded-lg bg-black/5 outline-none" onChange={e => setTitle(e.target.value)} required />
-            <textarea placeholder="Text knihy..." value={content} className="w-full p-3 border rounded-lg bg-black/5 outline-none resize-none" rows={6} onChange={e => setContent(e.target.value)} required />
-            <Button type="submit" className="w-full py-3">Publikovat pod mým účtem</Button>
+            <input 
+              type="text" 
+              placeholder="Název knihy" 
+              value={title} 
+              className="w-full p-3 border rounded-lg bg-black/5 outline-none" 
+              onChange={e => setTitle(e.target.value)} 
+              required 
+            />
+            <textarea 
+              placeholder="Text knihy..." 
+              value={content} 
+              className="w-full p-3 border rounded-lg bg-black/5 outline-none resize-none" 
+              rows={6} 
+              onChange={e => setContent(e.target.value)} 
+              required 
+            />
+            <Button type="submit" className="w-full py-3">Publikovat knihu</Button>
           </form>
         </Card>
         
+        {/* PŘIŘAZENÍ LICENCE */}
         <Card>
           <h3 className="font-bold mb-4">Přiřadit licenci čtenáři</h3>
           <div className="space-y-3">
-            <select onChange={e => setSelectedBookId(e.target.value)} className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs">
-              <option value="">-- Vyberte svou knihu --</option>
-              {myBooks.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+            <select 
+              onChange={e => setSelectedBookId(e.target.value)} 
+              className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs"
+            >
+              <option value="">-- Vyberte SVOU knihu --</option>
+              {myBooks.map(b => (
+                <option key={b.id} value={b.id}>{b.title}</option>
+              ))}
             </select>
-            <select onChange={e => setSelectedUserId(e.target.value)} className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs">
+            
+            <select 
+              onChange={e => setSelectedUserId(e.target.value)} 
+              className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs"
+            >
               <option value="">-- Vyberte čtenáře --</option>
-              {profiles.map(p => <option key={p.id} value={p.id}>{p.email}</option>)}
+              {profiles.map(p => (
+                <option key={p.id} value={p.id}>{p.email}</option>
+              ))}
             </select>
-            <Button onClick={assignBook} className="w-full py-3 bg-purple-600 text-white border-none uppercase text-xs">Přiřadit knihu</Button>
+            
+            <Button 
+              onClick={assignBook} 
+              className="w-full py-3 bg-purple-600 text-white border-none uppercase text-xs"
+            >
+              Přiřadit knihu
+            </Button>
           </div>
         </Card>
+
       </div>
     </div>
   );
 };
+
 const AdminDashboard = () => {
   const [books, setBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
