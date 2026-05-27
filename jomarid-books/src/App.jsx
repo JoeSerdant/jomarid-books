@@ -923,13 +923,13 @@ const AdminDashboard = () => {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
-  const [fakeLikes, setFakeLikes] = useState(0); // 🔥 State pro umělé navýšení lajků
+  const [fakeLikes, setFakeLikes] = useState(0); 
   const [activeUser, setActiveUser] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState('');
   const [editingBookId, setEditingBookId] = useState(null);
 
+  // 1. Načítání dat z databáze
   const refreshData = async () => {
-    // Načítáme knihy i se sloupcem fake_likes a agregovaným počtem z book_likes
     const { data: b } = await supabase
       .from('books')
       .select('id, title, author, fake_likes, book_likes(count)');
@@ -937,7 +937,6 @@ const AdminDashboard = () => {
     const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
     const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
     
-    // Sečteme reálné lajky z DB + uměle přidané lajky z adminu
     const booksWithLikes = b?.map(book => {
       const realLikes = book.book_likes?.[0]?.count || 0;
       const fikes = book.fake_likes || 0;
@@ -946,7 +945,7 @@ const AdminDashboard = () => {
         title: book.title,
         author: book.author,
         fake_likes: fikes,
-        likesCount: realLikes + fikes // Výsledný součet pro zobrazení
+        likesCount: realLikes + fikes 
       };
     }) || [];
 
@@ -965,19 +964,19 @@ const AdminDashboard = () => {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
+  // 2. Uložení / Úprava knihy
   const saveBook = async (e) => {
     e.preventDefault();
     if (!title) return alert('Doplňte název knihy.');
 
     if (editingBookId) {
-      // REŽIM ÚPRAVA
       const { error } = await supabase
         .from('books')
         .update({ 
           title, 
           author: author || 'Neznámý', 
           content, 
-          fake_likes: parseInt(fakeLikes) || 0 // 🔥 Ukládání upravených lajků
+          fake_likes: parseInt(fakeLikes) || 0 
         })
         .eq('id', editingBookId);
         
@@ -989,7 +988,6 @@ const AdminDashboard = () => {
         alert('Chyba při úpravě: ' + error.message);
       }
     } else {
-      // REŽIM NOVÁ KNIHA
       if (!content) return alert('Doplňte text knihy.');
       const { error } = await supabase
         .from('books')
@@ -997,7 +995,7 @@ const AdminDashboard = () => {
           title, 
           author: author || 'Neznámý', 
           content, 
-          fake_likes: parseInt(fakeLikes) || 0 // 🔥 Zápis počátečních lajků u nové knihy
+          fake_likes: parseInt(fakeLikes) || 0 
         }]);
         
       if (!error) {
@@ -1019,12 +1017,13 @@ const AdminDashboard = () => {
       setTitle(book.title);
       setAuthor(book.author);
       setContent(data.content || '');
-      setFakeLikes(data.fake_likes || 0); // 🔥 Načtení stávajících lajků do formuláře
+      setFakeLikes(data.fake_likes || 0);
     } else {
       alert('Nepodařilo se načíst text knihy k editaci.');
     }
   };
 
+  // 3. Správa uživatelů a rolí
   const createNewUser = async (e) => {
     e.preventDefault();
     const email = e.target.email.value;
@@ -1055,6 +1054,9 @@ const AdminDashboard = () => {
     }
   };
 
+  // 4. DISTRIBUCE LICENCÍ (OPRAVENÉ FUNKCE)
+
+  // Jedna konkrétní kniha jednomu vybranému uživateli
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
     const { error } = await supabase.from('user_books').insert([{ user_id: activeUser.id, book_id: selectedBookId }]);
@@ -1063,48 +1065,27 @@ const AdminDashboard = () => {
       alert('Tento uživatel již k této knize přístup má.');
     } else {
       await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Přiřazena kniha uživateli ${activeUser.email}` }]);
-      alert('Přístup úspěšně schválen and zapsán do DB.');
+      alert('Přístup úspěšně schválen a zapsán do DB.');
       setSelectedBookId('');
+      refreshData();
     }
   };
 
-  const assignAllBooksToUser = async () => {
-    if (!activeUser || books.length === 0) return;
-    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám najednou?`)) return;
-
-    const insertData = books.map(b => ({
-      user_id: activeUser.id,
-      book_id: b.id
-    }));
-
-    const { error } = await supabase
-      .from('user_books')
-      .upsert(insertData, { onConflict: 'user_id,book_id' });
-
-    if (error) {
-      alert('Chyba při hromadném přiřazování: ' + error.message);
-    } else {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Hromadně schváleny VŠECHNY knihy pro: ${activeUser.email}` }]);
-      alert('Všechny dostupné knihy byly úspěšně schváleny!');
-    }
-  };
-
+  // VŠECHNY dostupné knihy jednomu vybranému uživateli (Bezpečný hromadný .insert)
   const assignAllBooksToUser = async () => {
     if (!activeUser || books.length === 0) return;
     if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám najednou?`)) return;
 
     try {
-      // 1. Nejprve zjistíme, které knihy už uživatel přiřazené má, abychom se vyhnuli duplicitám
       const { data: existingUserBooks, error: fetchError } = await supabase
         .from('user_books')
         .select('book_id')
         .eq('user_id', activeUser.id);
 
       if (fetchError) throw fetchError;
-
       const existingBookIds = existingUserBooks?.map(ub => ub.book_id) || [];
 
-      // 2. Vyfiltrujeme pouze ty knihy z DB, které uživatel ještě NEMÁ
+      // Filtrujeme pouze knihy, které uživatel ještě nemá
       const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
 
       if (booksToAssign.length === 0) {
@@ -1112,51 +1093,66 @@ const AdminDashboard = () => {
         return;
       }
 
-      // 3. Připravíme data pro čistý insert
       const insertData = booksToAssign.map(b => ({
         user_id: activeUser.id,
         book_id: b.id
       }));
 
-      // 4. Provedeme standardní hromadný insert
-      const { error: insertError } = await supabase
-        .from('user_books')
-        .insert(insertData);
-
+      const { error: insertError } = await supabase.from('user_books').insert(insertData);
       if (insertError) throw insertError;
 
-      // 5. Zapíšeme log a ohlásíme úspěch
-      await supabase.from('system_logs').insert([{ 
-        log_type: 'SUCCESS', 
-        message: `Hromadně schváleno ${insertData.length} nových knih pro: ${activeUser.email}` 
-      }]);
-      
-      alert(`Úspěšně přiděleno ${insertData.length} nových knih! (Celkem má nyní přístup ke všem ${books.length} titulům).`);
-    } catch (error) {
-      console.error("Chyba při hromadném přiřazování:", error);
-      alert('Chyba při hromadném přiřazování: ' + error.message);
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Hromadně schváleny VŠECHNY knihy pro: ${activeUser.email}` }]);
+      alert(`Všechny zbývající knihy (${insertData.length}) byly úspěšně schváleny!`);
+      refreshData();
+    } catch (err) {
+      alert('Chyba při hromadném přiřazování: ' + err.message);
     }
   };
-    const insertData = profiles.map(p => ({
-      user_id: p.id,
-      book_id: selectedBookId
-    }));
 
-    if (insertData.length === 0) return alert('V systému nejsou žádní uživatelé.');
+  // Jedna vybraná kniha VŠEM registrovaným uživatelům najednou (Bezpečný hromadný .insert)
+  const assignSelectedBookToAllUsers = async () => {
+    if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
+    const selectedBook = books.find(b => b.id === selectedBookId);
+    if (!selectedBook) return;
 
-    const { error } = await supabase
-      .from('user_books')
-      .upsert(insertData, { onConflict: 'user_id,book_id' });
+    if (profiles.length === 0) return alert('V systému nejsou žádní uživatelé.');
+    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" zpřístupnit VŠEM registrovaným uživatelům?`)) return;
 
-    if (error) {
-      alert('Chyba při hromadném sdílení knihy: ' + error.message);
-    } else {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla globálně přidělena všem uživatelům.` }]);
-      alert(`Kniha "${selectedBook.title}" byla úspěšně přidělena všem uživatelům!`);
+    try {
+      const { data: alreadyHasBook, error: fetchError } = await supabase
+        .from('user_books')
+        .select('user_id')
+        .eq('book_id', selectedBookId);
+
+      if (fetchError) throw fetchError;
+      const userIdsWithBook = alreadyHasBook?.map(ub => ub.user_id) || [];
+
+      // Filtrujeme pouze uživatele, kteří knihu ještě nemají
+      const profilesToAssign = profiles.filter(p => !userIdsWithBook.includes(p.id));
+
+      if (profilesToAssign.length === 0) {
+        alert('Všichni uživatelé již mají k této knize přístup.');
+        return;
+      }
+
+      const insertData = profilesToAssign.map(p => ({
+        user_id: p.id,
+        book_id: selectedBookId
+      }));
+
+      const { error: insertError } = await supabase.from('user_books').insert(insertData);
+      if (insertError) throw insertError;
+
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla globálně přidělena všem chybějícím uživatelům.` }]);
+      alert(`Kniha "${selectedBook.title}" byla úspěšně přidělena ${insertData.length} novým uživatelům!`);
       setSelectedBookId('');
+      refreshData();
+    } catch (err) {
+      alert('Chyba při hromadném sdílení knihy: ' + err.message);
     }
   };
 
+  // 5. RENDER KOMPONENTY
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       {/* Karty statistik */}
@@ -1195,7 +1191,6 @@ const AdminDashboard = () => {
               <input type="text" placeholder="Název knihy..." value={title} onChange={e => setTitle(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
               <input type="text" placeholder="Autor..." value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" />
               
-              {/* 🔥 ZDE JE NOVÝ INPUT PRO MARKETINGOVÉ NAVÝŠENÍ LAJKŮ */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider opacity-50 block pl-1">Uměle přidat lajky (Prestiž)</label>
                 <input 
@@ -1300,7 +1295,7 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
-          {/* INVENTÁŘ SE SEČTENÝMI LAJKY (DB + ADMIN) */}
+          {/* INVENTÁŘ TITULŮ */}
           <Card className="overflow-hidden p-0">
             <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
             <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
@@ -1310,7 +1305,6 @@ const AdminDashboard = () => {
                     {b.title} <span className="opacity-40 font-normal">({b.author})</span>
                   </span>
                   
-                  {/* Celkový indikátor sečtených lajků */}
                   <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100 text-[10px] shrink-0">
                     <Heart size={10} className="fill-red-500 text-red-500" />
                     <span>{b.likesCount}</span>
@@ -1337,7 +1331,7 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
-          {/* Postgres core syslog */}
+          {/* Core syslog */}
           <Card className="bg-slate-950 text-emerald-400 font-mono p-4 border border-slate-900 shadow-2xl">
             <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase text-slate-400 tracking-widest pb-2 border-b border-slate-900">
               <span className="flex items-center gap-1"><Terminal size={12} /> Postgres Live Core Syslog</span>
