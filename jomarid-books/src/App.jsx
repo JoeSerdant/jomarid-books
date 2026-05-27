@@ -293,6 +293,7 @@ const HomePage = () => {
 };
 
 const LoginPage = () => {
+  const [isSignUp, setIsSignUp] = useState(false); // 🔥 Přepínač Login / Registrace
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -302,32 +303,92 @@ const LoginPage = () => {
 
   if (user) return <Navigate to="/app" replace />;
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); 
+    setLoading(true);
+
     try {
-      await login(email, password);
-      navigate('/app');
+      if (isSignUp) {
+        // 📝 REŽIM REGISTRACE
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signUpError) throw signUpError;
+
+        alert('Účet úspěšně vytvořen! Nyní se můžete přihlásit.');
+        setIsSignUp(false); // Přepneme uživatele zpět na login
+        setPassword('');    // Vyčistíme heslo pro bezpečnost
+      } else {
+        // 🔑 REŽIM PŘIHLÁŠENÍ
+        await login(email, password);
+        navigate('/app');
+      }
     } catch (err) {
-      setError('Neplatný e-mail nebo přístupové heslo.');
-    } finally { setLoading(false); }
+      if (isSignUp) {
+        setError(err.message || 'Chyba při vytváření účtu.');
+      } else {
+        setError('Neplatný e-mail nebo přístupové heslo.');
+      }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
     <div className="max-w-sm mx-auto py-24 px-4">
       <Card>
-        <h2 className="text-xl font-black text-center uppercase tracking-tight mb-6">Vstup do čítárny</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input type="email" placeholder="E-mailová adresa" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
-          <input type="password" placeholder="Přístupové heslo" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
-          {error && <p className="text-red-600 text-xs font-bold flex items-center gap-1"><AlertTriangle size={12}/> {error}</p>}
-          <Button type="submit" disabled={loading} className="w-full py-3 uppercase tracking-wider">{loading ? 'Ověřování...' : 'Odemknout čítárnu'}</Button>
+        {/* Dynamický nadpis podle režimu */}
+        <h2 className="text-xl font-black text-center uppercase tracking-tight mb-6">
+          {isSignUp ? 'Vytvořit nový účet' : 'Vstup do čítárny'}
+        </h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input 
+            type="email" 
+            placeholder="E-mailová adresa" 
+            value={email} 
+            onChange={e => setEmail(e.target.value)} 
+            className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+            required 
+          />
+          <input 
+            type="password" 
+            placeholder={isSignUp ? 'Zvolte si heslo' : 'Přístupové heslo'} 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+            required 
+          />
+          
+          {error && (
+            <p className="text-red-600 text-xs font-bold flex items-center gap-1">
+              <AlertTriangle size={12}/> {error}
+            </p>
+          )}
+          
+          {/* Dynamické tlačítko */}
+          <Button type="submit" disabled={loading} className="w-full py-3 uppercase tracking-wider">
+            {loading ? 'Zpracovávám...' : isSignUp ? 'Zaregistrovat se' : 'Odemknout čítárnu'}
+          </Button>
         </form>
+
+        {/* 🔥 Přepínací odkaz pod formulářem */}
+        <div className="mt-4 pt-4 border-t border-black/5 text-center">
+          <button
+            type="button"
+            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+            className="text-xs font-bold text-indigo-600 hover:underline bg-transparent border-none cursor-pointer"
+          >
+            {isSignUp ? 'Už máte účet? Přihlaste se' : 'Nemáte účet? Zaregistrujte se zde'}
+          </button>
+        </div>
       </Card>
     </div>
   );
 };
-
 
 const UserLibrary = () => {
   const { user, logout } = useAuth();
