@@ -27,7 +27,9 @@ const UserCheck = getIcon('UserCheck');
 const Shield = getIcon('Shield');
 const BookOpen = getIcon('BookOpen');
 const Phone = getIcon('Phone');
-const Trash = getIcon('Trash'); // Přidáno, aby AdminDashboard nekřičel
+const Trash = getIcon('Trash'); 
+const Heart = getIcon('Heart'); // <-- Tímto se opravila ta chyba "Cannot access 's' before initialization"
+
 const THEMES = {
   saas: {
     '--bg-body': '#f8fafc',       
