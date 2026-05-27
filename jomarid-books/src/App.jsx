@@ -1,20 +1,18 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
+// 🔥 PŘÍMÝ IMPORT PRO SRDÍČKO A DALŠÍ IKONY, ABY NEZÁVISELY NA DYNAMICKÉ FUNKCI:
+import { Heart, BookOpen, Book, ChevronRight, Loader2, LogOut, Shield } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-// Pomocná funkce pro ikony
+// Pomocná funkce pro ikony (ponech ji tu pro starší komponenty, pokud ji využívají)
 const getIcon = (name) => Icons[name] || Icons.Book || Icons.HelpCircle;
 
-// Definice ikon (všechny pod vlastním jménem)
-const Book = getIcon('Book');
+// Definice ikon
 const Lock = getIcon('Lock');
 const Plus = getIcon('Plus');
 const ShieldCheck = getIcon('ShieldCheck');
 const Trash2 = getIcon('Trash2');
-const Loader2 = getIcon('Loader2');
-const ChevronRight = getIcon('ChevronRight');
-const LogOut = getIcon('LogOut');
 const Library = getIcon('Library');
 const Search = getIcon('Search');
 const X = getIcon('X');
@@ -24,11 +22,8 @@ const Database = getIcon('Database');
 const Users = getIcon('Users');
 const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
-const Shield = getIcon('Shield');
-const BookOpen = getIcon('BookOpen');
 const Phone = getIcon('Phone');
-const Trash = getIcon('Trash'); 
-const Heart = getIcon('Heart'); // <-- Tímto se opravila ta chyba "Cannot access 's' before initialization"
+const Trash = getIcon('Trash');
 
 const THEMES = {
   saas: {
