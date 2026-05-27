@@ -598,16 +598,16 @@ const AdminDashboard = () => {
   const [activeUser, setActiveUser] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState('');
 
-const createNewUser = async (e) => {
+  const createNewUser = async (e) => {
     e.preventDefault();
     const email = e.target.email.value;
-    const password = e.target.password.value; // Pokud chceš zadat i heslo
+    const password = e.target.password.value;
     
     if (!email) return alert('Zadej e-mail');
 
     const { data, error } = await supabase.auth.signUp({
       email: email,
-      password: password || 'DocasneHeslo123!', // Doporučuji vynutit silné heslo
+      password: password || 'DocasneHeslo123!',
     });
 
     if (error) {
@@ -623,14 +623,18 @@ const createNewUser = async (e) => {
     const { data: b } = await supabase.from('books').select('id, title, author');
     const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
     const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
-    setBooks(b || []); setProfiles(p || []); setLogs(l || []);
+    setBooks(b || []); 
+    setProfiles(p || []); 
+    setLogs(l || []);
   };
 
   useEffect(() => {
     refreshData();
-    const sub = supabase.channel('sys_logs').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_logs' }, payload => {
-      setLogs(prev => [payload.new, ...prev]);
-    }).subscribe();
+    const sub = supabase.channel('sys_logs')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_logs' }, payload => {
+        setLogs(prev => [payload.new, ...prev]);
+      }).subscribe();
+    
     return () => { supabase.removeChannel(sub); };
   }, []);
 
@@ -638,7 +642,9 @@ const createNewUser = async (e) => {
     e.preventDefault();
     console.log("Pokus o uložení knihy...", { title, author, content });
     if (!title || !content) return alert('Doplňte název a text.');
+    
     const { error } = await supabase.from('books').insert([{ title, author: author || 'Neznámý', content }]);
+    
     if (!error) {
       await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title}` }]);
       setTitle(''); setAuthor(''); setContent(''); refreshData();
@@ -661,6 +667,7 @@ const createNewUser = async (e) => {
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
     const { error } = await supabase.from('user_books').insert([{ user_id: activeUser.id, book_id: selectedBookId }]);
+    
     if (error) {
       alert('Tento uživatel již k této knize přístup má.');
     } else {
@@ -670,7 +677,6 @@ const createNewUser = async (e) => {
     }
   };
 
-  // 🌟 NOVÁ FUNKCE: PŘIDĚLIT UŽIVATELI VŠECHNY KNIHY NAJEDNOU
   const assignAllBooksToUser = async () => {
     if (!activeUser || books.length === 0) return;
     if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám najednou?`)) return;
@@ -680,7 +686,6 @@ const createNewUser = async (e) => {
       book_id: b.id
     }));
 
-    // Použijeme upsert, aby se ignorovali duplicity, pokud už nějakou knihu má
     const { error } = await supabase
       .from('user_books')
       .upsert(insertData, { onConflict: 'user_id,book_id' });
@@ -696,9 +701,27 @@ const createNewUser = async (e) => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="flex items-center gap-4 py-4"><Database className="text-indigo-600" size={24}/><div><h4 className="text-[10px] font-black uppercase opacity-50">Knihovny</h4><p className="text-lg font-black">{books.length} Titulů v DB</p></div></Card>
-        <Card className="flex items-center gap-4 py-4"><Users className="text-purple-600" size={24}/><div><h4 className="text-[10px] font-black uppercase opacity-50">Uživatelé</h4><p className="text-lg font-black">{profiles.length} Registrovaných</p></div></Card>
-        <Card className="flex items-center gap-4 py-4"><Shield className="text-emerald-600" size={24}/><div><h4 className="text-[10px] font-black uppercase opacity-50">Ochrana</h4><p className="text-sm font-black text-emerald-600 uppercase mt-1">Cloud text locked</p></div></Card>
+        <Card className="flex items-center gap-4 py-4">
+          <Database className="text-indigo-600" size={24}/>
+          <div>
+            <h4 className="text-[10px] font-black uppercase opacity-50">Knihovny</h4>
+            <p className="text-lg font-black">{books.length} Titulů v DB</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-4 py-4">
+          <Users className="text-purple-600" size={24}/>
+          <div>
+            <h4 className="text-[10px] font-black uppercase opacity-50">Uživatelé</h4>
+            <p className="text-lg font-black">{profiles.length} Registrovaných</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-4 py-4">
+          <Shield className="text-emerald-600" size={24}/>
+          <div>
+            <h4 className="text-[10px] font-black uppercase opacity-50">Ochrana</h4>
+            <p className="text-sm font-black text-emerald-600 uppercase mt-1">Cloud text locked</p>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -713,7 +736,7 @@ const createNewUser = async (e) => {
             </form>
           </Card>
 
-<Card>
+          <Card>
             <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2"><Users size={16}/> Vytvořit nový účet</h3>
             <form onSubmit={createNewUser} className="space-y-3">
               <input name="email" type="email" placeholder="E-mail nového uživatele..." className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold outline-none" required />
@@ -732,7 +755,6 @@ const createNewUser = async (e) => {
                   {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
                 </select>
                 
-                {/* 🌟 UPRAVENÁ SEKCE S TLAČÍTKY (PŘIDÁNO PŘIDĚLENÍ VŠE) */}
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase">Schválit vybranou</Button>
@@ -786,7 +808,6 @@ const createNewUser = async (e) => {
               {books.map(b => (
                 <div key={b.id} className="flex justify-between items-center p-2 rounded bg-black/2 text-xs font-bold">
                   <span className="truncate pr-4">{b.title} <span className="opacity-40 font-normal">({b.author})</span></span>
-                  {/* 💡 POZNÁMKA: Ujisti se, že máš nahoře v souboru importovanou ikonu Trash2 z lucide-react */}
                   <button onClick={async () => { if(confirm('Odstranit knihu z databáze?')) { await supabase.from('books').delete().eq('id', b.id); refreshData(); } }} className="text-red-600 bg-transparent border-none cursor-pointer"><Trash size={12}/></button>
                 </div>
               ))}
@@ -813,17 +834,6 @@ const createNewUser = async (e) => {
   );
 };
 
-// ...
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
-            <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-            {/* TADY JE TO MÍSTO */}
-            <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
-          </Routes>
-// ...
-
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -848,6 +858,7 @@ export default function App() {
                 <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
                 <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
                 <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+                <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
               </Routes>
             </main>
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
@@ -858,3 +869,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+
