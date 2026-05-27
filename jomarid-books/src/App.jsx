@@ -336,6 +336,80 @@ const UserLibrary = () => {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+{books.map(book => {
+  const isLiked = likedBookIds.includes(book.id);
+  
+  return (
+    <div key={book.id} className="p-4 border rounded-xl flex justify-between items-center bg-white shadow-sm">
+      <div>
+        <h3 className="font-bold text-slate-900">{book.title}</h3>
+        <p className="text-xs text-slate-500">{book.author}</p>
+      </div>
+      
+      {/* Tlačítko pro Lajk */}
+      <button 
+        onClick={() => toggleLike(book.id)}
+        className="p-2 border-none bg-transparent cursor-pointer transition-transform active:scale-95"
+      >
+        <Heart 
+          size={20} 
+          className={isLiked ? "fill-red-500 text-red-500" : "text-slate-400 hover:text-red-400"} 
+        />
+      </button>
+    </div>
+  );
+})}
+  
+// 1. Stav pro uložení IDs knih, které má aktuální uživatel zalajkované
+const [likedBookIds, setLikedBookIds] = useState([]);
+
+// 2. Načtení lajků při otevření stránky (přidej do useEffectu)
+const fetchLikes = async () => {
+  if (!user) return; // Předpokládám, že máš objekt přihlášeného uživatele 'user'
+  
+  const { data, error } = await supabase
+    .from('book_likes')
+    .select('book_id')
+    .eq('user_id', user.id);
+    
+  if (!error && data) {
+    setLikedBookIds(data.map(l => l.book_id));
+  }
+};
+
+useEffect(() => {
+  fetchLikes();
+}, [user]);
+
+// 3. Funkce pro kliknutí na Srdíčko (Toggle Like)
+const toggleLike = async (bookId) => {
+  if (!user) return alert('Pro lajkování se musíš přihlásit.');
+
+  const isLiked = likedBookIds.includes(bookId);
+
+  if (isLiked) {
+    // ODEBRAT LAJK
+    const { error } = await supabase
+      .from('book_likes')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('book_id', bookId);
+
+    if (!error) {
+      setLikedBookIds(prev => prev.filter(id => id !== bookId));
+    }
+  } else {
+    // PŘIDAT LAJK
+    const { error } = await supabase
+      .from('book_likes')
+      .insert([{ user_id: user.id, book_id: bookId }]);
+
+    if (!error) {
+      setLikedBookIds(prev => [...prev, bookId]);
+    }
+  }
+};
+  
   useEffect(() => {
     if (user) {
       supabase.from('user_books').select('books(id, title, author)').eq('user_id', user.id).then(({ data }) => {
@@ -597,27 +671,7 @@ const AdminDashboard = () => {
   const [content, setContent] = useState('');
   const [activeUser, setActiveUser] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState('');
-
-  const createNewUser = async (e) => {
-    e.preventDefault();
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-    
-    if (!email) return alert('Zadej e-mail');
-
-    const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password || 'DocasneHeslo123!',
-    });
-
-    if (error) {
-      alert('Chyba: ' + error.message);
-    } else {
-      alert('Uživatel vytvořen! Pokud vyžaduješ potvrzení e-mailu, zkontroluj schránku.');
-      e.target.reset();
-      refreshData();
-    }
-  };
+  const [editingBookId, setEditingBookId] = useState(null);
 
   const refreshData = async () => {
     const { data: b } = await supabase.from('books').select('id, title, author');
@@ -638,20 +692,74 @@ const AdminDashboard = () => {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
-  const createBook = async (e) => {
+  const saveBook = async (e) => {
     e.preventDefault();
-    console.log("Pokus o uložení knihy...", { title, author, content });
-    if (!title || !content) return alert('Doplňte název a text.');
-    
-    const { error } = await supabase.from('books').insert([{ title, author: author || 'Neznámý', content }]);
-    
-    if (!error) {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title}` }]);
-      setTitle(''); setAuthor(''); setContent(''); refreshData();
-      alert('Kniha byla úspěšně uložena do systému!');
+    if (!title) return alert('Doplňte název knihy.');
+
+    if (editingBookId) {
+      // REŽIM ÚPRAVA
+      const { error } = await supabase
+        .from('books')
+        .update({ title, author: author || 'Neznámý', content })
+        .eq('id', editingBookId);
+        
+      if (!error) {
+        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Upravena kniha: ${title}` }]);
+        alert('Kniha byla úspěšně aktualizována!');
+        setEditingBookId(null);
+      } else {
+        alert('Chyba při úpravě: ' + error.message);
+      }
     } else {
-      console.error("Chyba při ukládání knihy:", error);
-      alert('Chyba databáze: ' + error.message);
+      // REŽIM NOVÁ KNIHA
+      if (!content) return alert('Doplňte text knihy.');
+      const { error } = await supabase
+        .from('books')
+        .insert([{ title, author: author || 'Neznámý', content }]);
+        
+      if (!error) {
+        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title}` }]);
+        alert('Kniha byla úspěšně uložena do systému!');
+      } else {
+        alert('Chyba při ukládání: ' + error.message);
+      }
+    }
+    
+    setTitle(''); setAuthor(''); setContent('');
+    refreshData();
+  };
+
+  const startEditBook = async (book) => {
+    // Načteme plný obsah knihy z DB včetně textu (content), který v základním selectu chybí
+    const { data, error } = await supabase.from('books').select('content').eq('id', book.id).single();
+    if (!error && data) {
+      setEditingBookId(book.id);
+      setTitle(book.title);
+      setAuthor(book.author);
+      setContent(data.content || '');
+    } else {
+      alert('Nepodařilo se načíst text knihy k editaci.');
+    }
+  };
+
+  const createNewUser = async (e) => {
+    e.preventDefault();
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+    
+    if (!email) return alert('Zadej e-mail');
+
+    const { error } = await supabase.auth.signUp({
+      email: email,
+      password: password || 'DocasneHeslo123!',
+    });
+
+    if (error) {
+      alert('Chyba: ' + error.message);
+    } else {
+      alert('Uživatel vytvořen! Pokud vyžaduješ potvrzení e-mailu, zkontroluj schránku.');
+      e.target.reset();
+      refreshData();
     }
   };
 
@@ -698,6 +806,34 @@ const AdminDashboard = () => {
     }
   };
 
+  // NOVÁ FUNKCE: Přidělení JEDNÉ konkrétní knihy VŠEM uživatelům najednou
+  const assignSelectedBookToAllUsers = async () => {
+    if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
+    const selectedBook = books.find(b => b.id === selectedBookId);
+    if (!selectedBook) return;
+
+    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" zpřístupnit VŠEM registrovaným uživatelům?`)) return;
+
+    const insertData = profiles.map(p => ({
+      user_id: p.id,
+      book_id: selectedBookId
+    }));
+
+    if (insertData.length === 0) return alert('V systému nejsou žádní uživatelé.');
+
+    const { error } = await supabase
+      .from('user_books')
+      .upsert(insertData, { onConflict: 'user_id,book_id' });
+
+    if (error) {
+      alert('Chyba při hromadném sdílení knihy: ' + error.message);
+    } else {
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla globálně přidělena všem uživatelům.` }]);
+      alert(`Kniha "${selectedBook.title}" byla úspěšně přidělena všem uživatelům!`);
+      setSelectedBookId('');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -727,12 +863,27 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 space-y-6">
           <Card>
-            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2"><Plus size={16}/> Nová digitální kniha</h3>
-            <form onSubmit={createBook} className="space-y-3">
+            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Plus size={16}/> {editingBookId ? 'Upravit digitální knihu' : 'Nová digitální kniha'}
+            </h3>
+            <form onSubmit={saveBook} className="space-y-3">
               <input type="text" placeholder="Název knihy..." value={title} onChange={e => setTitle(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
               <input type="text" placeholder="Autor..." value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" />
               <textarea placeholder="Sem vložte čistý text knihy..." value={content} onChange={e => setContent(e.target.value)} rows={6} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-medium text-slate-900 outline-none resize-none" required />
-              <Button type="submit" className="w-full py-3 uppercase tracking-wider">Uložit knihu do systému</Button>
+              
+              <Button type="submit" className="w-full py-3 uppercase tracking-wider">
+                {editingBookId ? 'Uložit změny v knize' : 'Uložit knihu do systému'}
+              </Button>
+
+              {editingBookId && (
+                <button 
+                  type="button" 
+                  onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); }}
+                  className="w-full py-2 text-xs text-slate-500 hover:text-black uppercase cursor-pointer bg-transparent border-none font-bold"
+                >
+                  Zrušit editaci
+                </button>
+              )}
             </form>
           </Card>
 
@@ -745,31 +896,40 @@ const AdminDashboard = () => {
             </form>
           </Card>
 
-          {activeUser && (
-            <Card className="border-2 border-indigo-600 bg-indigo-50/5">
-              <h3 className="text-sm font-black uppercase tracking-wider mb-1 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Schvalování přístupu</h3>
-              <p className="text-xs font-bold mb-3 truncate">Pro: {activeUser.email}</p>
-              <div className="space-y-3">
-                <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2.5 border border-black/10 rounded-lg bg-white text-slate-950 font-bold text-xs">
-                  <option value="">-- Zvolte knihu pro přidělení --</option>
-                  {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                </select>
-                
-                <div className="space-y-2">
+          {/* Sekce pro globální i individuální přiřazování licencí */}
+          <Card className="border-2 border-indigo-600 bg-indigo-50/5">
+            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce licencí</h3>
+            
+            <div className="space-y-3">
+              <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2.5 border border-black/10 rounded-lg bg-white text-slate-950 font-bold text-xs">
+                <option value="">-- Zvolte knihu pro distribuci --</option>
+                {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+              </select>
+
+              <button  
+                onClick={assignSelectedBookToAllUsers}
+                className="w-full text-xs py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border-none font-black rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
+              >
+                📢 Přidělit tuto knihu VŠEM uživatelům
+              </button>
+              
+              {activeUser && (
+                <div className="mt-4 pt-4 border-t border-black/10 space-y-2">
+                  <p className="text-xs font-bold truncate text-indigo-600">Vybraný uživatel: {activeUser.email}</p>
                   <div className="flex gap-2">
                     <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase">Schválit vybranou</Button>
-                    <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zavřít</Button>
+                    <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
                   </div>
-                  <button 
+                  <button  
                     onClick={assignAllBooksToUser}
                     className="w-full text-xs py-2 bg-purple-600 hover:bg-purple-700 text-white border-none font-bold rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
                   >
-                    ✨ Přidělit uživateli VŠECHNY knihy
+                    ✨ Přidělit mu VŠECHNY knihy z DB
                   </button>
                 </div>
-              </div>
-            </Card>
-          )}
+              )}
+            </div>
+          </Card>
         </div>
 
         <div className="lg:col-span-7 space-y-6">
@@ -792,7 +952,7 @@ const AdminDashboard = () => {
                         <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${p.role === 'správce' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{p.role}</span>
                       </td>
                       <td className="p-3 text-right flex justify-end gap-2">
-                        <Button variant="secondary" onClick={() => setActiveUser(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Přidělit licenci</Button>
+                        <Button variant="secondary" onClick={() => setActiveUser(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Vybrat</Button>
                         <button onClick={() => toggleRole(p.id, p.role)} className="p-1 border-none bg-transparent cursor-pointer text-slate-500 hover:text-slate-900" title="Změnit roli"><Shield size={12}/></button>
                       </td>
                     </tr>
@@ -808,7 +968,22 @@ const AdminDashboard = () => {
               {books.map(b => (
                 <div key={b.id} className="flex justify-between items-center p-2 rounded bg-black/2 text-xs font-bold">
                   <span className="truncate pr-4">{b.title} <span className="opacity-40 font-normal">({b.author})</span></span>
-                  <button onClick={async () => { if(confirm('Odstranit knihu z databáze?')) { await supabase.from('books').delete().eq('id', b.id); refreshData(); } }} className="text-red-600 bg-transparent border-none cursor-pointer"><Trash size={12}/></button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => startEditBook(b)}
+                      className="text-indigo-600 bg-transparent border-none cursor-pointer hover:text-indigo-800"
+                      title="Upravit knihu"
+                    >
+                      ✎
+                    </button>
+                    <button 
+                      onClick={async () => { if(confirm('Odstranit knihu z databáze?')) { await supabase.from('books').delete().eq('id', b.id); refreshData(); } }} 
+                      className="text-red-600 bg-transparent border-none cursor-pointer hover:text-red-800"
+                      title="Smazat knihu"
+                    >
+                      <Trash size={12}/>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
