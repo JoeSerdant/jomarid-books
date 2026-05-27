@@ -397,43 +397,56 @@ const UserLibrary = () => {
   const [loading, setLoading] = useState(true);
 
   // Načtení knih i lajků uživatele najednou
-  useEffect(() => {
+  const loadLibraryData = async () => {
     if (!user) return;
+    setLoading(true);
+    try {
+      // 1. Načtení schválených knih včetně sloupců pro lajky (fake a celkový počet)
+      const { data: userBooksData } = await supabase
+        .from('user_books')
+        .select(`
+          books(id, title, author, fake_likes, book_likes(count))
+        `)
+        .eq('user_id', user.id);
+      
+      // Přemapujeme data tak, aby každá kniha rovnou obsahovala výsledný likesCount
+      const filteredBooks = userBooksData?.map(i => {
+        if (!i.books) return null;
+        const b = i.books;
+        const realLikes = b.book_likes?.[0]?.count || 0;
+        const fikes = b.fake_likes || 0;
+        return {
+          id: b.id,
+          title: b.title,
+          author: b.author,
+          likesCount: realLikes + fikes // Celkový součet pro uživatele
+        };
+      }).filter(Boolean) || [];
+      
+      setBooks(filteredBooks);
 
-    const loadLibraryData = async () => {
-      setLoading(true);
-      try {
-        // 1. Načtení schválených knih
-        const { data: userBooksData } = await supabase
-          .from('user_books')
-          .select('books(id, title, author)')
-          .eq('user_id', user.id);
+      // 2. Načtení lajkovaných knih aktuálního uživatele
+      const { data: likesData } = await supabase
+        .from('book_likes')
+        .select('book_id')
+        .eq('user_id', user.id);
         
-        const filteredBooks = userBooksData?.map(i => i.books).filter(Boolean) || [];
-        setBooks(filteredBooks);
-
-        // 2. Načtení lajkovaných knih aktuálního uživatele
-        const { data: likesData } = await supabase
-          .from('book_likes')
-          .select('book_id')
-          .eq('user_id', user.id);
-          
-        if (likesData) {
-          setLikedBookIds(likesData.map(l => l.book_id));
-        }
-      } catch (error) {
-        console.error("Chyba při načítání dat knihovny:", error);
-      } finally {
-        setLoading(false);
+      if (likesData) {
+        setLikedBookIds(likesData.map(l => l.book_id));
       }
-    };
+    } catch (error) {
+      console.error("Chyba při načítání dat knihovny:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadLibraryData();
   }, [user]);
 
   // Funkce pro přidání/odebrání lajku (Toggle Like)
   const toggleLike = async (e, bookId) => {
-    // Zabráníme tomu, aby kliknutí na srdíčko spustilo Link a otevřelo čtečku
     e.preventDefault();
     e.stopPropagation();
 
@@ -451,6 +464,10 @@ const UserLibrary = () => {
 
       if (!error) {
         setLikedBookIds(prev => prev.filter(id => id !== bookId));
+        // Okamžitě snížíme číslo v lokálním stavu, aby to uživatel hned viděl
+        setBooks(prevBooks => prevBooks.map(b => 
+          b.id === bookId ? { ...b, likesCount: Math.max(0, b.likesCount - 1) } : b
+        ));
       } else {
         alert('Chyba při odebírání lajku: ' + error.message);
       }
@@ -462,6 +479,10 @@ const UserLibrary = () => {
 
       if (!error) {
         setLikedBookIds(prev => [...prev, bookId]);
+        // Okamžitě zvýšíme číslo v lokálním stavu
+        setBooks(prevBooks => prevBooks.map(b => 
+          b.id === bookId ? { ...b, likesCount: b.likesCount + 1 } : b
+        ));
       } else {
         alert('Chyba při přidávání lajku: ' + error.message);
       }
@@ -509,19 +530,24 @@ const UserLibrary = () => {
                     <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
                       <Book size={32} className="opacity-20" />
                       
-                      {/* Tlačítko pro lajk */}
+                      {/* 🔥 UPRAVENÉ TLAČÍTKO: Teď je to oválný badgík s číslem lajků */}
                       <button 
                         onClick={(e) => toggleLike(e, b.id)}
-                        className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full border-none cursor-pointer transition-transform active:scale-95 shadow-sm z-10"
+                        className={`absolute top-2 right-2 px-2.5 py-1.5 rounded-full border-none cursor-pointer transition-all active:scale-95 shadow-sm z-10 flex items-center gap-1 font-black text-[10px] select-none ${
+                          isLiked 
+                            ? "bg-red-50 text-red-600" 
+                            : "bg-white/80 backdrop-blur-sm text-slate-500 hover:text-red-500"
+                        }`}
                       >
                         <Heart 
-                          size={16} 
-                          className={isLiked ? "fill-red-500 text-red-500" : "text-slate-400 hover:text-red-500 transition-colors"} 
+                          size={12} 
+                          className={isLiked ? "fill-red-500 text-red-500" : "text-slate-400"} 
                         />
+                        <span>{b.likesCount}</span>
                       </button>
                     </div>
 
-                    <h4 className="font-black uppercase tracking-tight text-sm line-clamp-2 pr-6">{b.title}</h4>
+                    <h4 className="font-black uppercase tracking-tight text-sm line-clamp-2 pr-2">{b.title}</h4>
                     <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1">{b.author}</p>
                   </div>
 
