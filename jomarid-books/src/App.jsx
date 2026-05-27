@@ -459,7 +459,6 @@ const PublisherDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const { user } = useAuth();
 
-  // Pomocná funkce, která vytáhne uživatelské jméno z e-mailu (vše před @)
   const getUsername = (email) => {
     return email ? email.split('@')[0] : '';
   };
@@ -469,7 +468,6 @@ const PublisherDashboard = () => {
 
     const username = getUsername(user.email);
 
-    // Načteme knihy z databáze a vyfiltrujeme JEJICH autorský štítek (uživatelské jméno)
     supabase.from('books').select('*').then(({ data, error }) => {
       if (!error && data) {
         const filteredBooks = data.filter(book => book.author === username);
@@ -477,7 +475,6 @@ const PublisherDashboard = () => {
       }
     });
 
-    // Načteme čtenáře pro přiřazení licencí
     supabase.from('profiles').select('id, email').then(({ data }) => {
       setProfiles(data || []);
     });
@@ -489,7 +486,6 @@ const PublisherDashboard = () => {
 
     const username = getUsername(user.email);
 
-    // Vkládáme POUZE název, obsah a automaticky vygenerované uživatelské jméno jako autora
     const { error } = await supabase.from('books').insert([{ 
       title, 
       content, 
@@ -501,7 +497,6 @@ const PublisherDashboard = () => {
       setTitle(''); 
       setContent('');
       
-      // Refresh seznamu knih nakladatele
       const { data } = await supabase.from('books').select('*');
       if (data) {
         setMyBooks(data.filter(book => book.author === username));
@@ -525,12 +520,12 @@ const PublisherDashboard = () => {
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 text-slate-900">
-      <h2 className="text-2xl font-black uppercase mb-8 text-current">Nakladatelský Panel</h2>
+      <h2 className="text-2xl font-black uppercase mb-8">Nakladatelský Panel</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
-        {/* FORMULÁŘ NA NOVOU KNIHU */}
-        <Card>
-          <h3 className="font-bold mb-4">Vložit novou knihu</h3>
+        {/* FORMULÁŘ - NAHRAZENO KLASICKÝM DIVEM MÍSTO CARD */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold mb-4 text-lg">Vložit novou knihu</h3>
           <form onSubmit={createBook} className="space-y-4">
             <input 
               type="text" 
@@ -548,13 +543,15 @@ const PublisherDashboard = () => {
               onChange={e => setContent(e.target.value)} 
               required 
             />
-            <Button type="submit" className="w-full py-3">Publikovat knihu</Button>
+            <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors cursor-pointer border-none">
+              Publikovat knihu
+            </button>
           </form>
-        </Card>
+        </div>
         
-        {/* PŘIŘAZENÍ LICENCE */}
-        <Card>
-          <h3 className="font-bold mb-4">Přiřadit licenci čtenáři</h3>
+        {/* LICENCE - NAHRAZENO KLASICKÝM DIVEM MÍSTO CARD */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 className="font-bold mb-4 text-lg">Přiřadit licenci čtenáři</h3>
           <div className="space-y-3">
             <select 
               onChange={e => setSelectedBookId(e.target.value)} 
@@ -576,14 +573,14 @@ const PublisherDashboard = () => {
               ))}
             </select>
             
-            <Button 
+            <button 
               onClick={assignBook} 
-              className="w-full py-3 bg-purple-600 text-white border-none uppercase text-xs"
+              className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg uppercase text-xs transition-colors cursor-pointer border-none"
             >
               Přiřadit knihu
-            </Button>
+            </button>
           </div>
-        </Card>
+        </div>
 
       </div>
     </div>
