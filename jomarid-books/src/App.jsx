@@ -558,183 +558,187 @@ const LoginPage = () => {
   );
 };
 
+Tenhle kód byl totálně rozbitý, protože se v něm promíchaly dva různé návody přes sebe. Byly tam dvakrát definované stejné stavové proměnné, funkce return byla uprostřed souboru, což úplně zastavilo provádění kódu, a funkce loadLibraryData byla deklarovaná až pod ní, takže se vlastně nikdy nespustila.
+
+Tady je kompletně vyčištěný, uspořádaný a opravený soubor UserLibrary.js.
+
+Tento kód už využívá upravenou logiku: načítá data z tabulek odděleně (což obchází potíže s relacemi) a obsahuje i správné zobrazení tlačítek pro Admin Panel a Nakladatele.
+
+JavaScript
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../supabaseClient'; // Zkontroluj, zda máš správnou cestu k supabaseClient
+import { useAuth } from '../context/AuthContext'; // Zkontroluj, zda máš správnou cestu k contextu
+import { Loader2, LogOut, Book, Lock, ChevronRight } from 'lucide-react';
+
+// Předpokládám, že Button a Card jsou tvé vlastní komponenty. 
+// Pokud ne, uprav je na obyčejné div / button nebo je správně naimportuj.
+import { Button } from '../components/ui/Button'; 
+import { Card } from '../components/ui/Card';
+
 const UserLibrary = () => {
   const { user, logout } = useAuth();
   const [books, setBooks] = useState([]);
   const [likedBookIds, setLikedBookIds] = useState([]);
   const [loading, setLoading] = useState(true);
-// ... na začátku komponenty přidej:
-const { user, logout } = useAuth();
-// Zkus vypnout loading, pokud trvá moc dlouho, ať vidíme interface
-const [loading, setLoading] = useState(true); 
 
-// ... uvnitř return (před gridem knih):
-return (
-  <div className="max-w-6xl mx-auto px-4 py-12">
-    <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
-      <div>
-        <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
-      </div>
-      
-      {/* TADY JE OPRAVA: Tlačítka se zobrazí vždy, pokud jsi přihlášený */}
-      <div className="flex gap-2">
-        <Link to="/admin" className="text-xs bg-black text-white px-3 py-2 rounded">Admin Panel</Link>
-        <Link to="/nakladatel" className="text-xs bg-black text-white px-3 py-2 rounded">Nakladatel</Link>
-        <Button variant="danger" onClick={logout} className="text-xs"><LogOut size={14}/> Odhlásit</Button>
-      </div>
-    </div>
-
-    {loading ? (
-       <div className="text-center py-20">Načítám knihy... (pokud to trvá dlouho, koukni do konzole F12)</div>
-    ) : (
-       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-         {books.length === 0 ? <p>Žádné knihy k zobrazení. Máš je v tabulce 'books'?</p> : books.map(b => (
-            // ... tvůj kód pro vykreslení knih ...
-         ))}
-       </div>
-    )}
-  </div>
-);
   const loadLibraryData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Načteme VŠECHNY knihy samostatně
+      // 1. Načteme VŠECHNY knihy samostatně (tady pomůže ta RLS policy 'true')
       const { data: allBooks, error: booksError } = await supabase
         .from('books')
         .select('*');
 
-      // 2. Načteme POUZE záznamy user_books pro tohoto uživatele
+      if (booksError) throw booksError;
+
+      // 2. Načteme POUZE záznamy user_books pro aktuálního uživatele
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
         .select('book_id, is_read')
         .eq('user_id', user.id);
 
-      // 3. Načteme počty lajků (agregovaně)
+      if (userBooksError) throw userBooksError;
+
+      // 3. Načteme ID knih, které uživatel lajknul
       const { data: likesData, error: likesError } = await supabase
+        .from('book_likes')
+        .select('book_id')
+        .eq('user_id', user.id);
+
+      if (likesError) throw likesError;
+      if (likesData) setLikedBookIds(likesData.map(l => l.book_id));
+
+      // 4. Načteme celkové počty lajků pro agregaci v JS
+      const { data: allLikes, error: allLikesError } = await supabase
         .from('book_likes')
         .select('book_id');
 
-      if (booksError || userBooksError) throw new Error("Chyba při načítání dat");
+      if (allLikesError) throw allLikesError;
 
-      // 4. Sloučíme data v JavaScriptu (toto je 100% jistota, že to funguje)
-      const processedBooks = allBooks.map(b => {
+      // 5. Sloučení dat v JavaScriptu
+      const processedBooks = (allBooks || []).map(b => {
         const userBookEntry = myUserBooks?.find(ub => ub.book_id === b.id);
-        const likesCountForBook = likesData?.filter(l => l.book_id === b.id).length || 0;
+        const totalLikesCount = allLikes?.filter(l => l.book_id === b.id).length || 0;
 
         return {
           id: b.id,
           title: b.title,
           author: b.author,
-          likesCount: likesCountForBook + (b.fake_likes || 0),
-          hasAccess: !!userBookEntry,
+          likesCount: totalLikesCount + (b.fake_likes || 0),
+          hasAccess: !!userBookEntry, // true pokud má záznam v user_books
           isRead: userBookEntry?.is_read || false
         };
       });
 
-      processedBooks.sort((a, b) => (b.hasAccess ? 1 : 0) - (a.hasAccess ? 1 : 0));
-      
-      setBooks(processedBooks);
-    } catch (error) {
-      console.error("Chyba:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-      // 2. Načtení lajků
-      const { data: likesData } = await supabase
-        .from('book_likes')
-        .select('book_id')
-        .eq('user_id', user.id);
-      
-      if (likesData) setLikedBookIds(likesData.map(l => l.book_id));
-
-      // 3. Mapování dat
-      const processedBooks = allBooks?.map(b => {
-        const userAccess = b.user_books?.find(ub => ub.user_id === user.id);
-        return {
-          id: b.id,
-          title: b.title,
-          author: b.author,
-          likesCount: (b.book_likes?.[0]?.count || 0) + (b.fake_likes || 0),
-          hasAccess: !!userAccess, // true pokud má záznam v user_books
-          isRead: userAccess?.is_read || false
-        };
-      }) || [];
-
       // Seřazení: Přístupné knihy první, uvnitř nich nepřečtené první
-      processedBooks.sort((a, b) => b.hasAccess - a.hasAccess || a.isRead - b.isRead);
+      processedBooks.sort((a, b) => (b.hasAccess ? 1 : 0) - (a.hasAccess ? 1 : 0) || (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0));
       
       setBooks(processedBooks);
     } catch (error) {
-      console.error("Chyba:", error);
+      console.error("Chyba při načítání knihovny:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadLibraryData(); }, [user]);
+  useEffect(() => {
+    loadLibraryData();
+  }, [user]);
 
-  // Funkce pro žádost o licenci (jednoduchý mailto)
+  // Funkce pro žádost o licenci
   const requestLicense = (e, title) => {
     e.preventDefault();
     e.stopPropagation();
     window.location.href = `mailto:tvoje@email.cz?subject=Žádost o licenci: ${title}&body=Ahoj, rád bych získal přístup ke knize: ${title}`;
   };
 
-  if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto" /></div>;
+  if (loading) {
+    return (
+      <div className="text-center py-20">
+        <Loader2 className="animate-spin mx-auto mb-2" />
+        <p className="text-sm font-medium opacity-60">Načítám knihovnu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
+      {/* Horní lišta s navigací */}
       <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
         <div>
           <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
         </div>
-        <Button variant="danger" onClick={logout} className="text-xs"><LogOut size={14}/> Odhlásit</Button>
+        
+        <div className="flex items-center gap-3">
+          {/* Tlačítka se zobrazují na základě role uložené v uživatelském kontextu */}
+          {(user?.role === 'admin' || user?.user_metadata?.role === 'admin') && (
+            <Link to="/admin" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
+              Admin Panel
+            </Link>
+          )}
+          {(user?.role === 'nakladatel' || user?.user_metadata?.role === 'nakladatel') && (
+            <Link to="/nakladatel" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
+              Nakladatel
+            </Link>
+          )}
+          <Button variant="danger" onClick={logout} className="text-xs flex items-center gap-1">
+            <LogOut size={14}/> Odhlásit
+          </Button>
+        </div>
       </div>
 
+      {/* Mřížka knih */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        {books.map(b => (
-          b.hasAccess ? (
-            <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-              <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
+        {books.length === 0 ? (
+          <p className="col-span-full text-center py-10 opacity-60">Žádné knihy k zobrazení. Zkontroluj databázi.</p>
+        ) : (
+          books.map(b => (
+            b.hasAccess ? (
+              <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
+                <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
+                  <div>
+                    <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
+                      <Book size={32} className="opacity-20" />
+                    </div>
+                    <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
+                    <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                    {b.isRead && (
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">
+                        ✓ Přečteno
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between text-emerald-600">
+                    <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
+                    <ChevronRight size={12}/>
+                  </div>
+                </Card>
+              </Link>
+            ) : (
+              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
                 <div>
-                  <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
-                    <Book size={32} className="opacity-20" />
+                  <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
+                    <Lock size={32} className="opacity-20" />
                   </div>
                   <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
                   <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
-                  {b.isRead && <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">✓ Přečteno</span>}
                 </div>
-                <div className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between text-emerald-600">
-                  <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
-                  <ChevronRight size={12}/>
-                </div>
+                <button 
+                  onClick={(e) => requestLicense(e, b.title)}
+                  className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 rounded font-black text-[10px] uppercase cursor-pointer transition-colors"
+                >
+                  Zažádat o licenci
+                </button>
               </Card>
-            </Link>
-          ) : (
-            <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
-              <div>
-                <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
-                  <Lock size={32} className="opacity-20" />
-                </div>
-                <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
-              </div>
-              <button 
-                onClick={(e) => requestLicense(e, b.title)}
-                className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 rounded font-black text-[10px] uppercase cursor-pointer"
-              >
-                Zažádat o licenci
-              </button>
-            </Card>
-          )
-        ))}
+            )
+          ))
+        )}
       </div>
     </div>
   );
 };
-
 
 const ReaderPage = () => {
   const { id } = useParams();
