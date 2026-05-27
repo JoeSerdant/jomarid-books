@@ -272,51 +272,184 @@ const SearchModal = ({ isOpen, onClose }) => {
   );
 };
 
+const FaqItem = ({ question, answer }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div className="border-b border-black/10 text-left py-4">
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="w-full flex justify-between items-center bg-transparent border-none outline-none cursor-pointer text-slate-900 font-black uppercase text-xs tracking-wider text-left py-2 gap-4"
+      >
+        <span className="flex items-center gap-2">
+          <HelpCircle size={14} className="text-indigo-600 shrink-0" />
+          {question}
+        </span>
+        <ChevronDown size={16} className={`transform transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed pt-2 pl-6 animate-fadeIn">
+          {answer}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const HomePage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-24 text-center">
-      {/* Horní badge */}
-      <div 
-        style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} 
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6"
-      >
-        <Library size={14} /> Výběrová digitální edice
-      </div>
+    <div className="max-w-5xl mx-auto px-4 pt-20 pb-12 text-center">
       
-      {/* Hlavní nadpis */}
-      <h1 className="text-5xl font-black uppercase tracking-tight mb-6 leading-none">
-        Exkluzivní literární díla <br/>
-        <span style={{ color: 'var(--bg-primary)' }}>na dosah ruky</span>
-      </h1>
-      
-      {/* Popisek */}
-      <p style={{ color: 'var(--text-muted)' }} className="text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
-        Vítejte v privátním fondu Jomarid Books. Nabízíme kurátorovaný výběr odborné, umělecké a prémiové literatury v digitální podobě přes dedikované Cloud-to-Screen rozhraní zajišťující plynulé čtení.
-      </p>
-
-      {/* 🔥 NOVÁ AKČNÍ SEKCE: Místo otravného volání rovnou tlačítko do akce */}
-      <div className="max-w-md mx-auto space-y-4">
-        <Button 
-          onClick={() => navigate('/app')} 
-          className="w-full py-4 uppercase font-black tracking-wider text-sm shadow-lg hover:scale-[1.01] transition-transform flex items-center justify-center gap-2"
+      {/* 1. HERO SEKCE */}
+      <section className="mb-20">
+        {/* Horní badge */}
+        <div 
+          style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} 
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6"
         >
-          <BookOpen size={16} /> Odemknout digitální čítárnu
-        </Button>
-        
-        <p className="text-[11px] font-bold uppercase opacity-40 tracking-wider">
-          Nemáte účet? Zřídíte si ho okamžitě a zdarma přímo u vstupu.
-        </p>
-      </div>
-
-      {/* 📞 Kontaktní info přesunuto dolů jako decentní patička, kdyby přece jen někdo potřeboval volat */}
-      <div className="mt-20 pt-8 border-t border-black/5 opacity-50 flex flex-col sm:flex-row items-center justify-between text-xs font-bold uppercase tracking-wide gap-4">
-        <span>© {new Date().getFullYear()} Jomarid Books</span>
-        <div className="flex items-center gap-2">
-          <Phone size={12} /> Podpora: <a href="tel:+420734657232" className="text-current no-underline hover:underline">+420 734 657 232</a>
+          <Library size={14} /> Výběrová digitální edice
         </div>
-      </div>
+        
+        {/* Hlavní nadpis */}
+        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-6 leading-none">
+          Exkluzivní literární díla <br/>
+          <span style={{ color: 'var(--bg-primary)' }}>na dosah ruky</span>
+        </h1>
+        
+        {/* Popisek */}
+        <p style={{ color: 'var(--text-muted)' }} className="text-base md:text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
+          Vítejte v privátním fondu Jomarid Books. Nabízíme kurátorovaný výběr odborné, umělecké a prémiové literatury v digitální podobě přes dedikované Cloud-to-Screen rozhraní zajišťující plynulé čtení.
+        </p>
+
+        {/* Hlavní akční tlačítka */}
+        <div className="max-w-md mx-auto space-y-4">
+          <Button 
+            onClick={() => navigate('/app')} 
+            className="w-full py-4 uppercase font-black tracking-wider text-sm shadow-lg hover:scale-[1.01] transition-transform flex items-center justify-center gap-2"
+          >
+            <BookOpen size={16} /> Odemknout digitální čítárnu
+          </Button>
+          
+          <p className="text-[11px] font-bold uppercase opacity-40 tracking-wider">
+            Nemáte účet? Zřídíte si ho okamžitě a zdarma přímo u vstupu.
+          </p>
+        </div>
+      </section>
+
+      <hr className="border-0 h-[1px] bg-black/5 my-16" />
+
+      {/* 2. STATISTIKY (Social Proof) */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center mb-24">
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+          <p className="text-3xl font-black text-slate-900 leading-none mb-1">100%</p>
+          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Digitální formát</p>
+        </div>
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+          <p className="text-3xl font-black text-slate-900 leading-none mb-1">0 ms</p>
+          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Odezva při otáčení</p>
+        </div>
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+          <p className="text-3xl font-black text-slate-900 leading-none mb-1">24/7</p>
+          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Okamžitý přístup</p>
+        </div>
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+          <p className="text-3xl font-black text-slate-900 leading-none mb-1">Cloud</p>
+          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Synchronizace pozice</p>
+        </div>
+      </section>
+
+      {/* 3. VLASTNOSTI / VÝHODY (Features) */}
+      <section className="mb-24">
+        <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-10 text-center">— PROČ ČÍST S JOMARID BOOKS —</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <Zap size={20} />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Bleskové Cloud-to-Screen</h3>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
+              Žádné stahování těžkých PDF nebo EPUB souborů. Naše technologie renderuje texty přímo ze šifrovaného cloudu do vašeho prohlížeče v reálném čase.
+            </p>
+          </div>
+
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <ShieldCheck size={20} />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Privátní kurátorovaný fond</h3>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
+              Nejsme masová knihovna plná balastu. Zaměřujeme se výhradně na prémiové edice, odborné texty a exkluzivní překlady, které jinde nenajdete.
+            </p>
+          </div>
+
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+              <Sparkles size={20} />
+            </div>
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Čisté prostředí bez reklam</h3>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
+              Vaše soustředění je pro nás prioritou. Rozhraní čítárny je absolutně minimalistické, bez rušivých prvků, sociálních sítí či otravných bannerů.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. ČASTO KLADENÉ OTÁZKY (FAQ) */}
+      <section className="max-w-2xl mx-auto mb-24">
+        <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-8 text-center">— ČASTO KLADENÉ OTÁZKY —</h2>
+        
+        <div className="space-y-1 bg-black/2 p-4 rounded-xl border border-black/5">
+          <FaqItem 
+            question="Jak získám přístup ke konkrétním knihám?" 
+            answer="Po registraci a vstupu do digitální čítárny uvidíte katalog knih. Správce systému přiděluje licence k jednotlivým titulům na základě vašeho uživatelského profilu. Jakmile vám knihu schválí, okamžitě se vám odemkne." 
+          />
+          <FaqItem 
+            question="Musím něco stahovat nebo instalovat?" 
+            answer="Vůbec nic. Jomarid Books funguje kompletně ve vašem webovém prohlížeči (na počítači, tabletu i telefonu). Kód je optimalizovaný pro maximální rychlost a minimální spotřebu dat." 
+          />
+          <FaqItem 
+            question="Pamatuje si systém, kde jsem přestal číst?" 
+            answer="Ano. Naše cloudová architektura ukládá vaši přesnou pozici v otevřené knize, takže můžete plynule navázat na mobilu přesně tam, kde jste na počítači skončili." 
+          />
+          <FaqItem 
+            question="Kolik stojí zřízení a vedení účtu?" 
+            answer="Vytvoření profilu a přístup do základního rozhraní čítárny je kompletně zdarma. Přidělování specifických licencí podléhá interním pravidlům fondu Jomarid Books." 
+          />
+        </div>
+      </section>
+
+      {/* 5. FINÁLNÍ CTA SEKCE (Znovu popostrčit ke konverzi) */}
+      <section className="bg-indigo-600 text-white rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl">
+        <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-3">Začněte číst ještě dnes</h3>
+        <p className="text-indigo-100 text-xs md:text-sm font-medium max-w-lg mx-auto mb-6">
+          Vstupte do zabezpečeného literárního ekosystému a objevte digitální komfort nové generace.
+        </p>
+        <div className="max-w-xs mx-auto">
+          <button 
+            onClick={() => navigate('/app')}
+            className="w-full py-3 bg-white text-indigo-600 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:bg-slate-50 transition-colors"
+          >
+            Spustit aplikaci
+          </button>
+        </div>
+      </section>
+
+      {/* 6. MODERNÍ KOMPLETNÍ PATIČKA (Footer) */}
+      <footer className="mt-20 pt-8 border-t border-black/5 opacity-60 flex flex-col sm:flex-row items-center justify-between text-[11px] font-black uppercase tracking-wider gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
+          <span>© {new Date().getFullYear()} Jomarid Books Ltd.</span>
+          <span className="hidden sm:inline opacity-30">|</span>
+          <span className="font-medium normal-case opacity-70">Verze platformy v2.4 (Stable Core)</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <a href="tel:+420734657232" className="flex items-center gap-1 text-current no-underline hover:underline bg-black/5 px-3 py-1.5 rounded-md transition-colors">
+            <Phone size={10} /> Podpora: +420 734 657 232
+          </a>
+        </div>
+      </footer>
+
     </div>
   );
 };
