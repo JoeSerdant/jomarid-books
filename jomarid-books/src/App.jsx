@@ -451,7 +451,7 @@ const HomePage = () => {
         </div>
         <div className="flex items-center gap-3">
           <a href="tel:+420734657232" className="flex items-center gap-1 text-current no-underline hover:underline bg-black/5 px-3 py-1.5 rounded-md transition-colors">
-            <Phone size={10} /> Podpora: +420 734 657 232
+            <Phone size={10} /> Podpora: wwsigmamango@gmail.com
           </a>
         </div>
       </footer>
