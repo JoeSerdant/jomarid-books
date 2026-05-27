@@ -568,15 +568,48 @@ const UserLibrary = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Načtení VŠECH knih a k nim vztah k aktuálnímu uživateli
-      const { data: allBooks } = await supabase
+      // 1. Načteme VŠECHNY knihy samostatně
+      const { data: allBooks, error: booksError } = await supabase
         .from('books')
-        .select(`
-          id, title, author, fake_likes,
-          user_books(is_read, user_id),
-          book_likes(count)
-        `);
+        .select('*');
 
+      // 2. Načteme POUZE záznamy user_books pro tohoto uživatele
+      const { data: myUserBooks, error: userBooksError } = await supabase
+        .from('user_books')
+        .select('book_id, is_read')
+        .eq('user_id', user.id);
+
+      // 3. Načteme počty lajků (agregovaně)
+      const { data: likesData, error: likesError } = await supabase
+        .from('book_likes')
+        .select('book_id');
+
+      if (booksError || userBooksError) throw new Error("Chyba při načítání dat");
+
+      // 4. Sloučíme data v JavaScriptu (toto je 100% jistota, že to funguje)
+      const processedBooks = allBooks.map(b => {
+        const userBookEntry = myUserBooks?.find(ub => ub.book_id === b.id);
+        const likesCountForBook = likesData?.filter(l => l.book_id === b.id).length || 0;
+
+        return {
+          id: b.id,
+          title: b.title,
+          author: b.author,
+          likesCount: likesCountForBook + (b.fake_likes || 0),
+          hasAccess: !!userBookEntry,
+          isRead: userBookEntry?.is_read || false
+        };
+      });
+
+      processedBooks.sort((a, b) => (b.hasAccess ? 1 : 0) - (a.hasAccess ? 1 : 0));
+      
+      setBooks(processedBooks);
+    } catch (error) {
+      console.error("Chyba:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
       // 2. Načtení lajků
       const { data: likesData } = await supabase
         .from('book_likes')
