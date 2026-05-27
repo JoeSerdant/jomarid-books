@@ -331,11 +331,6 @@ const LoginPage = () => {
   );
 };
 
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; // Případně uprav cestu podle svého projektu
-import { useAuth } from '../context/AuthContext'; // Případně uprav cestu podle svého projektu
-import { Loader2, LogOut, BookOpen, Book, ChevronRight, Heart } from 'lucide-react';
 
 const UserLibrary = () => {
   const { user, logout } = useAuth();
