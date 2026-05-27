@@ -807,26 +807,32 @@ const AdminDashboard = () => {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
+  const [fakeLikes, setFakeLikes] = useState(0); // 🔥 State pro umělé navýšení lajků
   const [activeUser, setActiveUser] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState('');
   const [editingBookId, setEditingBookId] = useState(null);
 
   const refreshData = async () => {
-    // Upraveno: Načítáme knihy i s agregovaným počtem lajků z tabulky book_likes
+    // Načítáme knihy i se sloupcem fake_likes a agregovaným počtem z book_likes
     const { data: b } = await supabase
       .from('books')
-      .select('id, title, author, book_likes(count)');
+      .select('id, title, author, fake_likes, book_likes(count)');
       
     const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
     const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
     
-    // Namapujeme data knih tak, aby obsahovala přímé číslo likesCount
-    const booksWithLikes = b?.map(book => ({
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      likesCount: book.book_likes?.[0]?.count || 0
-    })) || [];
+    // Sečteme reálné lajky z DB + uměle přidané lajky z adminu
+    const booksWithLikes = b?.map(book => {
+      const realLikes = book.book_likes?.[0]?.count || 0;
+      const fikes = book.fake_likes || 0;
+      return {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        fake_likes: fikes,
+        likesCount: realLikes + fikes // Výsledný součet pro zobrazení
+      };
+    }) || [];
 
     setBooks(booksWithLikes); 
     setProfiles(p || []); 
@@ -851,11 +857,16 @@ const AdminDashboard = () => {
       // REŽIM ÚPRAVA
       const { error } = await supabase
         .from('books')
-        .update({ title, author: author || 'Neznámý', content })
+        .update({ 
+          title, 
+          author: author || 'Neznámý', 
+          content, 
+          fake_likes: parseInt(fakeLikes) || 0 // 🔥 Ukládání upravených lajků
+        })
         .eq('id', editingBookId);
         
       if (!error) {
-        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Upravena kniha: ${title}` }]);
+        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Upravena kniha: ${title} (Lajky: ${fakeLikes})` }]);
         alert('Kniha byla úspěšně aktualizována!');
         setEditingBookId(null);
       } else {
@@ -866,27 +877,33 @@ const AdminDashboard = () => {
       if (!content) return alert('Doplňte text knihy.');
       const { error } = await supabase
         .from('books')
-        .insert([{ title, author: author || 'Neznámý', content }]);
+        .insert([{ 
+          title, 
+          author: author || 'Neznámý', 
+          content, 
+          fake_likes: parseInt(fakeLikes) || 0 // 🔥 Zápis počátečních lajků u nové knihy
+        }]);
         
       if (!error) {
-        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title}` }]);
+        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title} s počtem lajků ${fakeLikes}` }]);
         alert('Kniha byla úspěšně uložena do systému!');
       } else {
         alert('Chyba při ukládání: ' + error.message);
       }
     }
     
-    setTitle(''); setAuthor(''); setContent('');
+    setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
     refreshData();
   };
 
   const startEditBook = async (book) => {
-    const { data, error } = await supabase.from('books').select('content').eq('id', book.id).single();
+    const { data, error } = await supabase.from('books').select('content, fake_likes').eq('id', book.id).single();
     if (!error && data) {
       setEditingBookId(book.id);
       setTitle(book.title);
       setAuthor(book.author);
       setContent(data.content || '');
+      setFakeLikes(data.fake_likes || 0); // 🔥 Načtení stávajících lajků do formuláře
     } else {
       alert('Nepodařilo se načíst text knihy k editaci.');
     }
@@ -930,7 +947,7 @@ const AdminDashboard = () => {
       alert('Tento uživatel již k této knize přístup má.');
     } else {
       await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Přiřazena kniha uživateli ${activeUser.email}` }]);
-      alert('Přístup úspěšně schválen a zapsán do DB.');
+      alert('Přístup úspěšně schválen and zapsán do DB.');
       setSelectedBookId('');
     }
   };
@@ -1011,7 +1028,7 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Leví sloupec - Formuláře */}
+        {/* Levý sloupec - Formuláře */}
         <div className="lg:col-span-5 space-y-6">
           <Card>
             <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -1020,6 +1037,19 @@ const AdminDashboard = () => {
             <form onSubmit={saveBook} className="space-y-3">
               <input type="text" placeholder="Název knihy..." value={title} onChange={e => setTitle(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
               <input type="text" placeholder="Autor..." value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" />
+              
+              {/* 🔥 ZDE JE NOVÝ INPUT PRO MARKETINGOVÉ NAVÝŠENÍ LAJKŮ */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-wider opacity-50 block pl-1">Uměle přidat lajky (Prestiž)</label>
+                <input 
+                  type="number" 
+                  placeholder="Počet lajků (např. 150)..." 
+                  value={fakeLikes} 
+                  onChange={e => setFakeLikes(Math.max(0, parseInt(e.target.value) || 0))} 
+                  className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+                />
+              </div>
+
               <textarea placeholder="Sem vložte čistý text knihy..." value={content} onChange={e => setContent(e.target.value)} rows={6} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-medium text-slate-900 outline-none resize-none" required />
               
               <Button type="submit" className="w-full py-3 uppercase tracking-wider">
@@ -1029,7 +1059,7 @@ const AdminDashboard = () => {
               {editingBookId && (
                 <button 
                   type="button" 
-                  onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); }}
+                  onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); }}
                   className="w-full py-2 text-xs text-slate-500 hover:text-black uppercase cursor-pointer bg-transparent border-none font-bold"
                 >
                   Zrušit editaci
@@ -1113,7 +1143,7 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
-          {/* ZDE JE UPRAVENÝ INVENTÁŘ S POČTY LAJKŮ */}
+          {/* INVENTÁŘ SE SEČTENÝMI LAJKY (DB + ADMIN) */}
           <Card className="overflow-hidden p-0">
             <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
             <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
@@ -1123,7 +1153,7 @@ const AdminDashboard = () => {
                     {b.title} <span className="opacity-40 font-normal">({b.author})</span>
                   </span>
                   
-                  {/* Indikátor počtu lajků */}
+                  {/* Celkový indikátor sečtených lajků */}
                   <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100 text-[10px] shrink-0">
                     <Heart size={10} className="fill-red-500 text-red-500" />
                     <span>{b.likesCount}</span>
