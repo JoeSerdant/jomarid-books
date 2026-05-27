@@ -24,6 +24,12 @@ const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
 const Phone = getIcon('Phone');
 const Trash = getIcon('Trash');
+// Přidej tyto řádky pod tvoje stávající definice ikon:
+const Sparkles = getIcon('Sparkles');
+const ChevronDown = getIcon('ChevronDown');
+const HelpCircle = getIcon('HelpCircle');
+const Zap = getIcon('Zap'); // Lucide ho zná jako Zap, přes getIcon se bezpečně namapuje
+
 
 const THEMES = {
   saas: {
