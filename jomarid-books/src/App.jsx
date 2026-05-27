@@ -569,13 +569,15 @@ const UserLibrary = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Načtení schválených knih včetně sloupců pro lajky (fake a celkový počet)
+      // 1. Načtení schválených knih včetně sloupců pro lajky + SEŘAZENÍ PODLE ČASU ČTENÍ
       const { data: userBooksData } = await supabase
         .from('user_books')
         .select(`
+          last_read_at,
           books(id, title, author, fake_likes, book_likes(count))
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('last_read_at', { ascending: false, nullsFirst: false }); // 🔥 Nově rozčtené budou první
       
       // Přemapujeme data tak, aby každá kniha rovnou obsahovala výsledný likesCount
       const filteredBooks = userBooksData?.map(i => {
@@ -698,7 +700,7 @@ const UserLibrary = () => {
                     <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
                       <Book size={32} className="opacity-20" />
                       
-                      {/* 🔥 UPRAVENÉ TLAČÍTKO: Teď je to oválný badgík s číslem lajků */}
+                      {/* TLAČÍTKO: Teď je to oválný badgík s číslem lajků */}
                       <button 
                         onClick={(e) => toggleLike(e, b.id)}
                         className={`absolute top-2 right-2 px-2.5 py-1.5 rounded-full border-none cursor-pointer transition-all active:scale-95 shadow-sm z-10 flex items-center gap-1 font-black text-[10px] select-none ${
@@ -736,11 +738,29 @@ const UserLibrary = () => {
 
 const ReaderPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate(); // Přidáno pro správné přesměrování po uložení
   const [book, setBook] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+
+  // Pomocná funkce pro uložení aktuálního pokroku do Supabase
+  const saveReadingProgress = async () => {
+    const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
+    if (!currentUserId || !id) return;
+
+    const currentScroll = window.scrollY;
+
+    await supabase
+      .from('user_books')
+      .update({
+        last_read_at: new Date().toISOString(), // Posune knihu na první místo v knihovně
+        scroll_position: Math.floor(currentScroll) // Uloží aktuální scroll pozici
+      })
+      .eq('user_id', currentUserId)
+      .eq('book_id', id);
+  };
 
   useEffect(() => {
     async function verifyAndLoad() {
@@ -773,15 +793,28 @@ const ReaderPage = () => {
           .select('*')
           .eq('user_id', currentUserId)
           .eq('book_id', id)
-          .maybeSingle(); // maybeSingle nevyhodí chybu, pokud řádek neexistuje
+          .maybeSingle();
 
         if (like) setIsLiked(true);
       }
 
       setLoading(false);
+
+      // 🔥 AUTOMATICKÝ ODSCROLL: Pokud existuje uložená pozice, skočíme na ni
+      if (access.scroll_position && access.scroll_position > 0) {
+        setTimeout(() => {
+          window.scrollTo({ top: access.scroll_position, behavior: 'smooth' });
+        }, 150); // Krátký timeout, aby se stihl vykreslit obsah knihy
+      }
     }
 
     verifyAndLoad();
+
+    // Automatické uložení, pokud uživatel zavře tab v prohlížeči nebo obnoví stránku (F5)
+    const handleBeforeUnload = () => {
+      saveReadingProgress();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     // Anti-copy shortcut protection
     const blockShortcuts = (e) => {
@@ -797,8 +830,14 @@ const ReaderPage = () => {
     };
 
     window.addEventListener('keydown', blockShortcuts);
-    return () => window.removeEventListener('keydown', blockShortcuts);
-  }, [id]);
+
+    // Čistící funkce - uloží progress i při běžném opuštění komponenty v Reactu
+    return () => {
+      window.removeEventListener('keydown', blockShortcuts);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveReadingProgress(); 
+    };
+  }, [id, userId]); // Přidáno userId do závislostí pro bezpečné uložení progressu při unmountu
 
   // Funkce pro lajkování přímo uvnitř čtečky
   const toggleLike = async () => {
@@ -823,6 +862,13 @@ const ReaderPage = () => {
     }
   };
 
+  // Upravená funkce pro bezpečné kliknutí na tlačítko Zpět
+  const handleBack = async (e) => {
+    e.preventDefault();
+    await saveReadingProgress(); // Nejdřív uložíme pozici
+    navigate('/app'); // Pak přesměrujeme zpět do knihovny
+  };
+
   if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto"/></div>;
   if (err) return <div className="max-w-sm mx-auto py-20 px-4"><Card className="text-center font-bold text-red-600">{err}</Card></div>;
 
@@ -832,9 +878,10 @@ const ReaderPage = () => {
       style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
       onContextMenu={e => e.preventDefault()}
     >
-      <Link to="/app" className="text-xs uppercase font-bold no-underline opacity-50 hover:opacity-100 flex items-center gap-1 text-current mb-4">
+      {/* Tlačítko zpět upraveno na handleBack kvůli uložení pozice */}
+      <a href="/app" onClick={handleBack} className="text-xs uppercase font-bold no-underline opacity-50 hover:opacity-100 flex items-center gap-1 text-current mb-4">
         ← Zpět do knihovny
-      </Link>
+      </a>
       
       <Card className="p-8 md:p-12 relative overflow-hidden">
         <div className="absolute top-4 right-4 text-[9px] font-black uppercase tracking-widest opacity-20 flex items-center gap-1">
