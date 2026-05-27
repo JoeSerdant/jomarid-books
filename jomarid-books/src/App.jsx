@@ -1089,13 +1089,54 @@ const AdminDashboard = () => {
     }
   };
 
-  const assignSelectedBookToAllUsers = async () => {
-    if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
-    const selectedBook = books.find(b => b.id === selectedBookId);
-    if (!selectedBook) return;
+  const assignAllBooksToUser = async () => {
+    if (!activeUser || books.length === 0) return;
+    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám najednou?`)) return;
 
-    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" zpřístupnit VŠEM registrovaným uživatelům?`)) return;
+    try {
+      // 1. Nejprve zjistíme, které knihy už uživatel přiřazené má, abychom se vyhnuli duplicitám
+      const { data: existingUserBooks, error: fetchError } = await supabase
+        .from('user_books')
+        .select('book_id')
+        .eq('user_id', activeUser.id);
 
+      if (fetchError) throw fetchError;
+
+      const existingBookIds = existingUserBooks?.map(ub => ub.book_id) || [];
+
+      // 2. Vyfiltrujeme pouze ty knihy z DB, které uživatel ještě NEMÁ
+      const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
+
+      if (booksToAssign.length === 0) {
+        alert('Tento uživatel již má přístup ke všem dostupným knihám.');
+        return;
+      }
+
+      // 3. Připravíme data pro čistý insert
+      const insertData = booksToAssign.map(b => ({
+        user_id: activeUser.id,
+        book_id: b.id
+      }));
+
+      // 4. Provedeme standardní hromadný insert
+      const { error: insertError } = await supabase
+        .from('user_books')
+        .insert(insertData);
+
+      if (insertError) throw insertError;
+
+      // 5. Zapíšeme log a ohlásíme úspěch
+      await supabase.from('system_logs').insert([{ 
+        log_type: 'SUCCESS', 
+        message: `Hromadně schváleno ${insertData.length} nových knih pro: ${activeUser.email}` 
+      }]);
+      
+      alert(`Úspěšně přiděleno ${insertData.length} nových knih! (Celkem má nyní přístup ke všem ${books.length} titulům).`);
+    } catch (error) {
+      console.error("Chyba při hromadném přiřazování:", error);
+      alert('Chyba při hromadném přiřazování: ' + error.message);
+    }
+  };
     const insertData = profiles.map(p => ({
       user_id: p.id,
       book_id: selectedBookId
