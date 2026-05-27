@@ -273,21 +273,50 @@ const SearchModal = ({ isOpen, onClose }) => {
 };
 
 const HomePage = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-24 text-center">
-      <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6">
+      {/* Horní badge */}
+      <div 
+        style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} 
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6"
+      >
         <Library size={14} /> Výběrová digitální edice
       </div>
-      <h1 className="text-5xl font-black uppercase tracking-tight mb-6 leading-none">Exkluzivní literární díla <br/><span style={{ color: 'var(--bg-primary)' }}>na dosah ruky</span></h1>
+      
+      {/* Hlavní nadpis */}
+      <h1 className="text-5xl font-black uppercase tracking-tight mb-6 leading-none">
+        Exkluzivní literární díla <br/>
+        <span style={{ color: 'var(--bg-primary)' }}>na dosah ruky</span>
+      </h1>
+      
+      {/* Popisek */}
       <p style={{ color: 'var(--text-muted)' }} className="text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
         Vítejte v privátním fondu Jomarid Books. Nabízíme kurátorovaný výběr odborné, umělecké a prémiové literatury v digitální podobě přes dedikované Cloud-to-Screen rozhraní zajišťující plynulé čtení.
       </p>
-      <Card className="max-w-md mx-auto p-6 border-2 border-dashed flex flex-col items-center">
-        <Phone size={32} style={{ color: 'var(--bg-primary)' }} className="mb-3" />
-        <h3 className="font-black uppercase tracking-tight text-sm mb-1">Nemáte zřízený přístup?</h3>
-        <p className="text-xs opacity-70 mb-4 text-center">Pro vytvoření čtenářského účtu a schválení licencí ke knihám kontaktujte přímo vydavatelství.</p>
-        <a href="tel:+420734657232" className="text-lg font-black tracking-wider text-current no-underline hover:underline">+420 734 657 232</a>
-      </Card>
+
+      {/* 🔥 NOVÁ AKČNÍ SEKCE: Místo otravného volání rovnou tlačítko do akce */}
+      <div className="max-w-md mx-auto space-y-4">
+        <Button 
+          onClick={() => navigate('/app')} 
+          className="w-full py-4 uppercase font-black tracking-wider text-sm shadow-lg hover:scale-[1.01] transition-transform flex items-center justify-center gap-2"
+        >
+          <BookOpen size={16} /> Odemknout digitální čítárnu
+        </Button>
+        
+        <p className="text-[11px] font-bold uppercase opacity-40 tracking-wider">
+          Nemáte účet? Zřídíte si ho okamžitě a zdarma přímo u vstupu.
+        </p>
+      </div>
+
+      {/* 📞 Kontaktní info přesunuto dolů jako decentní patička, kdyby přece jen někdo potřeboval volat */}
+      <div className="mt-20 pt-8 border-t border-black/5 opacity-50 flex flex-col sm:flex-row items-center justify-between text-xs font-bold uppercase tracking-wide gap-4">
+        <span>© {new Date().getFullYear()} Jomarid Books</span>
+        <div className="flex items-center gap-2">
+          <Phone size={12} /> Podpora: <a href="tel:+420734657232" className="text-current no-underline hover:underline">+420 734 657 232</a>
+        </div>
+      </div>
     </div>
   );
 };
