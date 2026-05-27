@@ -519,39 +519,40 @@ const PublisherDashboard = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4 text-slate-900">
-      <h2 className="text-2xl font-black uppercase mb-8">Nakladatelský Panel</h2>
+    // OPRAVA CSS: Nastaveno dynamické chování podle vybraného motivu (SaaS / Dark / Emerald)
+    <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto py-12 px-4">
+      <h2 className="text-2xl font-black uppercase mb-8 tracking-tight">Nakladatelský Panel</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
-        {/* FORMULÁŘ - NAHRAZENO KLASICKÝM DIVEM MÍSTO CARD */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="font-bold mb-4 text-lg">Vložit novou knihu</h3>
+        {/* FORMULÁŘ - Používá globální styl Card z tvého kódu */}
+        <Card>
+          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight">Vložit novou knihu</h3>
           <form onSubmit={createBook} className="space-y-4">
             <input 
               type="text" 
               placeholder="Název knihy" 
               value={title} 
-              className="w-full p-3 border rounded-lg bg-black/5 outline-none" 
+              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none" 
               onChange={e => setTitle(e.target.value)} 
               required 
             />
             <textarea 
               placeholder="Text knihy..." 
               value={content} 
-              className="w-full p-3 border rounded-lg bg-black/5 outline-none resize-none" 
+              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none resize-none" 
               rows={6} 
               onChange={e => setContent(e.target.value)} 
               required 
             />
-            <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors cursor-pointer border-none">
+            <Button type="submit" className="w-full py-3 uppercase tracking-wider">
               Publikovat knihu
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
         
-        {/* LICENCE - NAHRAZENO KLASICKÝM DIVEM MÍSTO CARD */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="font-bold mb-4 text-lg">Přiřadit licenci čtenáři</h3>
+        {/* LICENCE - Používá globální styl Card z tvého kódu */}
+        <Card>
+          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight">Přiřadit licenci čtenáři</h3>
           <div className="space-y-3">
             <select 
               onChange={e => setSelectedBookId(e.target.value)} 
@@ -573,14 +574,14 @@ const PublisherDashboard = () => {
               ))}
             </select>
             
-            <button 
+            <Button 
               onClick={assignBook} 
-              className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg uppercase text-xs transition-colors cursor-pointer border-none"
+              className="w-full py-3 bg-purple-600 border-none text-white font-bold uppercase text-xs"
             >
               Přiřadit knihu
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
 
       </div>
     </div>
