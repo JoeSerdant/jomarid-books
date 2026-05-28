@@ -306,11 +306,11 @@ const FaqItem = ({ question, answer }) => {
 const HomePage = () => {
   const navigate = useNavigate();
 
-  // Ukázková data pro vizuální preview knih v Hero sekci
+  // 🔥 AKTUÁLNÍ KNÍŽKY PŘÍMO Z VAŠÍ DATABÁZE (Pro superhrdinský a knižní vibe)
   const featuredBooks = [
-    { title: "Digitální Stoicismus", category: "Filosofie", color: "from-amber-700 to-amber-900" },
-    { title: "Architektura Cloudu", category: "Technologie", color: "from-blue-700 to-indigo-900" },
-    { title: "Kybernetická Esej", category: "Odborná", color: "from-purple-700 to-fuchsia-900" },
+    { title: "Jomirad 1. část", category: "Superhrdinská Sága", author: "Jomarid", color: "from-slate-800 to-indigo-950" },
+    { title: "Šepot starých knihoven 1. část", category: "Mysteriózní Fantasy", author: "Alexandr Heryán", color: "from-amber-900 to-stone-950" },
+    { title: "Jomirad: Nové díly a pokračování", category: "Exkluzivní Edice", author: "Jomarid", color: "from-blue-900 to-slate-950" },
   ];
 
   return (
@@ -334,7 +334,7 @@ const HomePage = () => {
         
         {/* Popisek */}
         <p style={{ color: 'var(--text-muted)' }} className="text-base md:text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
-          Vítejte v privátním fondu Jomarid Books. Nabízíme kurátorovaný výběr odborné, umělecké a prémiové literatury v digitální podobě přes dedikované Cloud-to-Screen rozhraní zajišťující plynulé čtení.
+          Vítejte v privátním fondu Jomarid Books. Sledujte osudy superhrdiny Jomirada a odhalte tajemství ukrytá v sérii Šepot starých knihoven. Nabízíme prémiové čtení přes dedikované Cloud-to-Screen rozhraní.
         </p>
 
         {/* Hlavní akční tlačítka */}
@@ -351,7 +351,7 @@ const HomePage = () => {
           </p>
         </div>
 
-        {/* DYNAMICKÝ NÁHLED KNIH (Oživuje vizuál hned na úvodu) */}
+        {/* DYNAMICKÝ NÁHLED KNIH (Upraveno podle vaší DB) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-12">
           {featuredBooks.map((book, idx) => (
             <div 
@@ -359,17 +359,22 @@ const HomePage = () => {
               className="group relative h-48 rounded-xl p-4 bg-gradient-to-br text-white flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
               onClick={() => navigate('/app')}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-90 group-hover:opacity-100 transition-opacity`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-95 group-hover:opacity-100 transition-opacity`} />
+              
               <div className="relative z-10 flex justify-between items-start w-full">
-                <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded">
+                <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded text-indigo-200">
                   {book.category}
                 </span>
                 <Book size={14} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
               </div>
+
               <div className="relative z-10">
-                <h4 className="font-black uppercase text-sm leading-tight mb-1">{book.title}</h4>
-                <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                  Číst nyní <ChevronRight size={10} />
+                <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block mb-0.5">
+                  {book.author}
+                </span>
+                <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight">{book.title}</h4>
+                <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-300">
+                  Otevřít knihu <ChevronRight size={10} />
                 </span>
               </div>
             </div>
