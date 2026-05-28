@@ -22,12 +22,12 @@ const Database = getIcon('Database');
 const Users = getIcon('Users');
 const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
-const Phone = getIcon('Phone');
+const PhoneIcon = getIcon('Phone');
+const ChevronDown = getIcon('ChevronDown'); // Ujisti se, že tu máš i tuhle
 const Clock = getIcon('Clock');
 const Trash = getIcon('Trash');
 // Přidej tyto řádky pod tvoje stávající definice ikon:
 const Sparkles = getIcon('Sparkles');
-const ChevronDown = getIcon('ChevronDown');
 const HelpCircle = getIcon('HelpCircle');
 const Zap = getIcon('Zap'); // Lucide ho zná jako Zap, přes getIcon se bezpečně namapuje
 const Check = getIcon('Check');
@@ -306,6 +306,13 @@ const FaqItem = ({ question, answer }) => {
 const HomePage = () => {
   const navigate = useNavigate();
 
+  // Ukázková data pro vizuální preview knih v Hero sekci
+  const featuredBooks = [
+    { title: "Digitální Stoicismus", category: "Filosofie", color: "from-amber-700 to-amber-900" },
+    { title: "Architektura Cloudu", category: "Technologie", color: "from-blue-700 to-indigo-900" },
+    { title: "Kybernetická Esej", category: "Odborná", color: "from-purple-700 to-fuchsia-900" },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto px-4 pt-20 pb-12 text-center">
       
@@ -331,10 +338,10 @@ const HomePage = () => {
         </p>
 
         {/* Hlavní akční tlačítka */}
-        <div className="max-w-md mx-auto space-y-4">
+        <div className="max-w-md mx-auto space-y-4 mb-16">
           <Button 
             onClick={() => navigate('/app')} 
-            className="w-full py-4 uppercase font-black tracking-wider text-sm shadow-lg hover:scale-[1.01] transition-transform flex items-center justify-center gap-2"
+            className="w-full py-4 uppercase font-black tracking-wider text-sm shadow-lg hover:scale-[1.02] active:scale-[0.99] transition-transform flex items-center justify-center gap-2"
           >
             <BookOpen size={16} /> Odemknout digitální čítárnu
           </Button>
@@ -343,25 +350,50 @@ const HomePage = () => {
             Nemáte účet? Zřídíte si ho okamžitě a zdarma přímo u vstupu.
           </p>
         </div>
+
+        {/* DYNAMICKÝ NÁHLED KNIH (Oživuje vizuál hned na úvodu) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-12">
+          {featuredBooks.map((book, idx) => (
+            <div 
+              key={idx}
+              className="group relative h-48 rounded-xl p-4 bg-gradient-to-br text-white flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+              onClick={() => navigate('/app')}
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-90 group-hover:opacity-100 transition-opacity`} />
+              <div className="relative z-10 flex justify-between items-start w-full">
+                <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded">
+                  {book.category}
+                </span>
+                <Book size={14} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
+              </div>
+              <div className="relative z-10">
+                <h4 className="font-black uppercase text-sm leading-tight mb-1">{book.title}</h4>
+                <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                  Číst nyní <ChevronRight size={10} />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <hr className="border-0 h-[1px] bg-black/5 my-16" />
 
       {/* 2. STATISTIKY (Social Proof) */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center mb-24">
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
           <p className="text-3xl font-black text-slate-900 leading-none mb-1">100%</p>
           <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Digitální formát</p>
         </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
           <p className="text-3xl font-black text-slate-900 leading-none mb-1">0 ms</p>
           <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Odezva při otáčení</p>
         </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
           <p className="text-3xl font-black text-slate-900 leading-none mb-1">24/7</p>
           <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Okamžitý přístup</p>
         </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5">
+        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
           <p className="text-3xl font-black text-slate-900 leading-none mb-1">Cloud</p>
           <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Synchronizace pozice</p>
         </div>
@@ -372,7 +404,7 @@ const HomePage = () => {
         <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-10 text-center">— PROČ ČÍST S JOMARID BOOKS —</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
               <Zap size={20} />
             </div>
@@ -382,7 +414,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
             <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
               <ShieldCheck size={20} />
             </div>
@@ -392,7 +424,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 transition-colors">
+          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
             <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
               <Sparkles size={20} />
             </div>
@@ -408,7 +440,7 @@ const HomePage = () => {
       <section className="max-w-2xl mx-auto mb-24">
         <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-8 text-center">— ČASTO KLADENÉ OTÁZKY —</h2>
         
-        <div className="space-y-1 bg-black/2 p-4 rounded-xl border border-black/5">
+        <div className="space-y-1 bg-black/2 p-5 rounded-xl border border-black/5 divide-y divide-black/5">
           <FaqItem 
             question="Jak získám přístup ke konkrétním knihám?" 
             answer="Po registraci a vstupu do digitální čítárny uvidíte katalog knih. Správce systému přiděluje licence k jednotlivým titulům na základě vašeho uživatelského profilu. Jakmile vám knihu schválí, okamžitě se vám odemkne." 
@@ -429,7 +461,7 @@ const HomePage = () => {
       </section>
 
       {/* 5. FINÁLNÍ CTA SEKCE (Znovu popostrčit ke konverzi) */}
-      <section className="bg-indigo-600 text-white rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl">
+      <section className="bg-indigo-600 text-white rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl hover:shadow-indigo-500/10 transition-shadow">
         <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-3">Začněte číst ještě dnes</h3>
         <p className="text-indigo-100 text-xs md:text-sm font-medium max-w-lg mx-auto mb-6">
           Vstupte do zabezpečeného literárního ekosystému a objevte digitální komfort nové generace.
@@ -437,7 +469,7 @@ const HomePage = () => {
         <div className="max-w-xs mx-auto">
           <button 
             onClick={() => navigate('/app')}
-            className="w-full py-3 bg-white text-indigo-600 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:bg-slate-50 transition-colors"
+            className="w-full py-3 bg-white text-indigo-600 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.99] transition-all"
           >
             Spustit aplikaci
           </button>
@@ -452,8 +484,8 @@ const HomePage = () => {
           <span className="font-medium normal-case opacity-70">Verze platformy v2.4 (Stable Core)</span>
         </div>
         <div className="flex items-center gap-3">
-          <a href="tel:+420734657232" className="flex items-center gap-1 text-current no-underline hover:underline bg-black/5 px-3 py-1.5 rounded-md transition-colors">
-            <Phone size={10} /> Podpora: wwsigmamango@gmail.com
+          <a href="mailto:wwsigmamango@gmail.com" className="flex items-center gap-2 text-current no-underline hover:underline bg-black/5 px-3 py-1.5 rounded-md transition-colors">
+            <PhoneIcon size={10} /> Podpora: wwsigmamango@gmail.com
           </a>
         </div>
       </footer>
