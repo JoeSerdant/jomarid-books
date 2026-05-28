@@ -564,7 +564,7 @@ const UserLibrary = () => {
   const [books, setBooks] = useState([]);
   const [likedBookIds, setLikedBookIds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submittingId, setSubmittingId] = useState(null); // Sleduje, u které knihy zrovna probíhá žádost
+  const [submittingId, setSubmittingId] = useState(null);
 
   const loadLibraryData = async () => {
     if (!user) return;
@@ -577,7 +577,7 @@ const UserLibrary = () => {
 
       if (booksError) throw booksError;
 
-      // 2. Načteme záznamy user_books pro aktuálního uživatele (včetně sloupce status)
+      // 2. Načteme záznamy user_books pro aktuálního uživatele
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
         .select('book_id, is_read, status')
@@ -601,7 +601,7 @@ const UserLibrary = () => {
 
       if (allLikesError) throw allLikesError;
 
-      // 5. Sloučení dat v JavaScriptu podle nového sloupce 'status'
+      // 5. Sloučení dat v JavaScriptu
       const processedBooks = (allBooks || []).map(b => {
         const userBookEntry = myUserBooks?.find(ub => ub.book_id === b.id);
         const totalLikesCount = allLikes?.filter(l => l.book_id === b.id).length || 0;
@@ -611,13 +611,13 @@ const UserLibrary = () => {
           title: b.title,
           author: b.author,
           likesCount: totalLikesCount + (b.fake_likes || 0),
-          hasAccess: userBookEntry?.status === 'active', // Přístupná pouze pokud je status active
-          isPending: userBookEntry?.status === 'requested', // Čeká na schválení pokud je status requested
+          hasAccess: userBookEntry?.status === 'active',
+          isPending: userBookEntry?.status === 'requested',
           isRead: userBookEntry?.is_read || false
         };
       });
 
-      // Seřazení: Přístupné knihy první, pak čekající na schválení, nakonec zamčené
+      // Seřazení: Přístupné knihy první, pak čekající, nakonec zamčené
       processedBooks.sort((a, b) => {
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
@@ -636,7 +636,6 @@ const UserLibrary = () => {
     loadLibraryData();
   }, [user]);
 
-  // Nová asynchronní funkce pro odeslání žádosti přímo do Supabase
   const handleRequestLicense = async (bookId) => {
     if (!user) return;
     setSubmittingId(bookId);
@@ -648,14 +647,13 @@ const UserLibrary = () => {
           { 
             user_id: user.id, 
             book_id: bookId, 
-            status: 'requested', // Nová žádost se zapíše jako requested
+            status: 'requested', 
             is_read: false 
           }
         ]);
 
       if (error) throw error;
 
-      // Okamžitá změna lokálního stavu v Reactu, aby uživatel viděl změnu hned
       setBooks(prev => prev.map(b => b.id === bookId ? { ...b, isPending: true } : b));
     } catch (error) {
       console.error("Chyba při odesílání žádosti:", error);
@@ -668,7 +666,7 @@ const UserLibrary = () => {
   if (loading) {
     return (
       <div className="text-center py-20">
-        <Loader2 className="animate-spin mx-auto mb-2" />
+        <Loader2 className="animate-spin mx-auto mb-2 text-slate-800" />
         <p className="text-sm font-medium opacity-60">Načítám knihovnu...</p>
       </div>
     );
@@ -677,7 +675,7 @@ const UserLibrary = () => {
   const userRole = user?.role || user?.user_metadata?.role;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
+    <div className="max-w-6xl mx-auto px-4 py-12 text-slate-800">
       {/* Horní lišta s navigací */}
       <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
         <div>
@@ -706,14 +704,22 @@ const UserLibrary = () => {
         {books.length === 0 ? (
           <p className="col-span-full text-center py-10 opacity-60">Žádné knihy k zobrazení. Zkontroluj databázi.</p>
         ) : (
-          books.map(b => (
-            b.hasAccess ? (
+          books.map(b => {
+            const isUserLiked = likedBookIds.includes(b.id); // Zjistíme, jestli ty sám lajkuješ
+
+            return b.hasAccess ? (
               /* STAV 1: Uživatel má licenci aktivní (Kniha je přístupná) */
               <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
+                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
                   <div>
                     <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
                       <Book size={32} className="opacity-20" />
+                      
+                      {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ DO ROHU OBRAZU */}
+                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
+                        <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                        <span>{b.likesCount}</span>
+                      </div>
                     </div>
                     <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
                     <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
@@ -731,10 +737,16 @@ const UserLibrary = () => {
               </Link>
             ) : b.isPending ? (
               /* STAV 2: Žádost byla odeslána (Čeká se na schválení nakladatelem) */
-              <Card key={b.id} className="opacity-80 flex flex-col justify-between bg-amber-50/40 border-amber-200 p-4">
+              <Card key={b.id} className="opacity-80 flex flex-col justify-between bg-amber-50/40 border-amber-200">
                 <div>
                   <div className="aspect-[3/4] bg-amber-50 rounded-lg mb-4 flex items-center justify-center relative">
                     <Clock size={32} className="text-amber-500 opacity-30" />
+                    
+                    {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ I PRO ČEKAJÍCÍ KNIHY */}
+                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
+                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                      <span>{b.likesCount}</span>
+                    </div>
                   </div>
                   <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
                   <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
@@ -745,10 +757,16 @@ const UserLibrary = () => {
               </Card>
             ) : (
               /* STAV 3: Uživatel nemá licenci ani o ni nepožádal (Zamknuto) */
-              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5 p-4">
+              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
                 <div>
                   <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
                     <Lock size={32} className="opacity-20" />
+                    
+                    {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ I PRO ZAMČENÉ KNIHY */}
+                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
+                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                      <span>{b.likesCount}</span>
+                    </div>
                   </div>
                   <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
                   <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
@@ -765,8 +783,8 @@ const UserLibrary = () => {
                   )}
                 </button>
               </Card>
-            )
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -778,7 +796,8 @@ const ReaderPage = () => {
   const navigate = useNavigate();
   const [book, setBook] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [isRead, setIsRead] = useState(false); // 🔥 Nový stav pro přečtení
+  const [likesCount, setLikesCount] = useState(0); // 🔥 Sledování celkového počtu lajků
+  const [isRead, setIsRead] = useState(false); 
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -818,10 +837,21 @@ const ReaderPage = () => {
         return;
       }
 
-      setIsRead(access.is_read || false); // 🔥 Načtení stavu přečtení
+      setIsRead(access.is_read || false); 
 
-      const { data: b } = await supabase.from('books').select('title, author, content').eq('id', id).single();
-      setBook(b);
+      // Načtení knihy včetně fake_likes a reálných book_likes pro správný výpočet
+      const { data: b } = await supabase
+        .from('books')
+        .select('title, author, content, fake_likes, book_likes(count)')
+        .eq('id', id)
+        .single();
+      
+      if (b) {
+        setBook(b);
+        const realLikes = b.book_likes?.[0]?.count || 0;
+        const fakeLikes = b.fake_likes || 0;
+        setLikesCount(realLikes + fakeLikes); // 🔥 Výpočet shodný s administrací
+      }
 
       if (currentUserId) {
         const { data: like } = await supabase
@@ -844,10 +874,19 @@ const ReaderPage = () => {
     }
 
     verifyAndLoad();
-    // ... (zbytek tvého původního useEffectu pro eventListenery)
+
+    // Přidání event listenerů pro uložení pozice při odchodu/zavření tabu
+    const handleBeforeUnload = () => {
+      saveReadingProgress();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [id, userId]);
 
-  // 🔥 Funkce pro přepnutí stavu přečteno
+  // Funkce pro přepnutí stavu přečteno
   const toggleReadStatus = async (status) => {
     await supabase
       .from('user_books')
@@ -856,34 +895,81 @@ const ReaderPage = () => {
       .eq('book_id', id);
     
     setIsRead(status);
-    if (status) navigate('/app'); // Po označení jako přečtené jdeme zpět
+    if (status) navigate('/app'); 
   };
 
-  const toggleLike = async () => { /* ... tvůj kód ... */ };
+  // 🔥 Kompletní funkční toggleLike pro čtenáře
+  const toggleLike = async () => {
+    if (!userId || !id) return;
+
+    if (isLiked) {
+      // Smazat lajk
+      const { error } = await supabase
+        .from('book_likes')
+        .delete()
+        .eq('user_id', userId)
+        .eq('book_id', id);
+
+      if (!error) {
+        setIsLiked(false);
+        setLikesCount(prev => Math.max(0, prev - 1));
+      }
+    } else {
+      // Přidat lajk
+      const { error } = await supabase
+        .from('book_likes')
+        .insert([{ user_id: userId, book_id: id }]);
+
+      if (!error) {
+        setIsLiked(true);
+        setLikesCount(prev => prev + 1);
+      }
+    }
+  };
+
   const handleBack = async (e) => {
     e.preventDefault();
     await saveReadingProgress();
     navigate('/app');
   };
 
-  if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto"/></div>;
+  if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-slate-800"/></div>;
   if (err) return <div className="max-w-sm mx-auto py-20 px-4"><Card className="text-center font-bold text-red-600">{err}</Card></div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4" style={{ userSelect: 'none' }} onContextMenu={e => e.preventDefault()}>
+    <div className="max-w-3xl mx-auto py-12 px-4 text-slate-800" style={{ userSelect: 'none' }} onContextMenu={e => e.preventDefault()}>
       <a href="/app" onClick={handleBack} className="text-xs uppercase font-bold no-underline opacity-50 hover:opacity-100 flex items-center gap-1 text-current mb-4">
         ← Zpět do knihovny
       </a>
       
       <Card className="p-8 md:p-12 relative overflow-hidden">
-        {/* ... (hlavička knihy, title, like button) ... */}
-        <h1 className="text-3xl font-black uppercase tracking-tight mb-8">{book?.title}</h1>
+        {/* Hlavička knihy, autor a tvoje lajky */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-black/5">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tight mb-1">{book?.title}</h1>
+            <p className="text-xs font-bold text-slate-500 uppercase">Autor: {book?.author || 'Neznámý'}</p>
+          </div>
+          
+          {/* Tlačítko pro lajkování */}
+          <button 
+            onClick={toggleLike}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase border tracking-wider cursor-pointer transition-all ${
+              isLiked 
+                ? "bg-red-50 border-red-200 text-red-600" 
+                : "bg-transparent border-black/10 text-slate-500 hover:border-black/30"
+            }`}
+          >
+            <Heart size={14} className={isLiked ? "fill-red-500 text-red-500" : ""} />
+            <span>{likesCount} lajků</span>
+          </button>
+        </div>
 
+        {/* Text knihy */}
         <div className="text-base leading-relaxed whitespace-pre-line text-justify font-medium">
           {book?.content}
         </div>
 
-        {/* 🔥 NOVÁ SEKCE NA KONCI */}
+        {/* NOVÁ SEKCE NA KONCI */}
         <div className="mt-16 pt-8 border-t border-black/5 flex flex-col items-center gap-4">
           <button 
             onClick={() => toggleReadStatus(!isRead)}
@@ -900,7 +986,7 @@ const ReaderPage = () => {
       </Card>
     </div>
   );
-};
+  };
 
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
