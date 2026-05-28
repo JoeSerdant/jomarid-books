@@ -1096,23 +1096,61 @@ const AdminDashboard = () => {
   const [editingBookId, setEditingBookId] = useState(null);
 
   // 1. Načítání dat z databáze
+
   const refreshData = async () => {
-    // Načtení knih
-    const { data: b } = await supabase
-      .from('books')
-      .select('id, title, author, fake_likes, book_likes(count)');
-      
-    // Načtení profilů
-    const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
+  // 1. Načtení knih
+  const { data: b } = await supabase
+    .from('books')
+    .select('id, title, author, fake_likes, book_likes(count)');
     
-    // Načtení logů
-    const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
-    
-    // Načtení čekajících žádostí se zabezpečeným JOINem
-    const { data: reqs } = await supabase
-      .from('user_books')
-      .select('id, user_id, book_id, created_at, books(title), profiles(email)')
-      .eq('status', 'requested');
+  // 2. Načtení profilů
+  const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
+  
+  // 3. Načtení logů
+  const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
+  
+  // 4. BEZPEČNÉ NAČTENÍ ŽÁDOSTÍ (Bez nespolehlivého databázového JOINu)
+  const { data: reqs, error: reqError } = await supabase
+    .from('user_books')
+    .select('id, user_id, book_id, created_at, status')
+    .eq('status', 'requested');
+
+  if (reqError) {
+    console.error("Chyba při načítání user_books:", reqError);
+  }
+
+  // Ruční propojení dat v JavaScriptu (stoprocentní jistota)
+  const mapovanéZadosti = reqs?.map(req => {
+    const najdiProfil = p?.find(u => u.id === req.user_id);
+    const najdiKnihu = b?.find(k => k.id === req.book_id);
+
+    return {
+      id: req.id,
+      user_id: req.user_id,
+      book_id: req.book_id,
+      created_at: req.created_at,
+      profiles: { email: najdiProfil ? najdiProfil.email : `ID: ${req.user_id?.substring(0, 6)}...` },
+      books: { title: najdiKnihu ? najdiKnihu.title : `Kniha ID: ${req.book_id?.substring(0, 6)}...` }
+    };
+  }) || [];
+  
+  const booksWithLikes = b?.map(book => {
+    const realLikes = book.book_likes?.[0]?.count || 0;
+    const fikes = book.fake_likes || 0;
+    return {
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      fake_likes: fikes,
+      likesCount: realLikes + fikes 
+    };
+  }) || [];
+
+  setBooks(booksWithLikes); 
+  setProfiles(p || []); 
+  setLogs(l || []);
+  setPendingRequests(mapovanéZadosti); // Dosadíme ručně spárované žádosti
+};
     
     const booksWithLikes = b?.map(book => {
       const realLikes = book.book_likes?.[0]?.count || 0;
