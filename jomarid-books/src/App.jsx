@@ -1085,7 +1085,7 @@ const PublisherDashboard = () => {
 const AdminDashboard = () => {
   const [books, setBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]); // NOVÝ STAV: Žádosti o licenci
+  const [pendingRequests, setPendingRequests] = useState([]); // Žádosti o licenci
   const [logs, setLogs] = useState([]);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -1108,7 +1108,7 @@ const AdminDashboard = () => {
     // Načtení logů
     const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
     
-    // NOVÉ: Načtení čekajících žádostí (status = 'requested')
+    // Načtení čekajících žádostí se zabezpečeným JOINem
     const { data: reqs } = await supabase
       .from('user_books')
       .select('id, user_id, book_id, created_at, books(title), profiles(email)')
@@ -1142,7 +1142,7 @@ const AdminDashboard = () => {
     return () => { supabase.removeChannel(sub); };
   }, []);
 
-  // NOVÉ: Schválení čekající žádosti
+  // Schválení čekající žádosti
   const approveRequest = async (requestId, userEmail, bookTitle) => {
     const { error } = await supabase
       .from('user_books')
@@ -1158,7 +1158,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // NOVÉ: Zamítnutí / Smazání čekající žádosti
+  // Zamítnutí / Smazání čekající žádosti
   const rejectRequest = async (requestId, userEmail, bookTitle) => {
     if (!confirm(`Opravdu chcete zamítnout žádost uživatele ${userEmail} o knihu "${bookTitle}"?`)) return;
     
@@ -1269,7 +1269,6 @@ const AdminDashboard = () => {
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
     
-    // Nejprve zkontrolujeme, zda už neexistuje záznam (i se statusem 'requested')
     const { data: existing } = await supabase
       .from('user_books')
       .select('id, status')
@@ -1279,14 +1278,12 @@ const AdminDashboard = () => {
 
     let error;
     if (existing) {
-      // Pokud existuje (např. requested), rovnou ho aktivujeme
       const { error: updateError } = await supabase
         .from('user_books')
         .update({ status: 'active' })
         .eq('id', existing.id);
       error = updateError;
     } else {
-      // Pokud neexistuje, vložíme nový řádek se statusem active
       const { error: insertError } = await supabase
         .from('user_books')
         .insert([{ user_id: activeUser.id, book_id: selectedBookId, status: 'active' }]);
@@ -1318,7 +1315,6 @@ const AdminDashboard = () => {
       const existingBookIds = existingUserBooks?.map(ub => ub.book_id) || [];
       const requestedEntries = existingUserBooks?.filter(ub => ub.status === 'requested') || [];
 
-      // 1. Aktualizujeme ty, které byly jen zažádané na active
       if (requestedEntries.length > 0) {
         await supabase
           .from('user_books')
@@ -1326,14 +1322,13 @@ const AdminDashboard = () => {
           .in('id', requestedEntries.map(re => re.id));
       }
 
-      // 2. Filtrujeme knihy, které uživatel nemá vůbec vypsané
       const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
 
       if (booksToAssign.length > 0) {
         const insertData = booksToAssign.map(b => ({
           user_id: activeUser.id,
           book_id: b.id,
-          status: 'active' // Vždy ukládáme rovnou jako aktivní
+          status: 'active'
         }));
         const { error: insertError } = await supabase.from('user_books').insert(insertData);
         if (insertError) throw insertError;
@@ -1366,7 +1361,6 @@ const AdminDashboard = () => {
       const userIdsWithBook = alreadyHasBook?.map(ub => ub.user_id) || [];
       const requestedEntries = alreadyHasBook?.filter(ub => ub.status === 'requested') || [];
 
-      // 1. Pokud někdo o knihu žádal, schválíme ji
       if (requestedEntries.length > 0) {
         await supabase
           .from('user_books')
@@ -1374,7 +1368,6 @@ const AdminDashboard = () => {
           .in('id', requestedEntries.map(re => re.id));
       }
 
-      // 2. Ostatním, co ji nemají vůbec, ji vložíme jako active
       const profilesToAssign = profiles.filter(p => !userIdsWithBook.includes(p.id));
 
       if (profilesToAssign.length > 0) {
@@ -1414,7 +1407,7 @@ const AdminDashboard = () => {
             <p className="text-lg font-black">{profiles.length} Registrovaných</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 py-4-relative bg-amber-500/5 border-amber-200">
+        <Card className="flex items-center gap-4 py-4 bg-amber-500/5 border-amber-200">
           <UserCheck className="text-amber-600" size={24}/>
           <div>
             <h4 className="text-[10px] font-black uppercase opacity-50">Nové žádosti</h4>
@@ -1510,7 +1503,7 @@ const AdminDashboard = () => {
         {/* Pravý sloupec */}
         <div className="lg:col-span-7 space-y-6">
           
-          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
+          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ (S OCHRANOU PROTI CHYBĚJÍCÍM FK RELACÍM) */}
           <Card className="border-2 border-amber-400 bg-amber-50/10 p-0 overflow-hidden">
             <div className="p-4 bg-amber-500/10 border-b border-amber-200 font-black text-xs uppercase tracking-wider text-amber-800 flex justify-between items-center">
               <span>📥 Čekající žádosti o licenci ke schválení</span>
@@ -1520,28 +1513,34 @@ const AdminDashboard = () => {
               {pendingRequests.length === 0 ? (
                 <p className="text-center py-6 text-xs font-bold opacity-50 text-slate-500">Žádné nové žádosti o licenci nejsou hlášeny.</p>
               ) : (
-                pendingRequests.map(req => (
-                  <div key={req.id} className="p-3 flex items-center justify-between text-xs font-bold hover:bg-amber-50/20 transition-colors gap-4">
-                    <div className="truncate flex-1">
-                      <p className="text-slate-900 truncate">{req.profiles?.email || 'Neznámý e-mail'}</p>
-                      <p className="text-[10px] text-indigo-600 truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{req.books?.title || 'Neznámý titul'}</span></p>
+                pendingRequests.map(req => {
+                  // Bezpečné vytažení e-mailu a názvu knihy, pokud by selhal databázový JOIN relací
+                  const userEmail = req.profiles?.email || `Uživatel (ID: ${req.user_id?.substring(0, 5)}...)`;
+                  const bookTitle = req.books?.title || `Kniha (ID: ${req.book_id?.substring(0, 5)}...)`;
+
+                  return (
+                    <div key={req.id} className="p-3 flex items-center justify-between text-xs font-bold hover:bg-amber-50/20 transition-colors gap-4">
+                      <div className="truncate flex-1">
+                        <p className="text-slate-900 truncate">{userEmail}</p>
+                        <p className="text-[10px] text-indigo-600 truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{bookTitle}</span></p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button 
+                          onClick={() => approveRequest(req.id, userEmail, bookTitle)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                        >
+                          Schválit
+                        </button>
+                        <button 
+                          onClick={() => rejectRequest(req.id, userEmail, bookTitle)}
+                          className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                        >
+                          Odmítnout
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button 
-                        onClick={() => approveRequest(req.id, req.profiles?.email, req.books?.title)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
-                      >
-                        Schválit
-                      </button>
-                      <button 
-                        onClick={() => rejectRequest(req.id, req.profiles?.email, req.books?.title)}
-                        className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
-                      >
-                        Odmítnout
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </Card>
