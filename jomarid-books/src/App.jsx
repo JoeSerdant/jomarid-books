@@ -617,11 +617,19 @@ const UserLibrary = () => {
         };
       });
 
-      // Seřazení: Přístupné knihy první, pak čekající, nakonec zamčené
+      // 🔥 NOVÉ ŘAZENÍ: Přečtené knihy padají na úplný konec seznamu
       processedBooks.sort((a, b) => {
+        // 1. Pokud se liší stav přečtení, nepřečtená kniha jde VŽDY nahoru
+        if (a.isRead !== b.isRead) {
+          return a.isRead ? 1 : -1;
+        }
+
+        // 2. Pokud jsou obě nepřečtené (nebo obě přečtené), řadíme podle oprávnění:
+        // Aktivní přístup (hasAccess) má přednost před čekajícím (isPending)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
-        return (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0);
+
+        return 0;
       });
       
       setBooks(processedBooks);
@@ -705,17 +713,17 @@ const UserLibrary = () => {
           <p className="col-span-full text-center py-10 opacity-60">Žádné knihy k zobrazení. Zkontroluj databázi.</p>
         ) : (
           books.map(b => {
-            const isUserLiked = likedBookIds.includes(b.id); // Zjistíme, jestli ty sám lajkuješ
+            const isUserLiked = likedBookIds.includes(b.id);
 
             return b.hasAccess ? (
               /* STAV 1: Uživatel má licenci aktivní (Kniha je přístupná) */
               <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
+                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-50 bg-slate-50/60' : ''}`}>
                   <div>
                     <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
                       <Book size={32} className="opacity-20" />
                       
-                      {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ DO ROHU OBRAZU */}
+                      {/* UKAZATEL LAJKŮ */}
                       <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
                         <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
                         <span>{b.likesCount}</span>
@@ -729,20 +737,20 @@ const UserLibrary = () => {
                       </span>
                     )}
                   </div>
-                  <div className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between text-emerald-600">
+                  <div className={`mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between ${b.isRead ? 'text-slate-500' : 'text-emerald-600'}`}>
                     <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
                     <ChevronRight size={12}/>
                   </div>
                 </Card>
               </Link>
             ) : b.isPending ? (
-              /* STAV 2: Žádost byla odeslána (Čeká se na schválení nakladatelem) */
+              /* STAV 2: Žádost byla odeslána (Čeká se na schválení) */
               <Card key={b.id} className="opacity-80 flex flex-col justify-between bg-amber-50/40 border-amber-200">
                 <div>
                   <div className="aspect-[3/4] bg-amber-50 rounded-lg mb-4 flex items-center justify-center relative">
                     <Clock size={32} className="text-amber-500 opacity-30" />
                     
-                    {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ I PRO ČEKAJÍCÍ KNIHY */}
+                    {/* UKAZATEL LAJKŮ */}
                     <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
                       <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
                       <span>{b.likesCount}</span>
@@ -762,7 +770,7 @@ const UserLibrary = () => {
                   <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
                     <Lock size={32} className="opacity-20" />
                     
-                    {/* 🔥 PRIDANÝ UKAZATEL LAJKŮ I PRO ZAMČENÉ KNIHY */}
+                    {/* UKAZATEL LAJKŮ */}
                     <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
                       <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
                       <span>{b.likesCount}</span>
