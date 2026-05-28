@@ -306,11 +306,26 @@ const FaqItem = ({ question, answer }) => {
 const HomePage = () => {
   const navigate = useNavigate();
 
-  // 🔥 AKTUÁLNÍ KNÍŽKY PŘÍMO Z VAŠÍ DATABÁZE (Pro superhrdinský a knižní vibe)
+  // 🔥 REÁLNÉ TITULY Z VAŠÍ DATABÁZE
   const featuredBooks = [
-    { title: "Jomirad 1. část", category: "Superhrdinská Sága", author: "Jomarid", color: "from-slate-800 to-indigo-950" },
-    { title: "Šepot starých knihoven 1. část", category: "Mysteriózní Fantasy", author: "Alexandr Heryán", color: "from-amber-900 to-stone-950" },
-    { title: "Jomirad: Nové díly a pokračování", category: "Exkluzivní Edice", author: "Jomarid", color: "from-blue-900 to-slate-950" },
+    { 
+      title: "Jomirad 1. část", 
+      category: "Superhrdinská sága", 
+      author: "Jomarid", 
+      color: "from-slate-800 to-indigo-950" 
+    },
+    { 
+      title: "Šepot starých knihoven 1. část: Vězení pro příběhy", 
+      category: "Mysteriózní fantasy", 
+      author: "Alexandr Heryán", 
+      color: "from-amber-900 to-stone-950" 
+    },
+    { 
+      title: "Jomirad 2. část", 
+      category: "Superhrdinská sága", 
+      author: "Jomarid", 
+      color: "from-blue-900 to-slate-950" 
+    },
   ];
 
   return (
@@ -351,7 +366,7 @@ const HomePage = () => {
           </p>
         </div>
 
-        {/* DYNAMICKÝ NÁHLED KNIH (Upraveno podle vaší DB) */}
+        {/* DYNAMICKÝ NÁHLED SKUTEČNÝCH KNIH */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-12">
           {featuredBooks.map((book, idx) => (
             <div 
@@ -372,7 +387,7 @@ const HomePage = () => {
                 <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block mb-0.5">
                   {book.author}
                 </span>
-                <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight">{book.title}</h4>
+                <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
                 <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-300">
                   Otevřít knihu <ChevronRight size={10} />
                 </span>
