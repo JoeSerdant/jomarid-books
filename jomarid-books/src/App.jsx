@@ -1085,6 +1085,7 @@ const PublisherDashboard = () => {
 const AdminDashboard = () => {
   const [books, setBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]); // NOVÝ STAV: Žádosti o licenci
   const [logs, setLogs] = useState([]);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -1096,12 +1097,22 @@ const AdminDashboard = () => {
 
   // 1. Načítání dat z databáze
   const refreshData = async () => {
+    // Načtení knih
     const { data: b } = await supabase
       .from('books')
       .select('id, title, author, fake_likes, book_likes(count)');
       
+    // Načtení profilů
     const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
+    
+    // Načtení logů
     const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
+    
+    // NOVÉ: Načtení čekajících žádostí (status = 'requested')
+    const { data: reqs } = await supabase
+      .from('user_books')
+      .select('id, user_id, book_id, created_at, books(title), profiles(email)')
+      .eq('status', 'requested');
     
     const booksWithLikes = b?.map(book => {
       const realLikes = book.book_likes?.[0]?.count || 0;
@@ -1118,6 +1129,7 @@ const AdminDashboard = () => {
     setBooks(booksWithLikes); 
     setProfiles(p || []); 
     setLogs(l || []);
+    setPendingRequests(reqs || []);
   };
 
   useEffect(() => {
@@ -1129,6 +1141,39 @@ const AdminDashboard = () => {
     
     return () => { supabase.removeChannel(sub); };
   }, []);
+
+  // NOVÉ: Schválení čekající žádosti
+  const approveRequest = async (requestId, userEmail, bookTitle) => {
+    const { error } = await supabase
+      .from('user_books')
+      .update({ status: 'active' })
+      .eq('id', requestId);
+
+    if (!error) {
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Schválena licence na knihu "${bookTitle}" pro ${userEmail}` }]);
+      alert('Licence byla úspěšně schválena!');
+      refreshData();
+    } else {
+      alert('Chyba při schvalování: ' + error.message);
+    }
+  };
+
+  // NOVÉ: Zamítnutí / Smazání čekající žádosti
+  const rejectRequest = async (requestId, userEmail, bookTitle) => {
+    if (!confirm(`Opravdu chcete zamítnout žádost uživatele ${userEmail} o knihu "${bookTitle}"?`)) return;
+    
+    const { error } = await supabase
+      .from('user_books')
+      .delete()
+      .eq('id', requestId);
+
+    if (!error) {
+      await supabase.from('system_logs').insert([{ log_type: 'WARN', message: `Zamítnuta žádost na knihu "${bookTitle}" od ${userEmail}` }]);
+      refreshData();
+    } else {
+      alert('Chyba při mazání žádosti: ' + error.message);
+    }
+  };
 
   // 2. Uložení / Úprava knihy
   const saveBook = async (e) => {
@@ -1165,7 +1210,7 @@ const AdminDashboard = () => {
         }]);
         
       if (!error) {
-        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložena kniha: ${title} s počtem lajků ${fakeLikes}` }]);
+        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložená kniha: ${title} s počtem lajků ${fakeLikes}` }]);
         alert('Kniha byla úspěšně uložena do systému!');
       } else {
         alert('Chyba při ukládání: ' + error.message);
@@ -1205,7 +1250,7 @@ const AdminDashboard = () => {
     if (error) {
       alert('Chyba: ' + error.message);
     } else {
-      alert('Uživatel vytvořen! Pokud vyžaduješ potvrzení e-mailu, zkontroluj schránku.');
+      alert('Uživatel vytvořen!');
       e.target.reset();
       refreshData();
     }
@@ -1220,97 +1265,130 @@ const AdminDashboard = () => {
     }
   };
 
-  // 4. DISTRIBUCE LICENCÍ (OPRAVENÉ FUNKCE)
-
-  // Jedna konkrétní kniha jednomu vybranému uživateli
+  // 4. DISTRIBUCE LICENCÍ (UPRAVENO PRO PŘÍMÝ STATUS 'active')
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
-    const { error } = await supabase.from('user_books').insert([{ user_id: activeUser.id, book_id: selectedBookId }]);
+    
+    // Nejprve zkontrolujeme, zda už neexistuje záznam (i se statusem 'requested')
+    const { data: existing } = await supabase
+      .from('user_books')
+      .select('id, status')
+      .eq('user_id', activeUser.id)
+      .eq('book_id', selectedBookId)
+      .single();
+
+    let error;
+    if (existing) {
+      // Pokud existuje (např. requested), rovnou ho aktivujeme
+      const { error: updateError } = await supabase
+        .from('user_books')
+        .update({ status: 'active' })
+        .eq('id', existing.id);
+      error = updateError;
+    } else {
+      // Pokud neexistuje, vložíme nový řádek se statusem active
+      const { error: insertError } = await supabase
+        .from('user_books')
+        .insert([{ user_id: activeUser.id, book_id: selectedBookId, status: 'active' }]);
+      error = insertError;
+    }
     
     if (error) {
-      alert('Tento uživatel již k této knize přístup má.');
+      alert('Chyba při přiřazování licence: ' + error.message);
     } else {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Přiřazena kniha uživateli ${activeUser.email}` }]);
-      alert('Přístup úspěšně schválen a zapsán do DB.');
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Přiřazena aktivní kniha uživateli ${activeUser.email}` }]);
+      alert('Přístup úspěšně udělen a aktivován.');
       setSelectedBookId('');
       refreshData();
     }
   };
 
-  // VŠECHNY dostupné knihy jednomu vybranému uživateli (Bezpečný hromadný .insert)
   const assignAllBooksToUser = async () => {
     if (!activeUser || books.length === 0) return;
-    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám najednou?`)) return;
+    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám jako aktivní?`)) return;
 
     try {
       const { data: existingUserBooks, error: fetchError } = await supabase
         .from('user_books')
-        .select('book_id')
+        .select('book_id, id, status')
         .eq('user_id', activeUser.id);
 
       if (fetchError) throw fetchError;
+      
       const existingBookIds = existingUserBooks?.map(ub => ub.book_id) || [];
+      const requestedEntries = existingUserBooks?.filter(ub => ub.status === 'requested') || [];
 
-      // Filtrujeme pouze knihy, které uživatel ještě nemá
-      const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
-
-      if (booksToAssign.length === 0) {
-        alert('Tento uživatel již má přístup ke všem dostupným knihám.');
-        return;
+      // 1. Aktualizujeme ty, které byly jen zažádané na active
+      if (requestedEntries.length > 0) {
+        await supabase
+          .from('user_books')
+          .update({ status: 'active' })
+          .in('id', requestedEntries.map(re => re.id));
       }
 
-      const insertData = booksToAssign.map(b => ({
-        user_id: activeUser.id,
-        book_id: b.id
-      }));
+      // 2. Filtrujeme knihy, které uživatel nemá vůbec vypsané
+      const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
 
-      const { error: insertError } = await supabase.from('user_books').insert(insertData);
-      if (insertError) throw insertError;
+      if (booksToAssign.length > 0) {
+        const insertData = booksToAssign.map(b => ({
+          user_id: activeUser.id,
+          book_id: b.id,
+          status: 'active' // Vždy ukládáme rovnou jako aktivní
+        }));
+        const { error: insertError } = await supabase.from('user_books').insert(insertData);
+        if (insertError) throw insertError;
+      }
 
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Hromadně schváleny VŠECHNY knihy pro: ${activeUser.email}` }]);
-      alert(`Všechny zbývající knihy (${insertData.length}) byly úspěšně schváleny!`);
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Hromadně aktivovány VŠECHNY knihy pro: ${activeUser.email}` }]);
+      alert(`Všechny knihy byly uživateli plně aktivovány!`);
       refreshData();
     } catch (err) {
       alert('Chyba při hromadném přiřazování: ' + err.message);
     }
   };
 
-  // Jedna vybraná kniha VŠEM registrovaným uživatelům najednou (Bezpečný hromadný .insert)
   const assignSelectedBookToAllUsers = async () => {
     if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
     const selectedBook = books.find(b => b.id === selectedBookId);
     if (!selectedBook) return;
 
     if (profiles.length === 0) return alert('V systému nejsou žádní uživatelé.');
-    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" zpřístupnit VŠEM registrovaným uživatelům?`)) return;
+    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" IHNED aktivovat VŠEM registrovaným uživatelům?`)) return;
 
     try {
       const { data: alreadyHasBook, error: fetchError } = await supabase
         .from('user_books')
-        .select('user_id')
+        .select('user_id, id, status')
         .eq('book_id', selectedBookId);
 
       if (fetchError) throw fetchError;
+      
       const userIdsWithBook = alreadyHasBook?.map(ub => ub.user_id) || [];
+      const requestedEntries = alreadyHasBook?.filter(ub => ub.status === 'requested') || [];
 
-      // Filtrujeme pouze uživatele, kteří knihu ještě nemají
-      const profilesToAssign = profiles.filter(p => !userIdsWithBook.includes(p.id));
-
-      if (profilesToAssign.length === 0) {
-        alert('Všichni uživatelé již mají k této knize přístup.');
-        return;
+      // 1. Pokud někdo o knihu žádal, schválíme ji
+      if (requestedEntries.length > 0) {
+        await supabase
+          .from('user_books')
+          .update({ status: 'active' })
+          .in('id', requestedEntries.map(re => re.id));
       }
 
-      const insertData = profilesToAssign.map(p => ({
-        user_id: p.id,
-        book_id: selectedBookId
-      }));
+      // 2. Ostatním, co ji nemají vůbec, ji vložíme jako active
+      const profilesToAssign = profiles.filter(p => !userIdsWithBook.includes(p.id));
 
-      const { error: insertError } = await supabase.from('user_books').insert(insertData);
-      if (insertError) throw insertError;
+      if (profilesToAssign.length > 0) {
+        const insertData = profilesToAssign.map(p => ({
+          user_id: p.id,
+          book_id: selectedBookId,
+          status: 'active'
+        }));
+        const { error: insertError } = await supabase.from('user_books').insert(insertData);
+        if (insertError) throw insertError;
+      }
 
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla globálně přidělena všem chybějícím uživatelům.` }]);
-      alert(`Kniha "${selectedBook.title}" byla úspěšně přidělena ${insertData.length} novým uživatelům!`);
+      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla aktivována všem registrovaným uživatelům.` }]);
+      alert(`Kniha byla úspěšně plně zpřístupněna všem uživatelům!`);
       setSelectedBookId('');
       refreshData();
     } catch (err) {
@@ -1318,7 +1396,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 5. RENDER KOMPONENTY
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       {/* Karty statistik */}
@@ -1337,17 +1414,17 @@ const AdminDashboard = () => {
             <p className="text-lg font-black">{profiles.length} Registrovaných</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 py-4">
-          <Shield className="text-emerald-600" size={24}/>
+        <Card className="flex items-center gap-4 py-4-relative bg-amber-500/5 border-amber-200">
+          <UserCheck className="text-amber-600" size={24}/>
           <div>
-            <h4 className="text-[10px] font-black uppercase opacity-50">Ochrana</h4>
-            <p className="text-sm font-black text-emerald-600 uppercase mt-1">Cloud text locked</p>
+            <h4 className="text-[10px] font-black uppercase opacity-50">Nové žádosti</h4>
+            <p className="text-lg font-black text-amber-700">{pendingRequests.length} Ke schválení</p>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Levý sloupec - Formuláře */}
+        {/* Levý sloupec */}
         <div className="lg:col-span-5 space-y-6">
           <Card>
             <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -1361,7 +1438,7 @@ const AdminDashboard = () => {
                 <label className="text-[10px] font-black uppercase tracking-wider opacity-50 block pl-1">Uměle přidat lajky (Prestiž)</label>
                 <input 
                   type="number" 
-                  placeholder="Počet lajků (např. 150)..." 
+                  placeholder="Počet lajků..." 
                   value={fakeLikes} 
                   onChange={e => setFakeLikes(Math.max(0, parseInt(e.target.value) || 0))} 
                   className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
@@ -1396,7 +1473,7 @@ const AdminDashboard = () => {
           </Card>
 
           <Card className="border-2 border-indigo-600 bg-indigo-50/5">
-            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce licencí</h3>
+            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce a přímá aktivace</h3>
             
             <div className="space-y-3">
               <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2.5 border border-black/10 rounded-lg bg-white text-slate-950 font-bold text-xs">
@@ -1408,21 +1485,21 @@ const AdminDashboard = () => {
                 onClick={assignSelectedBookToAllUsers}
                 className="w-full text-xs py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border-none font-black rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
               >
-                📢 Přidělit tuto knihu VŠEM uživatelům
+                📢 Aktivovat tuto knihu VŠEM uživatelům
               </button>
               
               {activeUser && (
                 <div className="mt-4 pt-4 border-t border-black/10 space-y-2">
                   <p className="text-xs font-bold truncate text-indigo-600">Vybraný uživatel: {activeUser.email}</p>
                   <div className="flex gap-2">
-                    <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase">Schválit vybranou</Button>
+                    <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase">Aktivovat vybranou</Button>
                     <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
                   </div>
                   <button  
                     onClick={assignAllBooksToUser}
                     className="w-full text-xs py-2 bg-purple-600 hover:bg-purple-700 text-white border-none font-bold rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
                   >
-                    ✨ Přidělit mu VŠECHNY knihy z DB
+                    ✨ Aktivovat mu VŠECHNY knihy z DB
                   </button>
                 </div>
               )}
@@ -1430,8 +1507,45 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Pravý sloupec - Tabulky a přehledy */}
+        {/* Pravý sloupec */}
         <div className="lg:col-span-7 space-y-6">
+          
+          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
+          <Card className="border-2 border-amber-400 bg-amber-50/10 p-0 overflow-hidden">
+            <div className="p-4 bg-amber-500/10 border-b border-amber-200 font-black text-xs uppercase tracking-wider text-amber-800 flex justify-between items-center">
+              <span>📥 Čekající žádosti o licenci ke schválení</span>
+              <span className="bg-amber-500 text-white font-black px-2 py-0.5 rounded text-[10px]">{pendingRequests.length}</span>
+            </div>
+            <div className="max-h-52 overflow-y-auto divide-y divide-black/5">
+              {pendingRequests.length === 0 ? (
+                <p className="text-center py-6 text-xs font-bold opacity-50 text-slate-500">Žádné nové žádosti o licenci nejsou hlášeny.</p>
+              ) : (
+                pendingRequests.map(req => (
+                  <div key={req.id} className="p-3 flex items-center justify-between text-xs font-bold hover:bg-amber-50/20 transition-colors gap-4">
+                    <div className="truncate flex-1">
+                      <p className="text-slate-900 truncate">{req.profiles?.email || 'Neznámý e-mail'}</p>
+                      <p className="text-[10px] text-indigo-600 truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{req.books?.title || 'Neznámý titul'}</span></p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button 
+                        onClick={() => approveRequest(req.id, req.profiles?.email, req.books?.title)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                      >
+                        Schválit
+                      </button>
+                      <button 
+                        onClick={() => rejectRequest(req.id, req.profiles?.email, req.books?.title)}
+                        className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                      >
+                        Odmítnout
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
           <Card className="overflow-hidden p-0">
             <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Správa čtenářských licencí a účtů</div>
             <div className="max-h-60 overflow-y-auto">
