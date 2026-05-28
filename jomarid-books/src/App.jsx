@@ -23,6 +23,7 @@ const Users = getIcon('Users');
 const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
 const Phone = getIcon('Phone');
+const Clock = getIcon('Clock');
 const Trash = getIcon('Trash');
 // Přidej tyto řádky pod tvoje stávající definice ikon:
 const Sparkles = getIcon('Sparkles');
