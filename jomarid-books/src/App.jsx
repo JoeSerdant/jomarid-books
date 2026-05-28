@@ -563,22 +563,23 @@ const UserLibrary = () => {
   const [books, setBooks] = useState([]);
   const [likedBookIds, setLikedBookIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submittingId, setSubmittingId] = useState(null); // Sleduje, u které knihy zrovna probíhá žádost
 
   const loadLibraryData = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Načteme VŠECHNY knihy samostatně (tady pomůže ta RLS policy 'true')
+      // 1. Načteme VŠECHNY knihy samostatně
       const { data: allBooks, error: booksError } = await supabase
         .from('books')
         .select('*');
 
       if (booksError) throw booksError;
 
-      // 2. Načteme POUZE záznamy user_books pro aktuálního uživatele
+      // 2. Načteme záznamy user_books pro aktuálního uživatele (včetně sloupce status)
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
-        .select('book_id, is_read')
+        .select('book_id, is_read, status')
         .eq('user_id', user.id);
 
       if (userBooksError) throw userBooksError;
@@ -599,7 +600,7 @@ const UserLibrary = () => {
 
       if (allLikesError) throw allLikesError;
 
-      // 5. Sloučení dat v JavaScriptu
+      // 5. Sloučení dat v JavaScriptu podle nového sloupce 'status'
       const processedBooks = (allBooks || []).map(b => {
         const userBookEntry = myUserBooks?.find(ub => ub.book_id === b.id);
         const totalLikesCount = allLikes?.filter(l => l.book_id === b.id).length || 0;
@@ -609,13 +610,18 @@ const UserLibrary = () => {
           title: b.title,
           author: b.author,
           likesCount: totalLikesCount + (b.fake_likes || 0),
-          hasAccess: !!userBookEntry, // true pokud má záznam v user_books
+          hasAccess: userBookEntry?.status === 'active', // Přístupná pouze pokud je status active
+          isPending: userBookEntry?.status === 'requested', // Čeká na schválení pokud je status requested
           isRead: userBookEntry?.is_read || false
         };
       });
 
-      // Seřazení: Přístupné knihy první, uvnitř nich nepřečtené první
-      processedBooks.sort((a, b) => (b.hasAccess ? 1 : 0) - (a.hasAccess ? 1 : 0) || (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0));
+      // Seřazení: Přístupné knihy první, pak čekající na schválení, nakonec zamčené
+      processedBooks.sort((a, b) => {
+        if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
+        if (a.isPending !== b.isPending) return b.isPending - a.isPending;
+        return (a.isRead ? 1 : 0) - (b.isRead ? 1 : 0);
+      });
       
       setBooks(processedBooks);
     } catch (error) {
@@ -629,11 +635,33 @@ const UserLibrary = () => {
     loadLibraryData();
   }, [user]);
 
-  // Funkce pro žádost o licenci
-  const requestLicense = (e, title) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = `mailto:tvoje@email.cz?subject=Žádost o licenci: ${title}&body=Ahoj, rád bych získal přístup ke knize: ${title}`;
+  // Nová asynchronní funkce pro odeslání žádosti přímo do Supabase
+  const handleRequestLicense = async (bookId) => {
+    if (!user) return;
+    setSubmittingId(bookId);
+
+    try {
+      const { error } = await supabase
+        .from('user_books')
+        .insert([
+          { 
+            user_id: user.id, 
+            book_id: bookId, 
+            status: 'requested', // Nová žádost se zapíše jako requested
+            is_read: false 
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Okamžitá změna lokálního stavu v Reactu, aby uživatel viděl změnu hned
+      setBooks(prev => prev.map(b => b.id === bookId ? { ...b, isPending: true } : b));
+    } catch (error) {
+      console.error("Chyba při odesílání žádosti:", error);
+      alert("Žádost se nepodařilo odeslat. Zkuste to prosím znovu.");
+    } finally {
+      setSubmittingId(null);
+    }
   };
 
   if (loading) {
@@ -645,6 +673,8 @@ const UserLibrary = () => {
     );
   }
 
+  const userRole = user?.role || user?.user_metadata?.role;
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
       {/* Horní lišta s navigací */}
@@ -654,13 +684,12 @@ const UserLibrary = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Tlačítka se zobrazují na základě role uložené v uživatelském kontextu */}
-          {(user?.role === 'admin' || user?.user_metadata?.role === 'admin') && (
+          {userRole === 'admin' && (
             <Link to="/admin" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
               Admin Panel
             </Link>
           )}
-          {(user?.role === 'nakladatel' || user?.user_metadata?.role === 'nakladatel') && (
+          {userRole === 'nakladatel' && (
             <Link to="/nakladatel" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
               Nakladatel
             </Link>
@@ -678,6 +707,7 @@ const UserLibrary = () => {
         ) : (
           books.map(b => (
             b.hasAccess ? (
+              /* STAV 1: Uživatel má licenci aktivní (Kniha je přístupná) */
               <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
                 <Card className={`hover:scale-[1.02] transition-transform cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-70' : ''}`}>
                   <div>
@@ -698,8 +728,23 @@ const UserLibrary = () => {
                   </div>
                 </Card>
               </Link>
+            ) : b.isPending ? (
+              /* STAV 2: Žádost byla odeslána (Čeká se na schválení nakladatelem) */
+              <Card key={b.id} className="opacity-80 flex flex-col justify-between bg-amber-50/40 border-amber-200 p-4">
+                <div>
+                  <div className="aspect-[3/4] bg-amber-50 rounded-lg mb-4 flex items-center justify-center relative">
+                    <Clock size={32} className="text-amber-500 opacity-30" />
+                  </div>
+                  <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
+                  <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                </div>
+                <div className="mt-4 w-full py-2 bg-amber-100/60 text-amber-800 text-center rounded font-black text-[10px] uppercase flex items-center justify-center gap-1 border-0">
+                  <Clock size={12} className="animate-pulse" /> Čeká na schválení
+                </div>
+              </Card>
             ) : (
-              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
+              /* STAV 3: Uživatel nemá licenci ani o ni nepožádal (Zamknuto) */
+              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5 p-4">
                 <div>
                   <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
                     <Lock size={32} className="opacity-20" />
@@ -708,10 +753,15 @@ const UserLibrary = () => {
                   <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
                 </div>
                 <button 
-                  onClick={(e) => requestLicense(e, b.title)}
-                  className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 rounded font-black text-[10px] uppercase cursor-pointer transition-colors"
+                  disabled={submittingId === b.id}
+                  onClick={() => handleRequestLicense(b.id)}
+                  className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 disabled:bg-black/5 rounded font-black text-[10px] uppercase cursor-pointer transition-colors border-0 flex items-center justify-center"
                 >
-                  Zažádat o licenci
+                  {submittingId === b.id ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    "Zažádat o licenci"
+                  )}
                 </button>
               </Card>
             )
