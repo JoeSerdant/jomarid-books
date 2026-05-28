@@ -634,10 +634,10 @@ const UserLibrary = () => {
 
       if (booksError) throw booksError;
 
-      // 2. Načteme záznamy user_books pro aktuálního uživatele
+      // 2. Načteme záznamy user_books včetně časového razítka updated_at
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
-        .select('book_id, is_read, status')
+        .select('book_id, is_read, status, updated_at') // 🔥 Přidáno updated_at
         .eq('user_id', user.id);
 
       if (userBooksError) throw userBooksError;
@@ -670,19 +670,25 @@ const UserLibrary = () => {
           likesCount: totalLikesCount + (b.fake_likes || 0),
           hasAccess: userBookEntry?.status === 'active',
           isPending: userBookEntry?.status === 'requested',
-          isRead: userBookEntry?.is_read || false
+          isRead: userBookEntry?.is_read || false,
+          // 🔥 Uložíme čas poslední aktivity (otevření/změny), pokud neexistuje, dáme 0
+          lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
         };
       });
 
-      // 🔥 NOVÉ ŘAZENÍ: Přečtené knihy padají na úplný konec seznamu
+      // 🔥 KOMBINOVANÉ ŘAZENÍ: Podle otevření + propadávání přečtených dolů
       processedBooks.sort((a, b) => {
         // 1. Pokud se liší stav přečtení, nepřečtená kniha jde VŽDY nahoru
         if (a.isRead !== b.isRead) {
           return a.isRead ? 1 : -1;
         }
 
-        // 2. Pokud jsou obě nepřečtené (nebo obě přečtené), řadíme podle oprávnění:
-        // Aktivní přístup (hasAccess) má přednost před čekajícím (isPending)
+        // 2. Pokud jsou obě aktivní a rozečtené, seřadíme je podle času (naposledy otevřené nahoře)
+        if (a.hasAccess && b.hasAccess) {
+          return b.lastOpened - a.lastOpened;
+        }
+
+        // 3. Pokud nemají obě aktivní přístup, seřadíme je podle logických bloků (Aktivní > Čekající > Zamčené)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
 
@@ -775,7 +781,7 @@ const UserLibrary = () => {
             return b.hasAccess ? (
               /* STAV 1: Uživatel má licenci aktivní (Kniha je přístupná) */
               <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between ${b.isRead ? 'opacity-50 bg-slate-50/60' : ''}`}>
+                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between transition-all ${b.isRead ? 'opacity-50 bg-slate-50/60' : ''}`}>
                   <div>
                     <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
                       <Book size={32} className="opacity-20" />
