@@ -1095,79 +1095,74 @@ const AdminDashboard = () => {
   const [selectedBookId, setSelectedBookId] = useState('');
   const [editingBookId, setEditingBookId] = useState(null);
 
+  // Pomocná funkce pro bezpečný zápis do logů (ignoruje 403 chyby z RLS, aby nezasekla aplikaci)
+  const safeLog = async (logType, message) => {
+    try {
+      await supabase.from('system_logs').insert([{ log_type: logType, message }]);
+    } catch (err) {
+      console.warn("Logování do DB selhalo (pravděpodobně RLS/403):", message);
+    }
+  };
+
   // 1. Načítání dat z databáze
-
   const refreshData = async () => {
-  // 1. Načtení knih
-  const { data: b } = await supabase
-    .from('books')
-    .select('id, title, author, fake_likes, book_likes(count)');
-    
-  // 2. Načtení profilů
-  const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
-  
-  // 3. Načtení logů
-  const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
-  
-  // 4. BEZPEČNÉ NAČTENÍ ŽÁDOSTÍ (Bez nespolehlivého databázového JOINu)
-  const { data: reqs, error: reqError } = await supabase
-    .from('user_books')
-    .select('id, user_id, book_id, created_at, status')
-    .eq('status', 'requested');
+    try {
+      // 1. Načtení knih
+      const { data: b } = await supabase
+        .from('books')
+        .select('id, title, author, fake_likes, book_likes(count)');
+        
+      // 2. Načtení profilů
+      const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
+      
+      // 3. Načtení logů (pokud selže kvůli RLS, vrátí prázdné pole)
+      const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
+      
+      // 4. BEZPEČNÉ NAČTENÍ ŽÁDOSTÍ (Bez nespolehlivého databázového JOINu)
+      const { data: reqs, error: reqError } = await supabase
+        .from('user_books')
+        .select('id, user_id, book_id, created_at, status')
+        .eq('status', 'requested');
 
-  if (reqError) {
-    console.error("Chyba při načítání user_books:", reqError);
-  }
+      if (reqError) {
+        console.error("Chyba při načítání user_books:", reqError);
+      }
 
-  // Ruční propojení dat v JavaScriptu (stoprocentní jistota)
-  const mapovanéZadosti = reqs?.map(req => {
-    const najdiProfil = p?.find(u => u.id === req.user_id);
-    const najdiKnihu = b?.find(k => k.id === req.book_id);
+      // Ruční propojení dat v JavaScriptu (stoprocentní jistota funkčnosti)
+      const mapovanéZadosti = reqs?.map(req => {
+        const najdiProfil = p?.find(u => u.id === req.user_id);
+        const najdiKnihu = b?.find(k => k.id === req.book_id);
 
-    return {
-      id: req.id,
-      user_id: req.user_id,
-      book_id: req.book_id,
-      created_at: req.created_at,
-      profiles: { email: najdiProfil ? najdiProfil.email : `ID: ${req.user_id?.substring(0, 6)}...` },
-      books: { title: najdiKnihu ? najdiKnihu.title : `Kniha ID: ${req.book_id?.substring(0, 6)}...` }
-    };
-  }) || [];
-  
-  const booksWithLikes = b?.map(book => {
-    const realLikes = book.book_likes?.[0]?.count || 0;
-    const fikes = book.fake_likes || 0;
-    return {
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      fake_likes: fikes,
-      likesCount: realLikes + fikes 
-    };
-  }) || [];
+        return {
+          id: req.id,
+          user_id: req.user_id,
+          book_id: req.book_id,
+          created_at: req.created_at,
+          profiles: { email: najdiProfil ? najdiProfil.email : `ID: ${req.user_id?.substring(0, 6)}...` },
+          books: { title: najdiKnihu ? najdiKnihu.title : `Kniha ID: ${req.book_id?.substring(0, 6)}...` }
+        };
+      }) || [];
+      
+      const booksWithLikes = b?.map(book => {
+        const realLikes = book.book_likes?.[0]?.count || 0;
+        const fikes = book.fake_likes || 0;
+        return {
+          id: book.id,
+          title: book.title,
+          author: book.author,
+          fake_likes: fikes,
+          likesCount: realLikes + fikes 
+        };
+      }) || [];
 
-  setBooks(booksWithLikes); 
-  setProfiles(p || []); 
-  setLogs(l || []);
-  setPendingRequests(mapovanéZadosti); // Dosadíme ručně spárované žádosti
-};
-    
-    const booksWithLikes = b?.map(book => {
-      const realLikes = book.book_likes?.[0]?.count || 0;
-      const fikes = book.fake_likes || 0;
-      return {
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        fake_likes: fikes,
-        likesCount: realLikes + fikes 
-      };
-    }) || [];
-
-    setBooks(booksWithLikes); 
-    setProfiles(p || []); 
-    setLogs(l || []);
-    setPendingRequests(reqs || []);
+      // Finální nastavení stavů bez duplicitních přepisů
+      setBooks(booksWithLikes); 
+      setProfiles(p || []); 
+      setLogs(l || []);
+      setPendingRequests(mapovanéZadosti);
+    } catch (err) {
+      console.error("Chyba v refreshData:", err);
+    }
   };
 
   useEffect(() => {
@@ -1188,7 +1183,7 @@ const AdminDashboard = () => {
       .eq('id', requestId);
 
     if (!error) {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Schválena licence na knihu "${bookTitle}" pro ${userEmail}` }]);
+      await safeLog('SUCCESS', `Schválena licence na knihu "${bookTitle}" pro ${userEmail}`);
       alert('Licence byla úspěšně schválena!');
       refreshData();
     } else {
@@ -1206,7 +1201,7 @@ const AdminDashboard = () => {
       .eq('id', requestId);
 
     if (!error) {
-      await supabase.from('system_logs').insert([{ log_type: 'WARN', message: `Zamítnuta žádost na knihu "${bookTitle}" od ${userEmail}` }]);
+      await safeLog('WARN', `Zamítnuta žádost na knihu "${bookTitle}" od ${userEmail}`);
       refreshData();
     } else {
       alert('Chyba při mazání žádosti: ' + error.message);
@@ -1230,7 +1225,7 @@ const AdminDashboard = () => {
         .eq('id', editingBookId);
         
       if (!error) {
-        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Upravena kniha: ${title} (Lajky: ${fakeLikes})` }]);
+        await safeLog('SUCCESS', `Upravena kniha: ${title} (Lajky: ${fakeLikes})`);
         alert('Kniha byla úspěšně aktualizována!');
         setEditingBookId(null);
       } else {
@@ -1248,7 +1243,7 @@ const AdminDashboard = () => {
         }]);
         
       if (!error) {
-        await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Uložená kniha: ${title} s počtem lajků ${fakeLikes}` }]);
+        await safeLog('SUCCESS', `Uložená kniha: ${title} s počtem lajků ${fakeLikes}`);
         alert('Kniha byla úspěšně uložena do systému!');
       } else {
         alert('Chyba při ukládání: ' + error.message);
@@ -1298,12 +1293,12 @@ const AdminDashboard = () => {
     const nextRole = currentRole === 'správce' ? 'uživatel' : 'správce';
     const { error } = await supabase.from('profiles').update({ role: nextRole }).eq('id', uId);
     if (!error) {
-      await supabase.from('system_logs').insert([{ log_type: 'WARN', message: `Změna role uživatele ${uId} na ${nextRole}` }]);
+      await safeLog('WARN', `Změna role uživatele ${uId} na ${nextRole}`);
       refreshData();
     }
   };
 
-  // 4. DISTRIBUCE LICENCÍ (UPRAVENO PRO PŘÍMÝ STATUS 'active')
+  // 4. DISTRIBUCE LICENCÍ
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
     
@@ -1331,7 +1326,7 @@ const AdminDashboard = () => {
     if (error) {
       alert('Chyba při přiřazování licence: ' + error.message);
     } else {
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Přiřazena aktivní kniha uživateli ${activeUser.email}` }]);
+      await safeLog('SUCCESS', `Přiřazena aktivní kniha uživateli ${activeUser.email}`);
       alert('Přístup úspěšně udělen a aktivován.');
       setSelectedBookId('');
       refreshData();
@@ -1372,7 +1367,7 @@ const AdminDashboard = () => {
         if (insertError) throw insertError;
       }
 
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Hromadně aktivovány VŠECHNY knihy pro: ${activeUser.email}` }]);
+      await safeLog('SUCCESS', `Hromadně aktivovány VŠECHNY knihy pro: ${activeUser.email}`);
       alert(`Všechny knihy byly uživateli plně aktivovány!`);
       refreshData();
     } catch (err) {
@@ -1418,7 +1413,7 @@ const AdminDashboard = () => {
         if (insertError) throw insertError;
       }
 
-      await supabase.from('system_logs').insert([{ log_type: 'SUCCESS', message: `Kniha "${selectedBook.title}" byla aktivována všem registrovaným uživatelům.` }]);
+      await safeLog('SUCCESS', `Kniha "${selectedBook.title}" byla aktivována všem registrovaným uživatelům.`);
       alert(`Kniha byla úspěšně plně zpřístupněna všem uživatelům!`);
       setSelectedBookId('');
       refreshData();
@@ -1428,7 +1423,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-12 text-slate-800">
       {/* Karty statistik */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="flex items-center gap-4 py-4">
@@ -1499,7 +1494,7 @@ const AdminDashboard = () => {
             <form onSubmit={createNewUser} className="space-y-3">
               <input name="email" type="email" placeholder="E-mail nového uživatele..." className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold outline-none" required />
               <input name="password" type="password" placeholder="Počáteční heslo..." className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold outline-none" required />
-              <Button type="submit" className="w-full py-3 uppercase tracking-wider bg-emerald-600 text-white border-none">Vytvořit účet</Button>
+              <Button type="submit" className="w-full py-3 uppercase tracking-wider bg-emerald-600 text-white border-none hover:bg-emerald-700">Vytvořit účet</Button>
             </form>
           </Card>
 
@@ -1523,7 +1518,7 @@ const AdminDashboard = () => {
                 <div className="mt-4 pt-4 border-t border-black/10 space-y-2">
                   <p className="text-xs font-bold truncate text-indigo-600">Vybraný uživatel: {activeUser.email}</p>
                   <div className="flex gap-2">
-                    <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase">Aktivovat vybranou</Button>
+                    <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase hover:bg-indigo-700">Aktivovat vybranou</Button>
                     <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
                   </div>
                   <button  
@@ -1541,7 +1536,7 @@ const AdminDashboard = () => {
         {/* Pravý sloupec */}
         <div className="lg:col-span-7 space-y-6">
           
-          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ (S OCHRANOU PROTI CHYBĚJÍCÍM FK RELACÍM) */}
+          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
           <Card className="border-2 border-amber-400 bg-amber-50/10 p-0 overflow-hidden">
             <div className="p-4 bg-amber-500/10 border-b border-amber-200 font-black text-xs uppercase tracking-wider text-amber-800 flex justify-between items-center">
               <span>📥 Čekající žádosti o licenci ke schválení</span>
@@ -1552,7 +1547,6 @@ const AdminDashboard = () => {
                 <p className="text-center py-6 text-xs font-bold opacity-50 text-slate-500">Žádné nové žádosti o licenci nejsou hlášeny.</p>
               ) : (
                 pendingRequests.map(req => {
-                  // Bezpečné vytažení e-mailu a názvu knihy, pokud by selhal databázový JOIN relací
                   const userEmail = req.profiles?.email || `Uživatel (ID: ${req.user_id?.substring(0, 5)}...)`;
                   const bookTitle = req.books?.title || `Kniha (ID: ${req.book_id?.substring(0, 5)}...)`;
 
@@ -1588,7 +1582,7 @@ const AdminDashboard = () => {
             <div className="max-h-60 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-black/2 font-black uppercase opacity-60 border-b border-black/5">
+                  <tr className="bg-black/[0.02] font-black uppercase opacity-60 border-b border-black/5">
                     <th className="p-3">Uživatel</th>
                     <th className="p-3">Role</th>
                     <th className="p-3 text-right">Akce</th>
@@ -1596,7 +1590,7 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody>
                   {profiles.map(p => (
-                    <tr key={p.id} className="border-b border-black/5 hover:bg-black/2 transition-colors font-bold">
+                    <tr key={p.id} className="border-b border-black/5 hover:bg-black/[0.02] transition-colors font-bold">
                       <td className="p-3 truncate max-w-[180px]">{p.email}</td>
                       <td className="p-3">
                         <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${p.role === 'správce' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{p.role}</span>
@@ -1617,7 +1611,7 @@ const AdminDashboard = () => {
             <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
             <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
               {books.map(b => (
-                <div key={b.id} className="flex justify-between items-center p-2 rounded bg-black/2 text-xs font-bold gap-4">
+                <div key={b.id} className="flex justify-between items-center p-2 rounded bg-black/[0.02] text-xs font-bold gap-4">
                   <span className="truncate flex-1">
                     {b.title} <span className="opacity-40 font-normal">({b.author})</span>
                   </span>
@@ -1655,12 +1649,16 @@ const AdminDashboard = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             </div>
             <div className="space-y-1 text-[11px] max-h-36 overflow-y-auto">
-              {logs.map(log => (
-                <div key={log.id}>
-                  <span className="text-slate-500">[{new Date(log.created_at).toLocaleTimeString()}]</span>{' '}
-                  <span className={log.log_type === 'ERROR' ? 'text-red-500 font-bold' : log.log_type === 'WARN' ? 'text-amber-500 font-bold' : 'text-emerald-400'}>{log.log_type}</span>: {log.message}
-                </div>
-              ))}
+              {logs.length === 0 ? (
+                <div className="text-slate-600 italic text-xs">Syslog je prázdný nebo jsou zakázána práva pro čtení.</div>
+              ) : (
+                logs.map(log => (
+                  <div key={log.id}>
+                    <span className="text-slate-500">[{log.created_at ? new Date(log.created_at).toLocaleTimeString() : '--:--:--'}]</span>{' '}
+                    <span className={log.log_type === 'ERROR' ? 'text-red-500 font-bold' : log.log_type === 'WARN' ? 'text-amber-500 font-bold' : 'text-emerald-400'}>{log.log_type}</span>: {log.message}
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </div>
