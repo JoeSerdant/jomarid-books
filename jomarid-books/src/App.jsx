@@ -999,10 +999,12 @@ const ReaderPage = () => {
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]); // 🔥 Nový stav pro čekající žádosti
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedBookId, setSelectedBookId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [loadingRequests, setLoadingRequests] = useState(false);
   const { user } = useAuth();
 
   const getUsername = (email) => {
@@ -1017,31 +1019,77 @@ const PublisherDashboard = () => {
         id, 
         title, 
         author, 
+        fake_likes,
         book_likes(count)
       `)
       .eq('author', username);
 
     if (!error && data) {
-      // Supabase vrátí pole objektů, tak ho mapujeme na čistější strukturu
       const booksWithLikes = data.map(book => ({
         id: book.id,
         title: book.title,
         author: book.author,
-        likesCount: book.book_likes?.[0]?.count || 0
+        likesCount: (book.book_likes?.[0]?.count || 0) + (book.fake_likes || 0) // 🔥 Sčítáme i fake_likes
       }));
       setMyBooks(booksWithLikes);
     }
   };
 
-  useEffect(() => {
-    if (!user) return;
+  // 🔥 NOVÁ FUNKCE: Načtení žádostí o licence pouze pro knihy tohoto nakladatele
+  const fetchPendingRequests = async (username) => {
+    setLoadingRequests(true);
+    try {
+      // Nejprve vytáhneme ID všech knih, které patří tomuto autorovi
+      const { data: publisherBooks } = await supabase
+        .from('books')
+        .select('id')
+        .eq('author', username);
 
+      const bookIds = publisherBooks?.map(b => b.id) || [];
+
+      if (bookIds.length === 0) {
+        setPendingRequests([]);
+        return;
+      }
+
+      // Vytáhneme žádosti 'requested' navázané na tyto knihy + dotáhneme profily a info o knize
+      const { data: requests, error } = await supabase
+        .from('user_books')
+        .select(`
+          id,
+          user_id,
+          book_id,
+          status,
+          created_at,
+          profiles(email),
+          books(title)
+        `)
+        .eq('status', 'requested')
+        .in('book_id', bookIds);
+
+      if (!error && requests) {
+        setPendingRequests(requests);
+      }
+    } catch (err) {
+      console.error("Chyba při načítání žádostí:", err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const loadAllData = () => {
+    if (!user) return;
     const username = getUsername(user.email);
     fetchPublisherBooks(username);
+    fetchPendingRequests(username);
 
     supabase.from('profiles').select('id, email').then(({ data }) => {
       setProfiles(data || []);
     });
+  };
+
+  useEffect(() => {
+    loadAllData();
   }, [user]);
 
   const createBook = async (e) => {
@@ -1053,40 +1101,118 @@ const PublisherDashboard = () => {
     const { error } = await supabase.from('books').insert([{ 
       title, 
       content, 
-      author: username 
+      author: username,
+      fake_likes: 0
     }]);
 
     if (!error) {
       alert('Kniha úspěšně publikována!');
       setTitle(''); 
       setContent('');
-      
-      // Znovu načteme aktualizovaný seznam knih i s lajky (bude mít 0 lajků)
       fetchPublisherBooks(username);
     } else {
       alert('Chyba při publikování: ' + error.message);
     }
   };
 
+  // Přímé ruční přiřazení (vytvoří rovnou aktivní licenci)
   const assignBook = async () => {
     if (!selectedBookId || !selectedUserId) return alert('Vyberte knihu a uživatele');
     
     const { error } = await supabase.from('user_books').insert([{ 
       user_id: selectedUserId, 
-      book_id: selectedBookId 
+      book_id: selectedBookId,
+      status: 'active',
+      is_read: false
     }]);
     
     if (error) alert('Chyba nebo uživatel již tuto knihu má: ' + error.message);
-    else alert('Kniha byla úspěšně přiřazena uživateli!');
+    else {
+      alert('Kniha byla úspěšně přiřazena uživateli!');
+      setSelectedBookId('');
+      setSelectedUserId('');
+    }
+  };
+
+  // 🔥 NOVÁ FUNKCE: Schválení žádosti čtenáře
+  const handleApproveRequest = async (requestId) => {
+    const { error } = await supabase
+      .from('user_books')
+      .update({ status: 'active' })
+      .eq('id', requestId);
+
+    if (!error) {
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    } else {
+      alert('Žádost se nepodařilo schválit: ' + error.message);
+    }
+  };
+
+  // 🔥 NOVÁ FUNKCE: Zamítnutí / smazání žádosti čtenáře
+  const handleRejectRequest = async (requestId) => {
+    const { error } = await supabase
+      .from('user_books')
+      .delete()
+      .eq('id', requestId);
+
+    if (!error) {
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    } else {
+      alert('Žádost se nepodařilo zamítnout: ' + error.message);
+    }
   };
 
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto py-12 px-4 space-y-8">
-      <h2 className="text-2xl font-black uppercase mb-4 tracking-tight">Nakladatelský Panel</h2>
+    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto py-12 px-4 space-y-8">
+      <div className="flex justify-between items-center mb-4 border-b pb-4 border-black/5">
+        <h2 className="text-2xl font-black uppercase tracking-tight">Nakladatelský Panel</h2>
+        <span className="text-xs bg-black/5 px-3 py-1.5 rounded-full font-bold uppercase opacity-60">
+          Vydavatel: {getUsername(user?.email)}
+        </span>
+      </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* SEKCE 1: ČEKAJÍCÍ ŽÁDOSTI O LICENCE (NOVINKA) */}
+      <Card className="border-amber-200 bg-amber-50/10">
+        <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2 text-amber-900">
+          <Clock size={20} className="text-amber-600" /> Žádosti o schválení licencí k Vašim knihám
+        </h3>
         
-        {/* FORMULÁŘ */}
+        {loadingRequests ? (
+          <div className="flex items-center gap-2 text-sm opacity-60 py-4"><Loader2 className="animate-spin" size={16}/> Načítám žádosti čtenářů...</div>
+        ) : pendingRequests.length === 0 ? (
+          <p className="text-sm font-medium opacity-60 italic py-2">Žádný čtenář aktuálně nečeká na schválení licence.</p>
+        ) : (
+          <div className="divide-y divide-black/5">
+            {pendingRequests.map(req => (
+              <div key={req.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 gap-3 first:pt-0 last:pb-0">
+                <div>
+                  <h4 className="font-black text-sm text-slate-950 uppercase">{req.books?.title}</h4>
+                  <p className="text-xs font-medium text-slate-500">Čtenář: <span className="font-bold text-slate-800">{req.profiles?.email}</span></p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="success" 
+                    onClick={() => handleApproveRequest(req.id)}
+                    className="py-2 px-3"
+                  >
+                    <Check size={14} /> Schválit přístup
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    onClick={() => handleRejectRequest(req.id)}
+                    className="py-2 px-2"
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* FORMULÁŘ PRO NOVOU KNIHU */}
         <Card>
           <h3 className="font-bold mb-4 text-lg uppercase tracking-tight">Vložit novou knihu</h3>
           <form onSubmit={createBook} className="space-y-4">
@@ -1094,14 +1220,14 @@ const PublisherDashboard = () => {
               type="text" 
               placeholder="Název knihy" 
               value={title} 
-              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none" 
+              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold尊 outline-none text-sm" 
               onChange={e => setTitle(e.target.value)} 
               required 
             />
             <textarea 
               placeholder="Text knihy..." 
               value={content} 
-              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none resize-none" 
+              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none resize-none text-sm" 
               rows={6} 
               onChange={e => setContent(e.target.value)} 
               required 
@@ -1112,9 +1238,11 @@ const PublisherDashboard = () => {
           </form>
         </Card>
         
-        {/* LICENCE */}
+        {/* RUČNÍ PŘIŘAZENÍ LICENCE */}
         <Card>
-          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight">Přiřadit licenci čtenáři</h3>
+          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-1.5">
+            <UserPlus size={18}/> Nucené přiřazení licence
+          </h3>
           <div className="space-y-3">
             <select 
               onChange={e => setSelectedBookId(e.target.value)} 
@@ -1140,9 +1268,10 @@ const PublisherDashboard = () => {
             
             <Button 
               onClick={assignBook} 
-              className="w-full py-3 bg-purple-600 border-none text-white font-bold uppercase text-xs"
+              variant="purple"
+              className="w-full py-3 font-bold uppercase text-xs"
             >
-              Přiřadit knihu
+              Přiřadit licenci natvrdo
             </Button>
           </div>
         </Card>
@@ -1151,7 +1280,7 @@ const PublisherDashboard = () => {
       {/* STATISTIKY VYDANÝCH KNIH */}
       <Card>
         <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2">
-          <BookOpen size={20} /> Moje vydané tituly a statistiky
+          <BookOpen size={20} /> Moje vydané tituly a ohlasy
         </h3>
         {myBooks.length === 0 ? (
           <p className="text-sm font-medium opacity-60 italic py-2">Zatím jste nevydal(a) žádné knihy.</p>
@@ -1165,7 +1294,7 @@ const PublisherDashboard = () => {
                 </div>
                 <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-full border border-red-100">
                   <Heart size={14} className="fill-red-500 text-red-500" />
-                  <span className="font-black text-xs">{b.likesCount}</span>
+                  <span className="font-black text-xs">{b.likesCount} lajků</span>
                 </div>
               </div>
             ))}
