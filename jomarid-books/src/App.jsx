@@ -30,7 +30,8 @@ const Sparkles = getIcon('Sparkles');
 const ChevronDown = getIcon('ChevronDown');
 const HelpCircle = getIcon('HelpCircle');
 const Zap = getIcon('Zap'); // Lucide ho zná jako Zap, přes getIcon se bezpečně namapuje
-
+const Check = getIcon('Check');
+const UserPlus = getIcon('UserPlus');
 
 const THEMES = {
   saas: {
