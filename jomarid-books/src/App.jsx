@@ -366,34 +366,38 @@ const HomePage = () => {
           </p>
         </div>
 
-        {/* DYNAMICKÝ NÁHLED SKUTEČNÝCH KNIH */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-12">
-          {featuredBooks.map((book, idx) => (
-            <div 
-              key={idx}
-              className="group relative h-48 rounded-xl p-4 bg-gradient-to-br text-white flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
-              onClick={() => navigate('/app')}
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-95 group-hover:opacity-100 transition-opacity`} />
-              
-              <div className="relative z-10 flex justify-between items-start w-full">
-                <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded text-indigo-200">
-                  {book.category}
-                </span>
-                <Book size={14} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
-              </div>
+        {/* SEKCE: NAŠE TITULY + KARTY */}
+        <div className="max-w-3xl mx-auto mt-16">
+          <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-6 text-center">— NAŠE TITULY —</h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            {featuredBooks.map((book, idx) => (
+              <div 
+                key={idx}
+                className="group relative h-48 rounded-xl p-4 bg-gradient-to-br text-white flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+                onClick={() => navigate('/app')}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-95 group-hover:opacity-100 transition-opacity`} />
+                
+                <div className="relative z-10 flex justify-between items-start w-full">
+                  <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded text-indigo-200">
+                    {book.category}
+                  </span>
+                  <Book size={14} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
+                </div>
 
-              <div className="relative z-10">
-                <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block mb-0.5">
-                  {book.author}
-                </span>
-                <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
-                <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-300">
-                  Otevřít knihu <ChevronRight size={10} />
-                </span>
+                <div className="relative z-10">
+                  <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block mb-0.5">
+                    {book.author}
+                  </span>
+                  <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
+                  <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-300">
+                    Otevřít knihu <ChevronRight size={10} />
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
