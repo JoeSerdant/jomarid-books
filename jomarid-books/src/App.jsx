@@ -1575,12 +1575,24 @@ const AdminDashboard = () => {
     }
   };
 
+  // 🔥 UPRAVENÝ CYKLUS ROLÍ: uživatel ➔ nakladatel ➔ správce ➔ uživatel
   const toggleRole = async (uId, currentRole) => {
-    const nextRole = currentRole === 'správce' ? 'uživatel' : 'správce';
+    let nextRole = 'uživatel';
+    
+    if (currentRole === 'uživatel') {
+      nextRole = 'nakladatel';
+    } else if (currentRole === 'nakladatel') {
+      nextRole = 'správce';
+    } else if (currentRole === 'správce') {
+      nextRole = 'uživatel';
+    }
+
     const { error } = await supabase.from('profiles').update({ role: nextRole }).eq('id', uId);
     if (!error) {
       await safeLog('WARN', `Změna role uživatele ${uId} na ${nextRole}`);
       refreshData();
+    } else {
+      alert('Chyba při změně role: ' + error.message);
     }
   };
 
@@ -1613,7 +1625,7 @@ const AdminDashboard = () => {
       alert('Chyba při přiřazování licence: ' + error.message);
     } else {
       await safeLog('SUCCESS', `Přiřazena aktivní kniha uživateli ${activeUser.email}`);
-      alert('Přístup úspěšně udělen a aktivován.');
+      alert('Přístup úspěšně udělen and aktivován.');
       setSelectedBookId('');
       refreshData();
     }
@@ -1879,11 +1891,18 @@ const AdminDashboard = () => {
                     <tr key={p.id} className="border-b border-black/5 hover:bg-black/[0.02] transition-colors font-bold">
                       <td className="p-3 truncate max-w-[180px]">{p.email}</td>
                       <td className="p-3">
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${p.role === 'správce' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{p.role}</span>
+                        {/* 🔥 UPRAVENÉ ŠTÍTKY: Přidána fialová barva pro roli 'nakladatel' */}
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${
+                          p.role === 'správce' ? 'bg-red-100 text-red-700' : 
+                          p.role === 'nakladatel' ? 'bg-purple-100 text-purple-700' : 
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {p.role || 'uživatel'}
+                        </span>
                       </td>
                       <td className="p-3 text-right flex justify-end gap-2">
                         <Button variant="secondary" onClick={() => setActiveUser(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Vybrat</Button>
-                        <button onClick={() => toggleRole(p.id, p.role)} className="p-1 border-none bg-transparent cursor-pointer text-slate-500 hover:text-slate-900" title="Změnit roli"><Shield size={12}/></button>
+                        <button onClick={() => toggleRole(p.id, p.role)} className="p-1 border-none bg-transparent cursor-pointer text-slate-500 hover:text-slate-900" title="Změnit roli (Cyklus: Uživatel -> Nakladatel -> Správce)"><Shield size={12}/></button>
                       </td>
                     </tr>
                   ))}
