@@ -427,32 +427,68 @@ const UserStats = () => {
   const [stats, setStats] = useState({
     streak: 0,
     monthlyRead: 0,
-    monthlyGoal: 5, // Výchozí cíl
+    monthlyGoal: 5,
     totalRead: 0,
     weeklyActivity: [],
     xp: 0,
     level: 1,
-    levelName: "Nováček",
+    levelName: "Začínající čtenář 🌱",
+    xpNeededForNext: 100,
     daysRemainingInMonth: 0,
     currentMonthName: ""
   });
 
-  // Pomocná funkce pro určení titulu podle levelu
+  // 10 levelových titulů s větším spacingem
   const getLevelName = (lvl) => {
-    if (lvl >= 15) return "Mág nejvyšší knihovny 🧙‍♂️";
-    if (lvl >= 10) return "Archon vědění 🏛️";
-    if (lvl >= 5) return "Sečtělý učenec 📜";
-    if (lvl >= 2) return "Pravidelný knihomol 🐛";
+    if (lvl >= 10) return "Mág nejvyšší knihovny 🧙‍♂️";
+    if (lvl >= 9)  return "Archon vědění 🏛️";
+    if (lvl >= 8)  return "Strážce prastarých svitků 📜";
+    if (lvl >= 7)  return "Mistr literárních věd 🎓";
+    if (lvl >= 6)  return "Sečtělý učenec 📚";
+    if (lvl >= 5)  return "Vášnivý čtenář 🔖";
+    if (lvl >= 4)  return "Pravidelný knihomol 🐛";
+    if (lvl >= 3)  return "Průzkumník příběhů 🗺️";
+    if (lvl >= 2)  return "Hledač moudrosti 🔍";
     return "Začínající čtenář 🌱";
   };
 
-  // Načtení dat
+  // Exponenciální funkce pro výpočet potřebných XP pro daný level
+  // Level 1 potřebuje celkem 0 XP, Level 2 potřebuje 150 XP, Level 3 potřebuje 450 XP atd.
+  const getRequiredXpForLevel = (lvl) => {
+    if (lvl <= 1) return 0;
+    return Math.round(100 * Math.pow(1.5, lvl - 1));
+  };
+
+  // Výpočet aktuálního levelu a zbývajících XP na základě celkových XP
+  const calculateLevelAndProgress = (totalXp) => {
+    let currentLevel = 1;
+    
+    // Zjišťujeme, do jakého levelu celková XP spadají
+    while (totalXp >= getRequiredXpForLevel(currentLevel + 1)) {
+      currentLevel++;
+    }
+
+    const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
+    const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
+    
+    // XP získaná v rámci aktuálního levelu
+    const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
+    // Kolik XP celkem je potřeba na přechod z aktuálního na další level
+    const xpNeededForNext = xpForNextLevelStart - xpForCurrentLevelStart;
+
+    return {
+      level: currentLevel,
+      xpInCurrentLevel,
+      xpNeededForNext
+    };
+  };
+
   useEffect(() => {
     const fetchFullStats = async () => {
       if (!user) return;
       setLoading(true);
       try {
-        // 0. Načtení uživatelského cíle z localStorage (pokud existuje)
+        // 0. Načtení uživatelského cíle z localStorage
         const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
         const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 5;
         setNewGoalInput(currentGoal);
@@ -471,6 +507,14 @@ const UserStats = () => {
           .eq('user_id', user.id)
           .order('activity_date', { ascending: false });
 
+        // 3. Načtení bonusových XP z profilu (vytvořeno v kroku 2)
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('fake_xp')
+          .eq('id', user.id)
+          .single();
+
+        const bonusXp = profileData?.fake_xp ? parseInt(profileData.fake_xp, 10) : 0;
         const totalRead = userBooks?.length || 0;
 
         // Výpočet měsíčního progresu
@@ -483,11 +527,9 @@ const UserStats = () => {
           return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
         }).length || 0;
 
-        // Výpočet zbývajících dní v měsíci
         const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         const daysRemainingInMonth = lastDayOfMonth - now.getDate();
 
-        // Název aktuálního měsíce česky
         const monthNames = [
           "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", 
           "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"
@@ -518,7 +560,7 @@ const UserStats = () => {
           }
         }
 
-        // 3. Generování přehledu za posledních 7 dní (Po-Ne)
+        // Generování přehledu za posledních 7 dní
         const daysOfWeek = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
         const last7Days = [];
         for (let i = 6; i >= 0; i--) {
@@ -532,9 +574,12 @@ const UserStats = () => {
           });
         }
 
-        // 4. Výpočet gamifikace (XP a Levely)
-        const totalXp = (totalRead * 100) + (streak * 25);
-        const calculatedLevel = Math.floor(totalXp / 300) + 1;
+        // 4. Výpočet exponenciální gamifikace (Základní XP + Admin bonusové XP)
+        const baseXp = (totalRead * 100) + (streak * 25);
+        const totalXpCalculated = baseXp + bonusXp;
+
+        // Použití naší exponenciální kalkulačky
+        const lvlSpecs = calculateLevelAndProgress(totalXpCalculated);
 
         setStats({
           streak,
@@ -542,9 +587,10 @@ const UserStats = () => {
           monthlyGoal: currentGoal,
           totalRead,
           weeklyActivity: last7Days,
-          xp: totalXp % 300,
-          level: calculatedLevel,
-          levelName: getLevelName(calculatedLevel),
+          xp: lvlSpecs.xpInCurrentLevel,
+          level: lvlSpecs.level,
+          levelName: getLevelName(lvlSpecs.level),
+          xpNeededForNext: lvlSpecs.xpNeededForNext,
           daysRemainingInMonth,
           currentMonthName
         });
@@ -559,7 +605,6 @@ const UserStats = () => {
     fetchFullStats();
   }, [user]);
 
-  // Uložení nového cíle uživatelem
   const handleSaveGoal = () => {
     const goalNum = parseInt(newGoalInput, 10);
     if (isNaN(goalNum) || goalNum < 1) return;
@@ -579,7 +624,7 @@ const UserStats = () => {
   }
 
   const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
-  const xpPercent = Math.round((stats.xp / 300) * 100);
+  const xpPercent = Math.min(100, Math.round((stats.xp / stats.xpNeededForNext) * 100));
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 text-slate-800 animate-in fade-in duration-300">
@@ -598,14 +643,14 @@ const UserStats = () => {
           </div>
           
           {/* LEVEL BAR */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[220px]">
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
             <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-xl font-black shadow-lg">
               {stats.level}
             </div>
             <div className="flex-1 space-y-1 text-left">
               <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
                 <span>Úroveň čtenáře</span>
-                <span>{stats.xp} / 300 XP</span>
+                <span>{stats.xp} / {stats.xpNeededForNext} XP</span>
               </div>
               <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                 <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%` }}></div>
@@ -651,7 +696,6 @@ const UserStats = () => {
               </div>
             </div>
             
-            {/* Progress bar výzvy */}
             <div className="space-y-1">
               <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
                 <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
@@ -665,7 +709,6 @@ const UserStats = () => {
             </div>
           </div>
 
-          {/* Nastavení cíle */}
           <div className="mt-4 pt-3 border-t border-black/5 flex items-center justify-between text-xs font-bold">
             {isEditingGoal ? (
               <div className="flex items-center gap-2 w-full">
