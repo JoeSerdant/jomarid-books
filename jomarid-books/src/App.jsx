@@ -69,20 +69,32 @@ const THEMES = {
     '--bg-badge': '#2e1065',
     '--text-badge': '#a78bfa',
   },
-  emerald: {
-    '--bg-body': '#fdfaf5',
-    '--text-body': '#112211',     
-    '--bg-card': 'rgba(255, 255, 255, 0.96)', 
-    '--border-color': '#D2C1B0',  
-    '--bg-navbar': 'rgba(255, 253, 247, 0.85)',
-    '--text-muted': '#2E5A44',    
-    '--bg-primary': '#00875A',    
-    '--text-primary': '#FFFFFF',
-    '--bg-secondary': '#FFFFFF',
-    '--text-secondary': '#00875A',
-    '--bg-badge': 'rgba(0, 135, 90, 0.15)',
-    '--text-badge': '#00875A',
-  }
+ emerald: {
+  // Teplý, lehce nahnědlý tón evokující starý papír nebo světlé dřevo
+  '--bg-body': '#f7f2eb',       
+  // Velmi tmavá hnědo-černá místo tvrdé černé, skvěle ladí se dřevem
+  '--text-body': '#2c1e11',     
+  // Čistý, teplý podklad pro karty (jako slonová kost)
+  '--bg-card': '#fffdfa',       
+  // Krásná barva opracovaného dřeva / kůže na okraje a linky
+  '--border-color': '#d7c4b1',  
+  '--bg-navbar': 'rgba(247, 242, 235, 0.85)',
+  // Tlumená zemitá hnědá pro méně důležité texty
+  '--text-muted': '#78624c',    
+  
+  // Slíbená sytá lesní zelená (emerald) pro hlavní tlačítka a akce
+  '--bg-primary': '#1b4d3e',    
+  '--text-primary': '#ffffff',
+  
+  // Sekundární prvky mají jemnou barvu přírodního plátna
+  '--bg-secondary': '#f0e6da',
+  // Text v sekundárních prvcích je tmavě zelený, aby ladil
+  '--text-secondary': '#1b4d3e',
+  
+  // Badge je v kombinaci jemné zelené s tmavým textem
+  '--bg-badge': '#e3ece8',
+  '--text-badge': '#1b4d3e',
+}
 };
 
 const ThemeContext = createContext(null);
