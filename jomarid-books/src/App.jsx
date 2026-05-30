@@ -181,17 +181,190 @@ const Card = ({ children, className = '' }) => (
   <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
 );
 
+const UserStatsDropdown = () => {
+  const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [stats, setStats] = useState({
+    streak: 0,
+    monthlyRead: 0,
+    monthlyGoal: 5, // Tady si můžeš nastavit výchozí měsíční cíl
+    totalRead: 0
+  });
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // 1. Načtení všech přečtených knih
+      const { data: userBooks } = await supabase
+        .from('user_books')
+        .select('updated_at, is_read')
+        .eq('user_id', user.id)
+        .eq('is_read', true);
+
+      // 2. Načtení historie aktivity pro Streak
+      const { data: activityData } = await supabase
+        .from('user_daily_activity')
+        .select('activity_date')
+        .eq('user_id', user.id)
+        .order('activity_date', { ascending: false });
+
+      const totalRead = userBooks?.length || 0;
+
+      // Spočítáme knihy přečtené tento kalendářní měsíc
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth();
+      
+      const monthlyRead = userBooks?.filter(ub => {
+        const date = new Date(ub.updated_at);
+        return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+      }).length || 0;
+
+      // Výpočet aktuálního Streaku
+      let streak = 0;
+      if (activityData && activityData.length > 0) {
+        const activeDates = activityData.map(a => a.activity_date);
+        
+        const todayStr = new Date().toLocaleDateString('sv');
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('sv');
+
+        // Streak žije, pokud byl uživatel aktivní dnes nebo včera
+        if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
+          let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
+          
+          while (true) {
+            const checkDateStr = checkDate.toLocaleDateString('sv');
+            if (activeDates.includes(checkDateStr)) {
+              streak++;
+              checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+              break;
+            }
+          }
+        }
+      }
+
+      setStats(prev => ({ ...prev, totalRead, monthlyRead, streak }));
+    } catch (err) {
+      console.error("Chyba při výpočtu statistik:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) fetchStats();
+  }, [isOpen, user]);
+
+  const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
+
+  return (
+    <div className="relative flex items-center">
+      {/* Tlačítko v Navbaru */}
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none flex items-center gap-1.5"
+      >
+        <BarChart2 size={20} />
+        {stats.streak > 0 && (
+          <span className="flex items-center text-amber-500 font-black text-xs gap-0.5">
+            <Flame size={14} className="fill-amber-500 text-amber-500" /> {stats.streak}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown Okno */}
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+          <div className="absolute right-0 top-12 w-72 bg-white text-slate-800 border border-black/10 shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
+              <Award size={14} className="text-indigo-600" /> Tvůj čtenářský profil
+            </h3>
+
+            {loading ? (
+              <p className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
+            ) : (
+              <div className="space-y-4">
+                
+                {/* STREAK */}
+                <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
+                      <Flame size={18} className={stats.streak > 0 ? "fill-amber-500 text-amber-500" : ""} />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="text-xs font-black uppercase tracking-tight">Denní aktivita</h4>
+                      <p className="text-[10px] text-slate-500 font-semibold m-0">Čti denně, drž sérii!</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xl font-black text-amber-600">{stats.streak}</span>
+                    <span className="text-[10px] block font-black uppercase opacity-40 leading-none">dní</span>
+                  </div>
+                </div>
+
+                {/* MĚSÍČNÍ VÝZVA */}
+                <div className="p-3 bg-indigo-600/5 border border-indigo-600/10 rounded-xl space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-indigo-600/10 rounded-lg text-indigo-600">
+                        <Calendar size={18} />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-xs font-black uppercase tracking-tight">Měsíční výzva</h4>
+                        <p className="text-[10px] text-slate-500 font-semibold m-0">Tento měsíc</p>
+                      </div>
+                    </div>
+                    <div className="text-right font-black text-xs text-indigo-600">
+                      {stats.monthlyRead} / {stats.monthlyGoal}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
+                      <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                    </div>
+                    <div className="text-[9px] font-black uppercase opacity-50 text-right">{progressPercent}% splněno</div>
+                  </div>
+                </div>
+
+                {/* CELKEM */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-black/5 text-xs font-bold">
+                  <span className="opacity-60 flex items-center gap-1"><CheckCircle size={12} /> Přečteno celkem:</span>
+                  <span className="font-black text-slate-900">{stats.totalRead} knih</span>
+                </div>
+
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// --- HLAVNÍ NAVBAR COMPONENTA ---
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, role } = useAuth();
+
   return (
     <nav style={{ backgroundColor: 'var(--bg-navbar)', borderColor: 'var(--border-color)' }} className="h-16 border-b sticky top-0 z-50 backdrop-blur-md text-current flex items-center px-6 justify-between">
       <Link to="/" className="flex items-center gap-2 no-underline text-current">
         <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="w-8 h-8 rounded-lg flex items-center justify-center"><Library size={18} /></div>
         <span className="font-extrabold text-xl tracking-tight uppercase">Jomarid Books</span>
       </Link>
+      
       <div className="flex items-center gap-4">
         <button onClick={onOpenSearch} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Search size={20} /></button>
         <button onClick={onOpenSettings} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Settings size={20} /></button>
+        
+        {/* 🔥 Tlačítko statistik se vykreslí komukoliv, kdo je přihlášený */}
+        {user && <UserStatsDropdown />}
+
         {user ? (
           <>
             <Link to="/app" className="no-underline"><Button variant="secondary" className="text-xs">Moje Knihovna</Button></Link>
@@ -200,12 +373,12 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
               <Link to="/admin" className="no-underline"><Button className="text-xs bg-red-600 border-none text-white hover:bg-red-700">Admin Panel</Button></Link>
             )}
             
-            {(role === 'správce') && (
+            {role === 'správce' && (
               <Link to="/publisher" className="no-underline"><Button className="text-xs bg-purple-600 border-none text-white">Nakladatel</Button></Link>
             )}
           </>
         ) : (
-          <Link to="/login" className="no-underline"><Button variant="secondary" className="text-xs">Přihlášení</Button></Link>
+          <Link to="/login" className="no-underline"><Button variant="secondary" className="text-xs">Prihlášení</Button></Link>
         )}
       </div>
     </nav>
