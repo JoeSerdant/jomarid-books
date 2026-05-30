@@ -206,7 +206,7 @@ const UserStatsDropdown = () => {
   const [stats, setStats] = useState({
     streak: 0,
     monthlyRead: 0,
-    monthlyGoal: 5, // Tady si můžeš nastavit výchozí měsíční cíl
+    monthlyGoal: 5,
     totalRead: 0
   });
   const [loading, setLoading] = useState(false);
@@ -250,7 +250,6 @@ const UserStatsDropdown = () => {
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toLocaleDateString('sv');
 
-        // Streak žije, pokud byl uživatel aktivní dnes nebo včera
         if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
           let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
           
@@ -299,17 +298,27 @@ const UserStatsDropdown = () => {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-          <div className="absolute right-0 top-12 w-72 bg-white text-slate-800 border border-black/10 shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
-              <Award size={14} className="text-indigo-600" /> Tvůj čtenářský profil
+          <div 
+            style={{ 
+              backgroundColor: 'var(--bg-card)', 
+              textColor: 'var(--text-body)', 
+              borderColor: 'var(--border-color)' 
+            }}
+            className="absolute right-0 top-12 w-72 border shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+          >
+            <h3 
+              style={{ color: 'var(--text-muted)' }}
+              className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-1.5"
+            >
+              <Award size={14} style={{ color: 'var(--bg-primary)' }} /> Tvůj čtenářský profil
             </h3>
 
             {loading ? (
-              <p className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
+              <p style={{ color: 'var(--text-muted)' }} className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
             ) : (
-              <div className="space-y-4">
+              <div style={{ color: 'var(--text-body)' }} className="space-y-4">
                 
-                {/* STREAK */}
+                {/* STREAK - Plamínek necháváme oranžový/jantarový záměrně */}
                 <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
@@ -317,44 +326,64 @@ const UserStatsDropdown = () => {
                     </div>
                     <div className="text-left">
                       <h4 className="text-xs font-black uppercase tracking-tight">Denní aktivita</h4>
-                      <p className="text-[10px] text-slate-500 font-semibold m-0">Čti denně, drž sérii!</p>
+                      <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Čti denně, drž sérii!</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-xl font-black text-amber-600">{stats.streak}</span>
-                    <span className="text-[10px] block font-black uppercase opacity-40 leading-none">dní</span>
+                    <span className="text-[10px] block font-black uppercase opacity-40 leading-none text-amber-600">dní</span>
                   </div>
                 </div>
 
-                {/* MĚSÍČNÍ VÝZVA */}
-                <div className="p-3 bg-indigo-600/5 border border-indigo-600/10 rounded-xl space-y-2">
+                {/* MĚSÍČNÍ VÝZVA - Adaptivní barvy podle motivu */}
+                <div 
+                  style={{ backgroundColor: 'var(--bg-badge)', borderColor: 'var(--border-color)' }}
+                  className="p-3 border rounded-xl space-y-2"
+                >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-indigo-600/10 rounded-lg text-indigo-600">
+                      <div 
+                        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-badge)' }}
+                        className="p-2 rounded-lg"
+                      >
                         <Calendar size={18} />
                       </div>
                       <div className="text-left">
                         <h4 className="text-xs font-black uppercase tracking-tight">Měsíční výzva</h4>
-                        <p className="text-[10px] text-slate-500 font-semibold m-0">Tento měsíc</p>
+                        <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Tento měsíc</p>
                       </div>
                     </div>
-                    <div className="text-right font-black text-xs text-indigo-600">
+                    <div style={{ color: 'var(--text-badge)' }} className="text-right font-black text-xs">
                       {stats.monthlyRead} / {stats.monthlyGoal}
                     </div>
                   </div>
                   
                   <div className="space-y-1">
                     <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
-                      <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                      <div 
+                        style={{ backgroundColor: 'var(--bg-primary)' }}
+                        className="h-full rounded-full transition-all duration-500" 
+                        dynamic-width={`${progressPercent}%`}
+                        // Oprava pro inline-style width v Reactu:
+                        css-style={{ width: `${progressPercent}%` }}
+                        // Správný React zápis:
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}
+                      ></div>
                     </div>
-                    <div className="text-[9px] font-black uppercase opacity-50 text-right">{progressPercent}% splněno</div>
+                    <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase opacity-70 text-right">{progressPercent}% splněno</div>
                   </div>
                 </div>
 
                 {/* CELKEM */}
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-black/5 text-xs font-bold">
-                  <span className="opacity-60 flex items-center gap-1"><CheckCircle size={12} /> Přečteno celkem:</span>
-                  <span className="font-black text-slate-900">{stats.totalRead} knih</span>
+                <div 
+                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+                  className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold"
+                >
+                  <span style={{ color: 'var(--text-muted)' }} className="flex items-center gap-1">
+                    <CheckCircle size={12} style={{ color: 'var(--bg-primary)' }} /> Přečteno celkem:
+                  </span>
+                  <span style={{ color: 'var(--text-body)' }} className="font-black">{stats.totalRead} knih</span>
                 </div>
 
               </div>
@@ -365,7 +394,7 @@ const UserStatsDropdown = () => {
     </div>
   );
 };
-
+ 
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, role } = useAuth();
 
@@ -452,16 +481,13 @@ const UserStats = () => {
     currentMonthName: ""
   });
 
-  // 30 levelových titulů rozdělených do vizuálních tierů s unikátními barvami
+  // Ponecháno pro herní progres (Tiers 1-7)
   const getLevelVisuals = (lvl) => {
-    // TIER 7: ABSOLUTNÍ MAXIMUM (Level 30+)
     if (lvl >= 30) return {
       name: "Transcendentní bytost čistého vědění 👁️",
       badge: "bg-gradient-to-r from-fuchsia-600 via-purple-600 to-pink-600 text-white animate-pulse shadow-fuchsia-500/50 shadow-lg",
       box: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/50"
     };
-    
-    // TIER 6: Knižní božstva a mýtické bytosti (Level 25-29) - Hluboký mystický vesmír
     if (lvl >= 25) return {
       name: "Bůh zapomenutých příběhů 🌌",
       badge: "bg-violet-950 text-violet-300 border border-violet-500/30 font-black shadow-md shadow-violet-500/20",
@@ -472,7 +498,6 @@ const UserStats = () => {
     if (lvl >= 22) return { name: "Pán literárních světů 🌍", badge: "bg-indigo-800 text-indigo-100", box: "bg-indigo-600 text-white" };
     if (lvl >= 21) return { name: "Tkadlec knižních osudů 🪡", badge: "bg-indigo-700 text-white", box: "bg-indigo-500 text-white" };
 
-    // TIER 5: Mágové a Archoni (Level 16-20) - Legendární zlatavý vizuál
     if (lvl >= 20) return {
       name: "Mág nejvyšší knihovny 🧙‍♂️",
       badge: "bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/40",
@@ -481,9 +506,8 @@ const UserStats = () => {
     if (lvl >= 19) return { name: "Archon vědění 🏛️", badge: "bg-amber-950 text-amber-300 border border-amber-500/20", box: "bg-amber-700 text-white" };
     if (lvl >= 18) return { name: "Strážce prastarých svitků 📜", badge: "bg-amber-900 text-amber-200", box: "bg-amber-600 text-white" };
     if (lvl >= 17) return { name: "Mistr skrytých pravd 🗝️", badge: "bg-amber-800 text-amber-100", box: "bg-amber-500 text-white" };
-    if (lvl >= 16) return { name: "Zasvěcenec Velké moudrosti 👁️‍عون", badge: "bg-amber-700 text-white", box: "bg-amber-500 text-white" };
+    if (lvl >= 16) return { name: "Zasvěcenec Velké moudrosti 👁️", badge: "bg-amber-700 text-white", box: "bg-amber-500 text-white" };
 
-    // TIER 4: Učenci a Elita (Level 11-15) - Smaragdově zelený vizuál učenosti
     if (lvl >= 15) return {
       name: "Mistr literárních věd 🎓",
       badge: "bg-emerald-600 text-white shadow-sm shadow-emerald-500/30",
@@ -494,7 +518,6 @@ const UserStats = () => {
     if (lvl >= 12) return { name: "Profesor příběhů 👨‍🏫", badge: "bg-emerald-800 text-emerald-100", box: "bg-emerald-500 text-white" };
     if (lvl >= 11) return { name: "Hledač pravdy ⚖️", badge: "bg-emerald-700 text-white", box: "bg-emerald-500 text-white" };
 
-    // TIER 3: Pokročilí knihomolové (Level 6-10) - Svěží kyanový / tyrkysový vizuál
     if (lvl >= 10) return {
       name: "Vášnivý čtenář 🔖",
       badge: "bg-cyan-600 text-white",
@@ -505,13 +528,11 @@ const UserStats = () => {
     if (lvl >= 7)  return { name: "Polykač stránek 😮‍💨", badge: "bg-cyan-800 text-cyan-100", box: "bg-cyan-500 text-white" };
     if (lvl >= 6)  return { name: "Noční čtenář 🌙", badge: "bg-cyan-700 text-white", box: "bg-cyan-500 text-white" };
 
-    // TIER 2: Průzkumníci (Level 2-5) - Slate břidlicová klasika
     if (lvl >= 5)  return { name: "Průzkumník příběhů 🗺️", badge: "bg-slate-700 text-white", box: "bg-slate-600 text-white" };
     if (lvl >= 4)  return { name: "Hledač moudrosti 🔍", badge: "bg-slate-600 text-slate-200", box: "bg-slate-500 text-white" };
     if (lvl >= 3)  return { name: "Objevitel světů 🚀", badge: "bg-slate-500 text-slate-100", box: "bg-slate-500 text-white" };
     if (lvl >= 2)  return { name: "Zapálený začátečník 🔥", badge: "bg-slate-400 text-slate-900", box: "bg-slate-400 text-slate-900" };
 
-    // TIER 1: Úplný nováček (Level 1)
     return {
       name: "Začínající čtenář 🌱",
       badge: "bg-indigo-500/30 text-indigo-300",
@@ -519,32 +540,22 @@ const UserStats = () => {
     };
   };
 
-  // Exponenciální funkce pro výpočet potřebných XP pro daný level
   const getRequiredXpForLevel = (lvl) => {
     if (lvl <= 1) return 0;
     return Math.round(100 * Math.pow(1.5, lvl - 1));
   };
 
-  // Výpočet aktuálního levelu a zbývajících XP na základě celkových XP
   const calculateLevelAndProgress = (totalXp) => {
     let currentLevel = 1;
-    
-    // Zjišťujeme, do jakého levelu celková XP spadají
     while (totalXp >= getRequiredXpForLevel(currentLevel + 1)) {
       currentLevel++;
     }
-
     const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
     const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
-    
     const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
     const xpNeededForNext = xpForNextLevelStart - xpForCurrentLevelStart;
 
-    return {
-      level: currentLevel,
-      xpInCurrentLevel,
-      xpNeededForNext
-    };
+    return { level: currentLevel, xpInCurrentLevel, xpNeededForNext };
   };
 
   useEffect(() => {
@@ -552,26 +563,22 @@ const UserStats = () => {
       if (!user) return;
       setLoading(true);
       try {
-        // 0. Načtení uživatelského cíle z localStorage
         const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
         const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 5;
         setNewGoalInput(currentGoal);
 
-        // 1. Načtení přečtených knih
         const { data: userBooks } = await supabase
           .from('user_books')
           .select('updated_at, is_read')
           .eq('user_id', user.id)
           .eq('is_read', true);
 
-        // 2. Načtení historie aktivity
         const { data: activityData } = await supabase
           .from('user_daily_activity')
           .select('activity_date')
           .eq('user_id', user.id)
           .order('activity_date', { ascending: false });
 
-        // 3. Načtení bonusových XP z profilu
         const { data: profileData } = await supabase
           .from('profiles')
           .select('fake_xp')
@@ -581,7 +588,6 @@ const UserStats = () => {
         const bonusXp = profileData?.fake_xp ? parseInt(profileData.fake_xp, 10) : 0;
         const totalRead = userBooks?.length || 0;
 
-        // Výpočet měsíčního progresu
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth();
@@ -600,7 +606,6 @@ const UserStats = () => {
         ];
         const currentMonthName = monthNames[currentMonth];
 
-        // Výpočet Streaku
         let streak = 0;
         const activeDates = activityData?.map(a => a.activity_date) || [];
         
@@ -624,7 +629,6 @@ const UserStats = () => {
           }
         }
 
-        // Generování přehledu za posledních 7 dní
         const daysOfWeek = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
         const last7Days = [];
         for (let i = 6; i >= 0; i--) {
@@ -638,11 +642,9 @@ const UserStats = () => {
           });
         }
 
-        // 4. Výpočet exponenciální gamifikace (Základní XP + Admin bonusové XP)
         const baseXp = (totalRead * 100) + (streak * 25);
         const totalXpCalculated = baseXp + bonusXp;
 
-        // Použití naší exponenciální kalkulačky
         const lvlSpecs = calculateLevelAndProgress(totalXpCalculated);
         const visuals = getLevelVisuals(lvlSpecs.level);
 
@@ -684,8 +686,8 @@ const UserStats = () => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled...</p>
+        <div style={{ borderTopColor: 'transparent', borderLeftColor: 'var(--bg-primary)', borderRightColor: 'var(--bg-primary)', borderBottomColor: 'var(--bg-primary)' }} className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-4"></div>
+        <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled...</p>
       </div>
     );
   }
@@ -694,33 +696,33 @@ const UserStats = () => {
   const xpPercent = Math.min(100, Math.round((stats.xp / stats.xpNeededForNext) * 100));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12 text-slate-800 animate-in fade-in duration-300">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in duration-300">
       
       {/* VELKÁ PROFILOVÁ HLAVIČKA */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl"></div>
+      <div style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
+        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="text-left">
             <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider mb-2 inline-block transition-all duration-300 ${stats.levelBadgeClass}`}>
               {stats.levelName}
             </span>
-            <h1 className="text-3xl font-black tracking-tight mb-1">Moje Statistiky</h1>
-            <p className="text-sm text-slate-300 font-medium">Každý den jedna kapitola tě posune dál.</p>
+            <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--bg-card)' }}>Moje Statistiky</h1>
+            <p className="text-sm font-medium opacity-80" style={{ color: 'var(--bg-body)' }}>Každý den jedna kapitola tě posune dál.</p>
           </div>
           
           {/* LEVEL BAR */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
+          <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.1)' }} className="border backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>
               {stats.level}
             </div>
             <div className="flex-1 space-y-1 text-left">
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-wider opacity-60" style={{ color: 'var(--bg-body)' }}>
                 <span>Úroveň čtenáře</span>
                 <span>{stats.xp} / {stats.xpNeededForNext} XP</span>
               </div>
-              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%` }}></div>
+              <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
               </div>
             </div>
           </div>
@@ -731,43 +733,43 @@ const UserStats = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
         {/* 1. KARTA: STREAK */}
-        <div className="bg-white border border-black/5 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Aktuální Streak</h3>
+              <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Aktuální Streak</h3>
               <p className="text-4xl font-black text-amber-600 flex items-baseline gap-1 m-0">
-                {stats.streak} <span className="text-xs uppercase text-slate-400 font-bold">dní</span>
+                {stats.streak} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">dní</span>
               </p>
             </div>
             <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl">
               <Flame size={24} className={stats.streak > 0 ? "fill-amber-500" : ""} />
             </div>
           </div>
-          <p className="text-xs text-slate-500 font-medium mt-4 pt-3 border-t border-black/5 text-left">
+          <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-4 pt-3 border-t text-left">
             {stats.streak > 0 ? "Skvělé! Dnes máš splněno, série pokračuje." : "Dnes jsi ještě nečetl. Otevři knihu a zachraň plamínek!"}
           </p>
         </div>
 
         {/* 2. KARTA: MĚSÍČNÍ VÝZVA S EDITACÍ */}
-        <div className="bg-white border border-black/5 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
               <div className="space-y-1 text-left">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Výzva na {stats.currentMonthName}</h3>
-                <p className="text-4xl font-black text-indigo-600 m-0">
-                  {stats.monthlyRead} <span className="text-xs uppercase text-slate-400 font-bold">z {stats.monthlyGoal}</span>
+                <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Výzva na {stats.currentMonthName}</h3>
+                <p style={{ color: 'var(--text-badge)' }} className="text-4xl font-black m-0">
+                  {stats.monthlyRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">z {stats.monthlyGoal}</span>
                 </p>
               </div>
-              <div className="p-3 bg-indigo-600/10 text-indigo-600 rounded-xl">
+              <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl">
                 <Calendar size={24} />
               </div>
             </div>
             
             <div className="space-y-1">
-              <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
-                <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+              <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <div style={{ backgroundColor: 'var(--bg-primary)' }} className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
               </div>
-              <div className="flex justify-between text-[10px] font-black uppercase opacity-50">
+              <div style={{ color: 'var(--text-muted)' }} className="flex justify-between text-[10px] font-black uppercase opacity-80">
                 <span>{progressPercent}% splněno</span>
                 <span>
                   {stats.daysRemainingInMonth === 0 ? "Dnes je poslední den!" : `Zbývá ${stats.daysRemainingInMonth} dní`}
@@ -776,7 +778,7 @@ const UserStats = () => {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-black/5 flex items-center justify-between text-xs font-bold">
+          <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-3 border-t flex items-center justify-between text-xs font-bold">
             {isEditingGoal ? (
               <div className="flex items-center gap-2 w-full">
                 <input 
@@ -784,17 +786,19 @@ const UserStats = () => {
                   min="1" 
                   value={newGoalInput} 
                   onChange={(e) => setNewGoalInput(e.target.value)} 
-                  className="w-16 px-2 py-1 border border-black/20 rounded-md outline-none text-sm font-bold text-center"
+                  style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+                  className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center"
                 />
-                <button onClick={handleSaveGoal} className="bg-indigo-600 text-white px-2 py-1 rounded font-black uppercase text-[10px] cursor-pointer border-none">Uložit</button>
-                <button onClick={() => setIsEditingGoal(false)} className="text-slate-400 px-1 py-1 font-bold cursor-pointer bg-transparent border-none">Zrušit</button>
+                <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} onClick={handleSaveGoal} className="px-2 py-1 rounded font-black uppercase text-[10px] cursor-pointer border-none shadow-sm">Uložit</button>
+                <button style={{ color: 'var(--text-muted)' }} onClick={() => setIsEditingGoal(false)} className="px-1 py-1 font-bold cursor-pointer bg-transparent border-none">Zrušit</button>
               </div>
             ) : (
               <>
-                <span className="text-slate-400">Chceš změnit svůj cíl?</span>
+                <span style={{ color: 'var(--text-muted)' }} className="opacity-70">Chceš změnit svůj cíl?</span>
                 <button 
                   onClick={() => setIsEditingGoal(true)} 
-                  className="text-indigo-600 font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]"
+                  style={{ color: 'var(--text-badge)' }}
+                  className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]"
                 >
                   Nastavit cíl
                 </button>
@@ -804,53 +808,58 @@ const UserStats = () => {
         </div>
 
         {/* 3. KARTA: CELKEM PŘEČTENO */}
-        <div className="bg-white border border-black/5 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Celková knihovna</h3>
-              <p className="text-4xl font-black text-emerald-600 m-0">
-                {stats.totalRead} <span className="text-xs uppercase text-slate-400 font-bold">knih</span>
+              <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Celková knihovna</h3>
+              <p style={{ color: 'var(--text-body)' }} className="text-4xl font-black m-0">
+                {stats.totalRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">knih</span>
               </p>
             </div>
-            <div className="p-3 bg-emerald-600/10 text-emerald-600 rounded-xl">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl">
               <CheckCircle size={24} />
             </div>
           </div>
-          <p className="text-xs text-slate-500 font-medium mt-4 pt-3 border-t border-black/5 text-left flex items-center gap-1">
-            <Sparkles size={12} className="text-emerald-500" /> Všechna přečtená díla od začátku tvého profilu.
+          <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-4 pt-3 border-t text-left flex items-center gap-1">
+            <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku tvého profilu.
           </p>
         </div>
 
       </div>
 
       {/* TÝDENNÍ AKTIVITA */}
-      <div className="bg-white border border-black/5 rounded-2xl p-6 shadow-sm mb-8">
-        <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 text-left flex items-center gap-1.5">
-          <TrendingUp size={14} className="text-slate-500" /> Tvoje aktivita v posledních dnech
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
+        <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-4 text-left flex items-center gap-1.5">
+          <TrendingUp size={14} /> Tvoje aktivita v posledních dnech
         </h3>
         
         <div className="grid grid-cols-7 gap-2 md:gap-4 text-center">
           {stats.weeklyActivity.map((day, idx) => (
             <div 
               key={idx} 
-              className={`p-3 rounded-xl flex flex-col items-center gap-2 border ${
-                day.isToday ? 'border-indigo-600 bg-indigo-50/30' : 'border-transparent'
-              }`}
+              style={{ 
+                borderColor: day.isToday ? 'var(--bg-primary)' : 'transparent',
+                backgroundColor: day.isToday ? 'var(--bg-badge)' : 'transparent' 
+              }}
+              className="p-3 rounded-xl flex flex-col items-center gap-2 border"
             >
-              <span className={`text-xs font-black uppercase ${day.isToday ? 'text-indigo-600' : 'opacity-40'}`}>
+              <span 
+                style={{ color: day.isToday ? 'var(--text-badge)' : 'var(--text-muted)' }} 
+                className={`text-xs font-black uppercase ${!day.isToday && 'opacity-60'}`}
+              >
                 {day.dayLabel}
               </span>
               <div 
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                  day.isActive 
-                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' 
-                    : 'bg-black/5 text-slate-300'
-                }`}
+                style={{
+                  backgroundColor: day.isActive ? 'rgba(245, 158, 11, 1)' : 'rgba(0,0,0,0.05)',
+                  color: day.isActive ? '#ffffff' : 'var(--text-muted)'
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm"
               >
                 {day.isActive ? (
-                  <Flame size={16} className="fill-white" />
+                  <Flame size={16} className="fill-white text-white" />
                 ) : (
-                  <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
+                  <div style={{ backgroundColor: 'currentColor' }} className="w-1.5 h-1.5 rounded-full opacity-40"></div>
                 )}
               </div>
             </div>
@@ -861,7 +870,7 @@ const UserStats = () => {
       {/* TLAČÍTKO ZPĚT */}
       <div className="flex justify-end">
         <Link to="/app" className="no-underline">
-          <button className="flex items-center gap-1 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-85 transition-opacity border-none cursor-pointer shadow-md">
+          <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="flex items-center gap-1 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-opacity border-none cursor-pointer shadow-md">
             Zpět do knihovny <ChevronRight size={14} />
           </button>
         </Link>
@@ -989,30 +998,27 @@ const FaqItem = ({ question, answer }) => {
 const HomePage = () => {
   const navigate = useNavigate();
 
-  // 🔥 REÁLNÉ TITULY Z VAŠÍ DATABÁZE
+  // 🔥 REÁLNÉ TITULY S DYNAMICKÝMI AKCENTY PODLE MOTIVU
   const featuredBooks = [
     { 
       title: "Jomirad 1. část", 
       category: "Superhrdinská sága", 
-      author: "Jomarid", 
-      color: "from-slate-800 to-indigo-950" 
+      author: "Jomarid"
     },
     { 
       title: "Šepot starých knihoven 1. část: Vězení pro příběhy", 
       category: "Mysteriózní fantasy", 
-      author: "Alexandr Heryán", 
-      color: "from-amber-900 to-stone-950" 
+      author: "Alexandr Heryán"
     },
     { 
       title: "Jomirad 2. část", 
       category: "Superhrdinská sága", 
-      author: "Jomarid", 
-      color: "from-blue-900 to-slate-950" 
+      author: "Jomarid"
     },
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pt-20 pb-12 text-center">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto px-4 pt-20 pb-12 text-center animate-in fade-in duration-300">
       
       {/* 1. HERO SEKCE */}
       <section className="mb-20">
@@ -1044,37 +1050,39 @@ const HomePage = () => {
             <BookOpen size={16} /> Odemknout digitální čítárnu
           </Button>
           
-          <p className="text-[11px] font-bold uppercase opacity-40 tracking-wider">
+          <p style={{ color: 'var(--text-muted)' }} className="text-[11px] font-bold uppercase opacity-50 tracking-wider">
             Nemáte účet? Zřídíte si ho okamžitě a zdarma přímo u vstupu.
           </p>
         </div>
 
         {/* SEKCE: NAŠE TITULY + KARTY */}
         <div className="max-w-3xl mx-auto mt-16">
-          <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-6 text-center">— NAŠE TITULY —</h2>
+          <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-6 text-center">— NAŠE TITULY —</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             {featuredBooks.map((book, idx) => (
               <div 
                 key={idx}
-                className="group relative h-48 rounded-xl p-4 bg-gradient-to-br text-white flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+                className="group relative h-48 rounded-xl p-4 border flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
                 onClick={() => navigate('/app')}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${book.color} opacity-95 group-hover:opacity-100 transition-opacity`} />
+                {/* Podbarvení pozadí při hoveru pomocí sekundární barvy motivu */}
+                <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity" />
                 
                 <div className="relative z-10 flex justify-between items-start w-full">
-                  <span className="text-[9px] uppercase font-black tracking-widest bg-white/20 px-2 py-0.5 rounded text-indigo-200">
+                  <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded">
                     {book.category}
                   </span>
-                  <Book size={14} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
+                  <Book size={14} style={{ color: 'var(--text-muted)' }} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
                 </div>
 
                 <div className="relative z-10">
-                  <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 block mb-0.5">
+                  <span style={{ color: 'var(--text-muted)' }} className="text-[9px] uppercase font-bold tracking-wider opacity-70 block mb-0.5">
                     {book.author}
                   </span>
-                  <h4 className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
-                  <span className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-300">
+                  <h4 style={{ color: 'var(--text-body)' }} className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
+                  <span style={{ color: 'var(--bg-primary)' }} className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                     Otevřít knihu <ChevronRight size={10} />
                   </span>
                 </div>
@@ -1084,58 +1092,56 @@ const HomePage = () => {
         </div>
       </section>
 
-      <hr className="border-0 h-[1px] bg-black/5 my-16" />
+      <hr style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--border-color)' }} className="border-0 h-[1px] my-16 opacity-30" />
 
       {/* 2. STATISTIKY (Social Proof) */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center mb-24">
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
-          <p className="text-3xl font-black text-slate-900 leading-none mb-1">100%</p>
-          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Digitální formát</p>
-        </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
-          <p className="text-3xl font-black text-slate-900 leading-none mb-1">0 ms</p>
-          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Odezva při otáčení</p>
-        </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
-          <p className="text-3xl font-black text-slate-900 leading-none mb-1">24/7</p>
-          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Okamžitý přístup</p>
-        </div>
-        <div className="p-4 rounded-xl bg-black/2 border border-black/5 hover:bg-black/[0.04] transition-colors">
-          <p className="text-3xl font-black text-slate-900 leading-none mb-1">Cloud</p>
-          <p className="text-[9px] font-black uppercase tracking-wider opacity-50">Synchronizace pozice</p>
-        </div>
+        {[
+          { value: "100%", label: "Digitální formát" },
+          { value: "0 ms", label: "Odezva při otáčení" },
+          { value: "24/7", label: "Okamžitý přístup" },
+          { value: "Cloud", label: "Synchronizace pozice" }
+        ].map((stat, idx) => (
+          <div key={idx} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 rounded-xl border transition-colors hover:style={{backgroundColor:'var(--bg-badge)'}}">
+            <p style={{ color: 'var(--text-body)' }} className="text-3xl font-black leading-none mb-1">{stat.value}</p>
+            <p style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase tracking-wider opacity-60">{stat.label}</p>
+          </div>
+        ))}
       </section>
 
-      {/* 3. VLASTNOSTI / VÝHODY (Features) */}
+      {/* 3. VLASTNOSTI / VÝHODEK (Features) */}
       <section className="mb-24">
-        <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-10 text-center">— PROČ ČÍST S JOMARID BOOKS —</h2>
+        <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-10 text-center">— PROČ ČÍST S JOMARID BOOKS —</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+          {/* Feature 1 */}
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-black/2 hover:style={{backgroundColor:'var(--bg-card)', borderColor:'var(--border-color)'}} transition-all duration-300">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
               <Zap size={20} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Bleskové Cloud-to-Screen</h3>
+            <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Bleskové Cloud-to-Screen</h3>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
               Žádné stahování těžkých PDF nebo EPUB souborů. Naše technologie renderuje texty přímo ze šifrovaného cloudu do vašeho prohlížeče v reálném čase.
             </p>
           </div>
 
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+          {/* Feature 2 */}
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-black/2 hover:style={{backgroundColor:'var(--bg-card)', borderColor:'var(--border-color)'}} transition-all duration-300">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
               <ShieldCheck size={20} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Privátní kurátorovaný fond</h3>
+            <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Privátní kurátorovaný fond</h3>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
               Nejsme masová knihovna plná balastu. Zaměřujeme se výhradně na prémiové edice, odborné texty a exkluzivní překlady, které jinde nenajdete.
             </p>
           </div>
 
-          <div className="space-y-3 p-5 rounded-xl hover:bg-black/2 border border-transparent hover:border-black/5 transition-all duration-300">
-            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+          {/* Feature 3 */}
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-black/2 hover:style={{backgroundColor:'var(--bg-card)', borderColor:'var(--border-color)'}} transition-all duration-300">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
               <Sparkles size={20} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Čisté prostředí bez reklam</h3>
+            <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Čisté prostředí bez reklam</h3>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
               Vaše soustředění je pro nás prioritou. Rozhraní čítárny je absolutně minimalistické, bez rušivých prvků, sociálních sítí či otravných bannerů.
             </p>
@@ -1145,38 +1151,43 @@ const HomePage = () => {
 
       {/* 4. ČASTO KLADENÉ OTÁZKY (FAQ) */}
       <section className="max-w-2xl mx-auto mb-24">
-        <h2 className="text-xs font-black uppercase tracking-widest opacity-40 mb-8 text-center">— ČASTO KLADENÉ OTÁZKY —</h2>
+        <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-8 text-center">— ČASTO KLADENÉ OTÁZKY —</h2>
         
-        <div className="space-y-1 bg-black/2 p-5 rounded-xl border border-black/5 divide-y divide-black/5">
-          <FaqItem 
-            question="Jak získám přístup ke konkrétním knihám?" 
-            answer="Po registraci a vstupu do digitální čítárny uvidíte katalog knih. Správce systému přiděluje licence k jednotlivým titulům na základě vašeho uživatelského profilu. Jakmile vám knihu schválí, okamžitě se vám odemkne." 
-          />
-          <FaqItem 
-            question="Musím něco stahovat nebo instalovat?" 
-            answer="Vůbec nic. Jomarid Books funguje kompletně ve vašem webovém prohlížeči (na počítači, tabletu i telefonu). Kód je optimalizovaný pro maximální rychlost a minimální spotřebu dat." 
-          />
-          <FaqItem 
-            question="Pamatuje si systém, kde jsem přestal číst?" 
-            answer="Ano. Naše cloudová architektura ukládá vaši přesnou pozici v otevřené knize, takže můžete plynule navázat na mobilu přesně tam, kde jste na počítači skončili." 
-          />
-          <FaqItem 
-            question="Kolik stojí zřízení a vedení účtu?" 
-            answer="Vytvoření profilu a přístup do základního rozhraní čítárny je kompletně zdarma. Přidělování specifických licencí podléhá interním pravidlům fondu Jomarid Books." 
-          />
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="space-y-1 p-5 rounded-xl border">
+          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y opacity-90">
+            <FaqItem 
+              question="Jak získám přístup ke konkrétním knihám?" 
+              answer="Po registraci a vstupu do digitální čítárny uvidíte katalog knih. Správce systému přiděluje licence k jednotlivým titulům na základě vašeho uživatelského profilu. Jakmile vám knihu schválí, okamžitě se vám odemkne." 
+            />
+            <FaqItem 
+              question="Musím něco stahovat nebo instalovat?" 
+              answer="Vůbec nic. Jomarid Books funguje kompletně ve vašem webovém prohlížeči (na počítači, tabletu i telefonu). Kód je optimalizovaný pro maximální rychlost a minimální spotřebu dat." 
+            />
+            <FaqItem 
+              question="Pamatuje si systém, kde jsem přestal číst?" 
+              answer="Ano. Naše cloudová architektura ukládá vaši přesnou pozici v otevřené knize, takže můžete plynule navázat na mobilu přesně tam, kde jste na počítači skončili." 
+            />
+            <FaqItem 
+              question="Kolik stojí zřízení a vedení účtu?" 
+              answer="Vytvoření profilu a přístup do základního rozhraní čítárny je kompletně zdarma. Přidělování specifických licencí podléhá interním pravidlům fondu Jomarid Books." 
+            />
+          </div>
         </div>
       </section>
 
-      {/* 5. FINÁLNÍ CTA SEKCE (Znovu popostrčit ke konverzi) */}
-      <section className="bg-indigo-600 text-white rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl hover:shadow-indigo-500/10 transition-shadow">
-        <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-3">Začněte číst ještě dnes</h3>
-        <p className="text-indigo-100 text-xs md:text-sm font-medium max-w-lg mx-auto mb-6">
+      {/* 5. FINÁLNÍ CTA SEKCE */}
+      <section style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl relative overflow-hidden">
+        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
+        
+        <h3 style={{ color: 'var(--bg-card)' }} className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-3">Začněte číst ještě dnes</h3>
+        <p style={{ color: 'var(--bg-body)' }} className="text-xs md:text-sm font-medium max-w-lg mx-auto mb-6 opacity-80">
           Vstupte do zabezpečeného literárního ekosystému a objevte digitální komfort nové generace.
         </p>
-        <div className="max-w-xs mx-auto">
+        <div className="max-w-xs mx-auto relative z-10">
           <button 
             onClick={() => navigate('/app')}
-            className="w-full py-3 bg-white text-indigo-600 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.99] transition-all"
+            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+            className="w-full py-3 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:opacity-90 hover:scale-[1.02] active:scale-[0.99] transition-all"
           >
             Spustit aplikaci
           </button>
@@ -1184,14 +1195,14 @@ const HomePage = () => {
       </section>
 
       {/* 6. MODERNÍ KOMPLETNÍ PATIČKA (Footer) */}
-      <footer className="mt-20 pt-8 border-t border-black/5 opacity-60 flex flex-col sm:flex-row items-center justify-between text-[11px] font-black uppercase tracking-wider gap-4">
-        <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
+      <footer style={{ borderColor: 'var(--border-color)' }} className="mt-20 pt-8 border-t opacity-70 flex flex-col sm:flex-row items-center justify-between text-[11px] font-black uppercase tracking-wider gap-4">
+        <div style={{ color: 'var(--text-muted)' }} className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
           <span>© {new Date().getFullYear()} Jomarid Books Ltd.</span>
           <span className="hidden sm:inline opacity-30">|</span>
           <span className="font-medium normal-case opacity-70">Verze platformy v2.4 (Stable Core)</span>
         </div>
         <div className="flex items-center gap-3">
-          <a href="mailto:wwsigmamango@gmail.com" className="flex items-center gap-2 text-current no-underline hover:underline bg-black/5 px-3 py-1.5 rounded-md transition-colors">
+          <a href="mailto:wwsigmamango@gmail.com" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="flex items-center gap-2 no-underline hover:opacity-80 px-3 py-1.5 rounded-md transition-colors">
             <PhoneIcon size={10} /> Podpora: wwsigmamango@gmail.com
           </a>
         </div>
@@ -1247,10 +1258,10 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="max-w-sm mx-auto py-24 px-4">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-sm mx-auto py-24 px-4 animate-in fade-in duration-300">
       <Card>
         {/* Dynamický nadpis podle režimu */}
-        <h2 className="text-xl font-black text-center uppercase tracking-tight mb-6">
+        <h2 style={{ color: 'var(--text-body)' }} className="text-xl font-black text-center uppercase tracking-tight mb-6">
           {isSignUp ? 'Vytvořit nový účet' : 'Vstup do čítárny'}
         </h2>
         
@@ -1260,7 +1271,12 @@ const LoginPage = () => {
             placeholder="E-mailová adresa" 
             value={email} 
             onChange={e => setEmail(e.target.value)} 
-            className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+            style={{ 
+              backgroundColor: 'var(--bg-secondary)', 
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-body)'
+            }}
+            className="w-full p-3 border rounded-lg text-sm font-bold outline-none transition-colors focus:style={{borderColor:'var(--bg-primary)'}} placeholder:opacity-50" 
             required 
           />
           <input 
@@ -1268,12 +1284,17 @@ const LoginPage = () => {
             placeholder={isSignUp ? 'Zvolte si heslo' : 'Přístupové heslo'} 
             value={password} 
             onChange={e => setPassword(e.target.value)} 
-            className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+            style={{ 
+              backgroundColor: 'var(--bg-secondary)', 
+              borderColor: 'var(--border-color)',
+              color: 'var(--text-body)'
+            }}
+            className="w-full p-3 border rounded-lg text-sm font-bold outline-none transition-colors focus:style={{borderColor:'var(--bg-primary)'}} placeholder:opacity-50" 
             required 
           />
           
           {error && (
-            <p className="text-red-600 text-xs font-bold flex items-center gap-1">
+            <p className="text-red-500 text-xs font-bold flex items-center gap-1 bg-red-500/10 p-2 rounded-md">
               <AlertTriangle size={12}/> {error}
             </p>
           )}
@@ -1285,11 +1306,12 @@ const LoginPage = () => {
         </form>
 
         {/* 🔥 Přepínací odkaz pod formulářem */}
-        <div className="mt-4 pt-4 border-t border-black/5 text-center">
+        <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-4 border-t text-center">
           <button
             type="button"
             onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            className="text-xs font-bold text-indigo-600 hover:underline bg-transparent border-none cursor-pointer"
+            style={{ color: 'var(--bg-primary)' }}
+            className="text-xs font-bold hover:underline bg-transparent border-none cursor-pointer tracking-wide uppercase"
           >
             {isSignUp ? 'Už máte účet? Přihlaste se' : 'Nemáte účet? Zaregistrujte se zde'}
           </button>
@@ -1311,8 +1333,7 @@ const UserLibrary = () => {
     setLoading(true);
     try {
       // 🔥 STREAK: Zapíšeme dnešní aktivitu uživatele do databáze
-      // Používáme formát YYYY-MM-DD v lokálním čase
-      const todayStr = new Date().toLocaleDateString('sv'); // 'sv' formát dává krásně 'YYYY-MM-DD'
+      const todayStr = new Date().toLocaleDateString('sv');
       await supabase
         .from('user_daily_activity')
         .upsert(
@@ -1327,7 +1348,7 @@ const UserLibrary = () => {
 
       if (booksError) throw booksError;
 
-      // 2. Načteme záznamy user_books včetně časového razítka updated_at
+      // 2. Načteme záznamy user_books
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
         .select('book_id, is_read, status, updated_at')
@@ -1344,7 +1365,7 @@ const UserLibrary = () => {
       if (likesError) throw likesError;
       if (likesData) setLikedBookIds(likesData.map(l => l.book_id));
 
-      // 4. Načteme celkové počty lajků pro agregaci v JS
+      // 4. Načteme celkové počty lajků
       const { data: allLikes, error: allLikesError } = await supabase
         .from('book_likes')
         .select('book_id');
@@ -1364,29 +1385,22 @@ const UserLibrary = () => {
           hasAccess: userBookEntry?.status === 'active',
           isPending: userBookEntry?.status === 'requested',
           isRead: userBookEntry?.is_read || false,
-          // Uložíme čas poslední aktivity (otevření/změny), pokud neexistuje, dáme 0
           lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
         };
       });
 
-      // 🔥 OPRAVENÉ KOMBINOVANÉ ŘAZENÍ: Čas poslední aktivity má absolutní přednost
+      // Kombinované řazení
       processedBooks.sort((a, b) => {
-        // Pokud mají obě knihy aktivní licenci, řadíme primárně podle času
         if (a.hasAccess && b.hasAccess) {
-          // Pokud se časy liší, nověji otevřená kniha letí nahoru (i kdyby byla přečtená)
           if (b.lastOpened !== a.lastOpened) {
             return b.lastOpened - a.lastOpened;
           }
-          // Pokud mají čas nuly (ještě neotevřené), nepřečtená jde nad přečtenou
           if (a.isRead !== b.isRead) {
             return a.isRead ? 1 : -1;
           }
         }
-
-        // Pokud nemají obě aktivní přístup, seřadíme je podle logických bloků (Aktivní > Čekající > Zamčené)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
-
         return 0;
       });
       
@@ -1431,8 +1445,8 @@ const UserLibrary = () => {
 
   if (loading) {
     return (
-      <div className="text-center py-20">
-        <Loader2 className="animate-spin mx-auto mb-2 text-slate-800" />
+      <div style={{ color: 'var(--text-body)' }} className="text-center py-20">
+        <Loader2 style={{ color: 'var(--bg-primary)' }} className="animate-spin mx-auto mb-2" />
         <p className="text-sm font-medium opacity-60">Načítám knihovnu...</p>
       </div>
     );
@@ -1441,21 +1455,21 @@ const UserLibrary = () => {
   const userRole = user?.role || user?.user_metadata?.role;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 text-slate-800">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-6xl mx-auto px-4 py-12 animate-in fade-in duration-300">
       {/* Horní lišta s navigací */}
-      <div className="flex justify-between items-center mb-8 border-b pb-4 border-black/5">
+      <div style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
         </div>
         
         <div className="flex items-center gap-3">
           {userRole === 'admin' && (
-            <Link to="/admin" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
+            <Link to="/admin" style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="text-xs px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-90 transition-opacity">
               Admin Panel
             </Link>
           )}
           {userRole === 'nakladatel' && (
-            <Link to="/nakladatel" className="text-xs bg-black text-white px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-80 transition-opacity">
+            <Link to="/nakladatel" style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="text-xs px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-90 transition-opacity">
               Nakladatel
             </Link>
           )}
@@ -1474,73 +1488,74 @@ const UserLibrary = () => {
             const isUserLiked = likedBookIds.includes(b.id);
 
             return b.hasAccess ? (
-              /* STAV 1: Uživatel má licenci aktivní (Kniha je přístupná) */
+              /* STAV 1: Kniha je přístupná */
               <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between transition-all ${b.isRead ? 'opacity-50 bg-slate-50/60' : ''}`}>
+                <Card style={{ backgroundColor: b.isRead ? 'var(--bg-secondary)' : 'var(--bg-card)', borderColor: 'var(--border-color)' }} className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between transition-all ${b.isRead ? 'opacity-60' : ''}`}>
                   <div>
-                    <div className="aspect-[3/4] bg-black/5 rounded-lg mb-4 flex items-center justify-center relative">
-                      <Book size={32} className="opacity-20" />
+                    <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
+                      <Book size={32} style={{ color: 'var(--text-muted)' }} className="opacity-30" />
                       
                       {/* UKAZATEL LAJKŮ */}
-                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
-                        <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
+                        <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
                         <span>{b.likesCount}</span>
                       </div>
                     </div>
                     <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                    <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                    <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
                     {b.isRead && (
-                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">
+                      <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="text-[9px] px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">
                         ✓ Přečteno
                       </span>
                     )}
                   </div>
-                  <div className={`mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between ${b.isRead ? 'text-slate-500' : 'text-emerald-600'}`}>
+                  <div style={{ borderColor: 'var(--border-color)', color: b.isRead ? 'var(--text-muted)' : 'var(--bg-primary)' }} className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between">
                     <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
                     <ChevronRight size={12}/>
                   </div>
                 </Card>
               </Link>
             ) : b.isPending ? (
-              /* STAV 2: Žádost byla odeslána (Čeká se na schválení) */
-              <Card key={b.id} className="opacity-80 flex flex-col justify-between bg-amber-50/40 border-amber-200">
+              /* STAV 2: Čeká se na schválení */
+              <Card key={b.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="opacity-80 flex flex-col justify-between">
                 <div>
-                  <div className="aspect-[3/4] bg-amber-50 rounded-lg mb-4 flex items-center justify-center relative">
-                    <Clock size={32} className="text-amber-500 opacity-30" />
+                  <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
+                    <Clock size={32} style={{ color: 'var(--bg-primary)' }} className="opacity-40" />
                     
                     {/* UKAZATEL LAJKŮ */}
-                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
-                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                    <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
+                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
                       <span>{b.likesCount}</span>
                     </div>
                   </div>
                   <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                  <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                  <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
                 </div>
-                <div className="mt-4 w-full py-2 bg-amber-100/60 text-amber-800 text-center rounded font-black text-[10px] uppercase flex items-center justify-center gap-1 border-0">
+                <div style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }} className="mt-4 w-full py-2 text-center rounded font-black text-[10px] uppercase flex items-center justify-center gap-1 border border-transparent">
                   <Clock size={12} className="animate-pulse" /> Čeká na schválení
                 </div>
               </Card>
             ) : (
-              /* STAV 3: Uživatel nemá licenci ani o ni nepožádal (Zamknuto) */
-              <Card key={b.id} className="opacity-60 flex flex-col justify-between bg-black/5">
+              /* STAV 3: Zamknuto / Zažádat o licenci */
+              <Card key={b.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="opacity-50 flex flex-col justify-between">
                 <div>
-                  <div className="aspect-[3/4] bg-black/10 rounded-lg mb-4 flex items-center justify-center relative">
-                    <Lock size={32} className="opacity-20" />
+                  <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
+                    <Lock size={32} style={{ color: 'var(--text-muted)' }} className="opacity-30" />
                     
                     {/* UKAZATEL LAJKŮ */}
-                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 border border-black/5 text-[10px] font-bold">
-                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "text-slate-400"} />
+                    <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
+                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
                       <span>{b.likesCount}</span>
                     </div>
                   </div>
                   <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                  <p className="text-xs uppercase font-medium mt-1 opacity-60">{b.author}</p>
+                  <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
                 </div>
                 <button 
                   disabled={submittingId === b.id}
                   onClick={() => handleRequestLicense(b.id)}
-                  className="mt-4 w-full py-2 bg-black/10 hover:bg-black/20 disabled:bg-black/5 rounded font-black text-[10px] uppercase cursor-pointer transition-colors border-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+                  className="mt-4 w-full py-2 hover:opacity-80 disabled:opacity-50 border rounded font-black text-[10px] uppercase cursor-pointer transition-all flex items-center justify-center"
                 >
                   {submittingId === b.id ? (
                     <Loader2 size={12} className="animate-spin" />
@@ -1699,60 +1714,61 @@ const ReaderPage = () => {
     navigate('/app');
   };
 
-  if (loading) return <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-slate-800"/></div>;
-  if (err) return <div className="max-w-sm mx-auto py-20 px-4"><Card className="text-center font-bold text-red-600">{err}</Card></div>;
+  if (loading) return <div style={{ color: 'var(--text-body)' }} className="text-center py-20"><Loader2 style={{ color: 'var(--bg-primary)' }} className="animate-spin mx-auto"/></div>;
+  if (err) return <div className="max-w-sm mx-auto py-20 px-4"><Card className="text-center font-bold text-red-500 p-4">{err}</Card></div>;
 
   return (
-    <div className="max-w-3xl mx-auto py-12 px-4 text-slate-800" style={{ userSelect: 'none' }} onContextMenu={e => e.preventDefault()}>
-      <a href="/app" onClick={handleBack} className="text-xs uppercase font-bold no-underline opacity-50 hover:opacity-100 flex items-center gap-1 text-current mb-4">
+    <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in duration-300">
+      <a href="/app" onClick={handleBack} style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold no-underline opacity-60 hover:opacity-100 flex items-center gap-1 mb-4 transition-opacity">
         ← Zpět do knihovny
       </a>
       
       <Card className="p-8 md:p-12 relative overflow-hidden">
         {/* Hlavička knihy, autor a tvoje lajky */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-black/5">
+        <div style={{ borderColor: 'var(--border-color)' }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b">
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tight mb-1">{book?.title}</h1>
-            <p className="text-xs font-bold text-slate-500 uppercase">Autor: {book?.author || 'Neznámý'}</p>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-bold uppercase opacity-80">Autor: {book?.author || 'Neznámý'}</p>
           </div>
           
           {/* Tlačítko pro lajkování */}
           <button 
             onClick={toggleLike}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase border tracking-wider cursor-pointer transition-all ${
-              isLiked 
-                ? "bg-red-50 border-red-200 text-red-600" 
-                : "bg-transparent border-black/10 text-slate-500 hover:border-black/30"
-            }`}
+            style={{ 
+              backgroundColor: isLiked ? 'var(--bg-secondary)' : 'transparent', 
+              borderColor: isLiked ? 'var(--bg-primary)' : 'var(--border-color)',
+              color: isLiked ? 'var(--bg-primary)' : 'var(--text-muted)'
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase border tracking-wider cursor-pointer transition-all hover:opacity-90"
           >
-            <Heart size={14} className={isLiked ? "fill-red-500 text-red-500" : ""} />
-            <span>{likesCount} </span>
+            <Heart size={14} style={{ fill: isLiked ? 'var(--bg-primary)' : 'transparent', color: isLiked ? 'var(--bg-primary)' : 'currentColor' }} />
+            <span>{likesCount}</span>
           </button>
         </div>
 
         {/* Text knihy */}
-        <div className="text-base leading-relaxed whitespace-pre-line text-justify font-medium">
+        <div style={{ color: 'var(--text-body)' }} className="text-base leading-relaxed whitespace-pre-line text-justify font-medium tracking-wide">
           {book?.content}
         </div>
 
         {/* NOVÁ SEKCE NA KONCI */}
-        <div className="mt-16 pt-8 border-t border-black/5 flex flex-col items-center gap-4">
+        <div style={{ borderColor: 'var(--border-color)' }} className="mt-16 pt-8 border-t flex flex-col items-center gap-4">
           <button 
             onClick={() => toggleReadStatus(!isRead)}
-            className={`px-8 py-3 rounded-full font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all ${
-              isRead 
-                ? "bg-black/5 text-slate-500 hover:bg-black/10" 
-                : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg"
-            }`}
+            style={{ 
+              backgroundColor: isRead ? 'var(--bg-secondary)' : 'var(--bg-primary)', 
+              color: isRead ? 'var(--text-muted)' : 'var(--text-primary)'
+            }}
+            className="px-8 py-3 rounded-full font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.99] shadow-md"
           >
             {isRead ? "Znovu otevřít svazek" : "Dokončit svazek ✓"}
           </button>
-          {isRead && <p className="text-[10px] font-bold uppercase opacity-40">Tento svazek je v knihovně označen jako přečtený.</p>}
+          {isRead && <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-bold uppercase opacity-50">Tento svazek je v knihovně označen jako přečtený.</p>}
         </div>
       </Card>
     </div>
   );
-  };
+};
 
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
@@ -1921,18 +1937,18 @@ const PublisherDashboard = () => {
   };
 
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto py-12 px-4 space-y-8">
-      <div className="flex justify-between items-center mb-4 border-b pb-4 border-black/5">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto py-12 px-4 space-y-8 animate-in fade-in duration-300">
+      <div style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center mb-4 border-b pb-4">
         <h2 className="text-2xl font-black uppercase tracking-tight">Nakladatelský Panel</h2>
-        <span className="text-xs bg-black/5 px-3 py-1.5 rounded-full font-bold uppercase opacity-60">
+        <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }} className="text-xs px-3 py-1.5 rounded-full font-bold uppercase opacity-80">
           Vydavatel: {getUsername(user?.email)}
         </span>
       </div>
       
-      {/* SEKCE 1: ČEKAJÍCÍ ŽÁDOSTI O LICENCE (NOVINKA) */}
-      <Card className="border-amber-200 bg-amber-50/10">
-        <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2 text-amber-900">
-          <Clock size={20} className="text-amber-600" /> Žádosti o schválení licencí k Vašim knihám
+      {/* SEKCE 1: ČEKAJÍCÍ ŽÁDOSTI O LICENCE */}
+      <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+        <h3 style={{ color: 'var(--bg-primary)' }} className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2">
+          <Clock size={20} /> Žádosti o schválení licencí k Vašim knihám
         </h3>
         
         {loadingRequests ? (
@@ -1940,12 +1956,12 @@ const PublisherDashboard = () => {
         ) : pendingRequests.length === 0 ? (
           <p className="text-sm font-medium opacity-60 italic py-2">Žádný čtenář aktuálně nečeká na schválení licence.</p>
         ) : (
-          <div className="divide-y divide-black/5">
+          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y">
             {pendingRequests.map(req => (
-              <div key={req.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 gap-3 first:pt-0 last:pb-0">
+              <div key={req.id} style={{ borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 gap-3 first:pt-0 last:pb-0">
                 <div>
-                  <h4 className="font-black text-sm text-slate-950 uppercase">{req.books?.title}</h4>
-                  <p className="text-xs font-medium text-slate-500">Čtenář: <span className="font-bold text-slate-800">{req.profiles?.email}</span></p>
+                  <h4 className="font-black text-sm uppercase">{req.books?.title}</h4>
+                  <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button 
@@ -1978,14 +1994,16 @@ const PublisherDashboard = () => {
               type="text" 
               placeholder="Název knihy" 
               value={title} 
-              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold尊 outline-none text-sm" 
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+              className="w-full p-3 border rounded-lg font-bold outline-none text-sm placeholder:opacity-50" 
               onChange={e => setTitle(e.target.value)} 
               required 
             />
             <textarea 
               placeholder="Text knihy..." 
               value={content} 
-              className="w-full p-3 border rounded-lg bg-black/5 text-slate-900 font-bold outline-none resize-none text-sm" 
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+              className="w-full p-3 border rounded-lg font-bold outline-none resize-none text-sm placeholder:opacity-50" 
               rows={6} 
               onChange={e => setContent(e.target.value)} 
               required 
@@ -2004,7 +2022,8 @@ const PublisherDashboard = () => {
           <div className="space-y-3">
             <select 
               onChange={e => setSelectedBookId(e.target.value)} 
-              className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+              className="w-full p-3 border rounded-lg font-bold text-xs outline-none"
               value={selectedBookId}
             >
               <option value="">-- Vyberte SVOU knihu --</option>
@@ -2015,7 +2034,8 @@ const PublisherDashboard = () => {
             
             <select 
               onChange={e => setSelectedUserId(e.target.value)} 
-              className="w-full p-3 border rounded-lg bg-white text-slate-950 font-bold text-xs"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+              className="w-full p-3 border rounded-lg font-bold text-xs outline-none"
               value={selectedUserId}
             >
               <option value="">-- Vyberte čtenáře --</option>
@@ -2043,15 +2063,15 @@ const PublisherDashboard = () => {
         {myBooks.length === 0 ? (
           <p className="text-sm font-medium opacity-60 italic py-2">Zatím jste nevydal(a) žádné knihy.</p>
         ) : (
-          <div className="divide-y divide-black/5 max-h-72 overflow-y-auto">
+          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y max-h-72 overflow-y-auto">
             {myBooks.map(b => (
-              <div key={b.id} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+              <div key={b.id} style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
                 <div>
-                  <h4 className="font-bold text-sm text-slate-900">{b.title}</h4>
-                  <p className="text-[10px] uppercase opacity-50 font-bold">Autor: {b.author}</p>
+                  <h4 className="font-bold text-sm">{b.title}</h4>
+                  <p style={{ color: 'var(--text-muted)' }} className="text-[10px] uppercase opacity-60 font-bold">Autor: {b.author}</p>
                 </div>
-                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-full border border-red-100">
-                  <Heart size={14} className="fill-red-500 text-red-500" />
+                <div style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)', color: 'var(--bg-primary)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border">
+                  <Heart size={14} className="fill-current text-current" />
                   <span className="font-black text-xs">{b.likesCount} lajků</span>
                 </div>
               </div>
@@ -2450,28 +2470,28 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12 text-slate-800">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-300 space-y-8">
       {/* Karty statistik */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="flex items-center gap-4 py-4">
-          <Database className="text-indigo-600" size={24}/>
+          <Database style={{ color: 'var(--bg-primary)' }} size={24}/>
           <div>
-            <h4 className="text-[10px] font-black uppercase opacity-50">Knihovny</h4>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Knihovny</h4>
             <p className="text-lg font-black">{books.length} Titulů v DB</p>
           </div>
         </Card>
         <Card className="flex items-center gap-4 py-4">
-          <Users className="text-purple-600" size={24}/>
+          <Users style={{ color: 'var(--bg-primary)' }} size={24}/>
           <div>
-            <h4 className="text-[10px] font-black uppercase opacity-50">Uživatelé</h4>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Uživatelé</h4>
             <p className="text-lg font-black">{profiles.length} Registrovaných</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 py-4 bg-amber-500/5 border-amber-200">
-          <UserCheck className="text-amber-600" size={24}/>
+        <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="flex items-center gap-4 py-4 border-2">
+          <UserCheck style={{ color: 'var(--bg-primary)' }} size={24}/>
           <div>
-            <h4 className="text-[10px] font-black uppercase opacity-50">Nové žádosti</h4>
-            <p className="text-lg font-black text-amber-700">{pendingRequests.length} Ke schválení</p>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Nové žádosti</h4>
+            <p style={{ color: 'var(--bg-primary)' }} className="text-lg font-black">{pendingRequests.length} Ke schválení</p>
           </div>
         </Card>
       </div>
@@ -2479,26 +2499,51 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Levý sloupec */}
         <div className="lg:col-span-5 space-y-6">
+          {/* SPRÁVA DIGITÁLNÍ KNIHY */}
           <Card>
             <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
               <Plus size={16}/> {editingBookId ? 'Upravit digitální knihu' : 'Nová digitální kniha'}
             </h3>
             <form onSubmit={saveBook} className="space-y-3">
-              <input type="text" placeholder="Název knihy..." value={title} onChange={e => setTitle(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" required />
-              <input type="text" placeholder="Autor..." value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" />
+              <input 
+                type="text" 
+                placeholder="Název knihy..." 
+                value={title} 
+                onChange={e => setTitle(e.target.value)} 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
+                required 
+              />
+              <input 
+                type="text" 
+                placeholder="Autor..." 
+                value={author} 
+                onChange={e => setAuthor(e.target.value)} 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
+              />
               
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-wider opacity-50 block pl-1">Uměle přidat lajky (Prestiž)</label>
+                <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider block pl-1 opacity-70">Uměle přidat lajky (Prestiž)</label>
                 <input 
                   type="number" 
                   placeholder="Počet lajků..." 
                   value={fakeLikes} 
                   onChange={e => setFakeLikes(Math.max(0, parseInt(e.target.value) || 0))} 
-                  className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold text-slate-900 outline-none" 
+                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                  className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
                 />
               </div>
 
-              <textarea placeholder="Sem vložte čistý text knihy..." value={content} onChange={e => setContent(e.target.value)} rows={6} className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-medium text-slate-900 outline-none resize-none" required />
+              <textarea 
+                placeholder="Sem vložte čistý text knihy..." 
+                value={content} 
+                onChange={e => setContent(e.target.value)} 
+                rows={6} 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3 border rounded-lg text-sm font-medium outline-none resize-none placeholder:opacity-50" 
+                required 
+              />
               
               <Button type="submit" className="w-full py-3 uppercase tracking-wider">
                 {editingBookId ? 'Uložit změny v knize' : 'Uložit knihu do systému'}
@@ -2508,7 +2553,8 @@ const AdminDashboard = () => {
                 <button 
                   type="button" 
                   onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); }}
-                  className="w-full py-2 text-xs text-slate-500 hover:text-black uppercase cursor-pointer bg-transparent border-none font-bold"
+                  style={{ color: 'var(--text-muted)' }}
+                  className="w-full py-2 text-xs hover:underline uppercase cursor-pointer bg-transparent border-none font-bold tracking-wide"
                 >
                   Zrušit editaci
                 </button>
@@ -2516,50 +2562,77 @@ const AdminDashboard = () => {
             </form>
           </Card>
 
+          {/* VYTVOŘIT NOVÝ ÚČET */}
           <Card>
             <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2"><Users size={16}/> Vytvořit nový účet</h3>
             <form onSubmit={createNewUser} className="space-y-3">
-              <input name="email" type="email" placeholder="E-mail nového uživatele..." className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold outline-none" required />
-              <input name="password" type="password" placeholder="Počáteční heslo..." className="w-full p-3 border border-black/10 rounded-lg bg-black/5 text-sm font-bold outline-none" required />
-              <Button type="submit" className="w-full py-3 uppercase tracking-wider bg-emerald-600 text-white border-none hover:bg-emerald-700">Vytvořit účet</Button>
+              <input 
+                name="email" 
+                type="email" 
+                placeholder="E-mail nového uživatele..." 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
+                required 
+              />
+              <input 
+                name="password" 
+                type="password" 
+                placeholder="Počáteční heslo..." 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
+                required 
+              />
+              <Button type="submit" variant="success" className="w-full py-3 uppercase tracking-wider">
+                Vytvořit účet
+              </Button>
             </form>
           </Card>
 
-          {/* UPRAVENÁ SEKCE: DISTRIBUCE + FAKE XP FORMULÁŘ */}
-          <Card className="border-2 border-indigo-600 bg-indigo-50/5">
-            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce a správa účtu</h3>
+          {/* DISTRIBUCE + FAKE XP FORMULÁŘ */}
+          <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="border-2">
+            <h3 style={{ color: 'var(--bg-primary)' }} className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2">
+              <UserCheck size={16}/> Distribuce a správa účtu
+            </h3>
             
             <div className="space-y-3">
-              <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2.5 border border-black/10 rounded-lg bg-white text-slate-950 font-bold text-xs">
-                <option value="">-- Zvolte knihu pro distribuci --</option>
-                {books.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
+              <select 
+                value={selectedBookId} 
+                onChange={e => setSelectedBookId(e.target.value)} 
+                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-2.5 border rounded-lg font-bold text-xs outline-none"
+              >
+                <option value="" style={{ background: 'var(--bg-secondary)' }}>-- Zvolte knihu pro distribuci --</option>
+                {books.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--bg-secondary)' }}>{b.title}</option>)}
               </select>
 
-              <button  
+              <Button 
                 onClick={assignSelectedBookToAllUsers}
-                className="w-full text-xs py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border-none font-black rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
+                variant="success"
+                className="w-full text-xs py-2.5 uppercase tracking-wider font-black"
               >
                 📢 Aktivovat tuto knihu VŠEM uživatelům
-              </button>
+              </Button>
               
               {activeUser && (
-                <div className="mt-4 pt-4 border-t border-black/10 space-y-3">
-                  <p className="text-xs font-bold truncate text-indigo-600 m-0">Vybraný uživatel: {activeUser.email}</p>
+                <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-4 border-t space-y-3">
+                  <p style={{ color: 'var(--bg-primary)' }} className="text-xs font-bold truncate m-0">Vybraný uživatel: {activeUser.email}</p>
                   
-                  {/* NOVÝ FORMULÁŘ NA PRIDÁNÍ FAKE XP */}
-                  <div className="bg-black/5 p-3 rounded-xl space-y-2 border border-black/5">
-                    <label className="text-[10px] font-black uppercase tracking-wider opacity-60 block">Bonusové XP pro účet</label>
+                  {/* FORMULÁŘ NA PRIDÁNÍ FAKE XP */}
+                  <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-3 rounded-xl space-y-2 border">
+                    <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-80 block">Bonusové XP pro účet</label>
                     <div className="flex gap-2">
                       <input 
                         type="number" 
                         value={userFakeXpInput} 
                         onChange={e => setUserFakeXpInput(parseInt(e.target.value) || 0)}
-                        className="w-full p-2 border border-black/10 rounded-lg bg-white text-xs font-bold outline-none" 
+                        style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                        className="w-full p-2 border rounded-lg text-xs font-bold outline-none placeholder:opacity-50" 
                         placeholder="Napiš hodnotu..."
                       />
                       <button 
                         onClick={handleSaveFakeXp}
-                        className="px-3 bg-indigo-600 text-white font-black text-[10px] uppercase rounded-lg border-none cursor-pointer hover:bg-indigo-700 transition-colors shrink-0"
+                        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+                        className="px-3 font-black text-[10px] uppercase rounded-lg border border-solid cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                       >
                         Uložit XP
                       </button>
@@ -2567,15 +2640,22 @@ const AdminDashboard = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase hover:bg-indigo-700">Aktivovat vybranou</Button>
+                    <button 
+                      onClick={assignBookToUser} 
+                      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)' }}
+                      className="flex-1 text-xs py-2 uppercase font-bold rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                      Aktivovat vybranou
+                    </button>
                     <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
                   </div>
-                  <button  
+                  <Button 
                     onClick={assignAllBooksToUser}
-                    className="w-full text-xs py-2 bg-purple-600 hover:bg-purple-700 text-white border-none font-bold rounded-lg uppercase tracking-wider cursor-pointer transition-colors"
+                    variant="purple"
+                    className="w-full text-xs py-2 uppercase tracking-wider"
                   >
                     ✨ Aktivovat mu VŠECHNY knihy z DB
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -2585,39 +2665,41 @@ const AdminDashboard = () => {
         {/* Pravý sloupec */}
         <div className="lg:col-span-7 space-y-6">
           
-          {/* SEKCE: ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
-          <Card className="border-2 border-amber-400 bg-amber-50/10 p-0 overflow-hidden">
-            <div className="p-4 bg-amber-500/10 border-b border-amber-200 font-black text-xs uppercase tracking-wider text-amber-800 flex justify-between items-center">
+          {/* ČEKAJÍCÍ ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
+          <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="border-2 p-0 overflow-hidden">
+            <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider flex justify-between items-center">
               <span>📥 Čekající žádosti o licenci ke schválení</span>
-              <span className="bg-amber-500 text-white font-black px-2 py-0.5 rounded text-[10px]">{pendingRequests.length}</span>
+              <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)' }} className="font-black px-2 py-0.5 rounded text-[10px]">{pendingRequests.length}</span>
             </div>
-            <div className="max-h-52 overflow-y-auto divide-y divide-black/5">
+            <div style={{ borderColor: 'var(--border-color)' }} className="max-h-52 overflow-y-auto divide-y">
               {pendingRequests.length === 0 ? (
-                <p className="text-center py-6 text-xs font-bold opacity-50 text-slate-500">Žádné nové žádosti o licenci nejsou hlášeny.</p>
+                <p style={{ color: 'var(--text-muted)' }} className="text-center py-6 text-xs font-bold opacity-60 italic">Žádné nové žádosti o licenci nejsou hlášeny.</p>
               ) : (
                 pendingRequests.map(req => {
                   const userEmail = req.profiles?.email || `Uživatel (ID: ${req.user_id?.substring(0, 5)}...)`;
                   const bookTitle = req.books?.title || `Kniha (ID: ${req.book_id?.substring(0, 5)}...)`;
 
                   return (
-                    <div key={req.id} className="p-3 flex items-center justify-between text-xs font-bold hover:bg-amber-50/20 transition-colors gap-4">
+                    <div key={req.id} style={{ borderColor: 'var(--border-color)' }} className="p-3 flex items-center justify-between text-xs font-bold hover:opacity-90 transition-opacity gap-4">
                       <div className="truncate flex-1">
-                        <p className="text-slate-900 truncate">{userEmail}</p>
-                        <p className="text-[10px] text-indigo-600 truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{bookTitle}</span></p>
+                        <p className="truncate">{userEmail}</p>
+                        <p style={{ color: 'var(--bg-primary)' }} className="text-[10px] truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{bookTitle}</span></p>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <button 
+                        <Button 
+                          variant="success"
                           onClick={() => approveRequest(req.id, userEmail, bookTitle)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                          className="px-3 py-1.5 text-[10px] uppercase rounded"
                         >
                           Schválit
-                        </button>
-                        <button 
+                        </Button>
+                        <Button 
+                          variant="danger"
                           onClick={() => rejectRequest(req.id, userEmail, bookTitle)}
-                          className="px-2 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-black text-[10px] uppercase rounded border-none cursor-pointer transition-colors"
+                          className="px-2 py-1.5 text-[10px] uppercase rounded"
                         >
                           Odmítnout
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -2626,36 +2708,33 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
+          {/* SPRÁVA ČTENÁŘSKÝCH LICENCÍ A ÚČTŮ */}
           <Card className="overflow-hidden p-0">
-            <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Správa čtenářských licencí a účtů</div>
+            <div style={{ borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider">Správa čtenářských licencí a účtů</div>
             <div className="max-h-60 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-black/[0.02] font-black uppercase opacity-60 border-b border-black/5">
+                  <tr style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }} className="font-black uppercase border-b opacity-80">
                     <th className="p-3">Uživatel</th>
                     <th className="p-3">Role</th>
                     <th className="p-3 text-right">Akce</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody style={{ borderColor: 'var(--border-color)' }} className="divide-y">
                   {profiles.map(p => (
-                    <tr key={p.id} className="border-b border-black/5 hover:bg-black/[0.02] transition-colors font-bold">
+                    <tr key={p.id} style={{ borderColor: 'var(--border-color)' }} className="hover:bg-[var(--bg-secondary)] transition-colors font-bold">
                       <td className="p-3 truncate max-w-[180px]">
-                        <div>{p.email}</div>
-                        {p.fake_xp > 0 && <div className="text-[9px] text-amber-600 font-black">⭐ +{p.fake_xp} Admin XP</div>}
+                        <div className="truncate">{p.email}</div>
+                        {p.fake_xp > 0 && <div style={{ color: 'var(--bg-primary)' }} className="text-[9px] font-black">⭐ +{p.fake_xp} Admin XP</div>}
                       </td>
                       <td className="p-3">
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${
-                          p.role === 'správce' ? 'bg-red-100 text-red-700' : 
-                          p.role === 'nakladatel' ? 'bg-purple-100 text-purple-700' : 
-                          'bg-slate-100 text-slate-700'
-                        }`}>
+                        <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }} className="text-[9px] px-2 py-0.5 rounded-full uppercase border border-solid font-black">
                           {p.role || 'uživatel'}
                         </span>
                       </td>
-                      <td className="p-3 text-right flex justify-end gap-2">
-                        <Button variant="secondary" onClick={() => handleSelectUserFromTable(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Vybrat</Button>
-                        <button onClick={() => toggleRole(p.id, p.role)} className="p-1 border-none bg-transparent cursor-pointer text-slate-500 hover:text-slate-900" title="Změnit roli (Cyklus: Uživatel -> Nakladatel -> Správce)"><Shield size={12}/></button>
+                      <td className="p-3 text-right flex justify-end items-center gap-2">
+                        <Button variant="secondary" onClick={() => handleSelectUserFromTable(p)} className="text-[9px] px-2 py-1 uppercase flex items-center gap-1"><Plus size={10}/> Vybrat</Button>
+                        <button onClick={() => toggleRole(p.id, p.role)} style={{ color: 'var(--text-muted)' }} className="p-1 border-none bg-transparent cursor-pointer hover:opacity-70 transition-opacity" title="Změnit roli (Cyklus: Uživatel -> Nakladatel -> Správce)"><Shield size={12}/></button>
                       </td>
                     </tr>
                   ))}
@@ -2666,30 +2745,32 @@ const AdminDashboard = () => {
 
           {/* INVENTÁŘ TITULŮ */}
           <Card className="overflow-hidden p-0">
-            <div className="p-4 border-b border-black/5 font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
+            <div style={{ borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
             <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
               {books.map(b => (
-                <div key={b.id} className="flex justify-between items-center p-2 rounded bg-black/[0.02] text-xs font-bold gap-4">
+                <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)' }} className="flex justify-between items-center p-2 rounded text-xs font-bold gap-4">
                   <span className="truncate flex-1">
-                    {b.title} <span className="opacity-40 font-normal">({b.author})</span>
+                    {b.title} <span style={{ color: 'var(--text-muted)' }} className="opacity-60 font-normal">({b.author})</span>
                   </span>
                   
-                  <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100 text-[10px] shrink-0">
-                    <Heart size={10} className="fill-red-500 text-red-500" />
+                  <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--bg-secondary)' }} className="flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] shrink-0 font-black">
+                    <Heart size={10} className="fill-current text-current" />
                     <span>{b.likesCount}</span>
                   </div>
 
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button 
                       onClick={() => startEditBook(b)}
-                      className="text-indigo-600 bg-transparent border-none cursor-pointer hover:text-indigo-800 font-bold text-sm"
+                      style={{ color: 'var(--bg-primary)' }}
+                      className="bg-transparent border-none cursor-pointer hover:opacity-70 font-bold text-sm"
                       title="Upravit knihu"
                     >
                       ✎
                     </button>
                     <button 
                       onClick={async () => { if(confirm('Odstranit knihu z databáze?')) { await supabase.from('books').delete().eq('id', b.id); refreshData(); } }} 
-                      className="text-red-600 bg-transparent border-none cursor-pointer hover:text-red-800 flex items-center"
+                      style={{ color: 'var(--text-muted)' }}
+                      className="bg-transparent border-none cursor-pointer hover:opacity-70 flex items-center"
                       title="Smazat knihu"
                     >
                       <Trash size={12}/>
@@ -2700,8 +2781,8 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
-          {/* Core syslog */}
-          <Card className="bg-slate-950 text-emerald-400 font-mono p-4 border border-slate-900 shadow-2xl">
+          {/* CORE SYSLOG */}
+          <Card className="bg-slate-950 text-emerald-400 font-mono p-4 border border-slate-900 shadow-2xl rounded-xl">
             <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase text-slate-400 tracking-widest pb-2 border-b border-slate-900">
               <span className="flex items-center gap-1"><Terminal size={12} /> Postgres Live Core Syslog</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
