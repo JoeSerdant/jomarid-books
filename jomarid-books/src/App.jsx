@@ -669,6 +669,16 @@ const UserLibrary = () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 🔥 STREAK: Zapíšeme dnešní aktivitu uživatele do databáze
+      // Používáme formát YYYY-MM-DD v lokálním čase
+      const todayStr = new Date().toLocaleDateString('sv'); // 'sv' formát dává krásně 'YYYY-MM-DD'
+      await supabase
+        .from('user_daily_activity')
+        .upsert(
+          { user_id: user.id, activity_date: todayStr }, 
+          { onConflict: 'user_id,activity_date' }
+        );
+
       // 1. Načteme VŠECHNY knihy samostatně
       const { data: allBooks, error: booksError } = await supabase
         .from('books')
@@ -679,7 +689,7 @@ const UserLibrary = () => {
       // 2. Načteme záznamy user_books včetně časového razítka updated_at
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
-        .select('book_id, is_read, status, updated_at') // 🔥 Přidáno updated_at
+        .select('book_id, is_read, status, updated_at')
         .eq('user_id', user.id);
 
       if (userBooksError) throw userBooksError;
@@ -713,24 +723,26 @@ const UserLibrary = () => {
           hasAccess: userBookEntry?.status === 'active',
           isPending: userBookEntry?.status === 'requested',
           isRead: userBookEntry?.is_read || false,
-          // 🔥 Uložíme čas poslední aktivity (otevření/změny), pokud neexistuje, dáme 0
+          // Uložíme čas poslední aktivity (otevření/změny), pokud neexistuje, dáme 0
           lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
         };
       });
 
-      // 🔥 KOMBINOVANÉ ŘAZENÍ: Podle otevření + propadávání přečtených dolů
+      // 🔥 OPRAVENÉ KOMBINOVANÉ ŘAZENÍ: Čas poslední aktivity má absolutní přednost
       processedBooks.sort((a, b) => {
-        // 1. Pokud se liší stav přečtení, nepřečtená kniha jde VŽDY nahoru
-        if (a.isRead !== b.isRead) {
-          return a.isRead ? 1 : -1;
-        }
-
-        // 2. Pokud jsou obě aktivní a rozečtené, seřadíme je podle času (naposledy otevřené nahoře)
+        // Pokud mají obě knihy aktivní licenci, řadíme primárně podle času
         if (a.hasAccess && b.hasAccess) {
-          return b.lastOpened - a.lastOpened;
+          // Pokud se časy liší, nověji otevřená kniha letí nahoru (i kdyby byla přečtená)
+          if (b.lastOpened !== a.lastOpened) {
+            return b.lastOpened - a.lastOpened;
+          }
+          // Pokud mají čas nuly (ještě neotevřené), nepřečtená jde nad přečtenou
+          if (a.isRead !== b.isRead) {
+            return a.isRead ? 1 : -1;
+          }
         }
 
-        // 3. Pokud nemají obě aktivní přístup, seřadíme je podle logických bloků (Aktivní > Čekající > Zamčené)
+        // Pokud nemají obě aktivní přístup, seřadíme je podle logických bloků (Aktivní > Čekající > Zamčené)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
 
