@@ -1966,6 +1966,9 @@ const AdminDashboard = () => {
   const [activeUser, setActiveUser] = useState(null);
   const [selectedBookId, setSelectedBookId] = useState('');
   const [editingBookId, setEditingBookId] = useState(null);
+  
+  // Nový stav pro editaci bonusových XP v admin panelu
+  const [userFakeXpInput, setUserFakeXpInput] = useState(0);
 
   // Pomocná funkce pro bezpečný zápis do logů (ignoruje 403 chyby z RLS, aby nezasekla aplikaci)
   const safeLog = async (logType, message) => {
@@ -1984,8 +1987,8 @@ const AdminDashboard = () => {
         .from('books')
         .select('id, title, author, fake_likes, book_likes(count)');
         
-      // 2. Načtení profilů
-      const { data: p } = await supabase.from('profiles').select('id, email, role, created_at');
+      // 2. Načtení profilů (PŘIDÁN SLOUPEC fake_xp)
+      const { data: p } = await supabase.from('profiles').select('id, email, role, created_at, fake_xp');
       
       // 3. Načtení logů (pokud selže kvůli RLS, vrátí prázdné pole)
       const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
@@ -2027,7 +2030,15 @@ const AdminDashboard = () => {
         };
       }) || [];
 
-      // Finální nastavení stavů bez duplicitních přepisů
+      // Aktualizace vybraného uživatele, aby se mu hned přepsala data, pokud se změnila v DB
+      if (activeUser) {
+        const updatedActiveUser = p?.find(u => u.id === activeUser.id);
+        if (updatedActiveUser) {
+          setActiveUser(updatedActiveUser);
+          setUserFakeXpInput(updatedActiveUser.fake_xp || 0);
+        }
+      }
+
       setBooks(booksWithLikes); 
       setProfiles(p || []); 
       setLogs(l || []);
@@ -2139,6 +2150,25 @@ const AdminDashboard = () => {
     }
   };
 
+  // Funkce pro uložení Fake XP uživateli
+  const handleSaveFakeXp = async () => {
+    if (!activeUser) return;
+    const xpNum = parseInt(userFakeXpInput) || 0;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ fake_xp: xpNum })
+      .eq('id', activeUser.id);
+
+    if (!error) {
+      await safeLog('SUCCESS', `Uživateli ${activeUser.email} nastaveno ${xpNum} bonusových XP.`);
+      alert('Bonusové XP byly úspěšně uloženy!');
+      refreshData();
+    } else {
+      alert('Chyba při ukládání XP: ' + error.message);
+    }
+  };
+
   // 3. Správa uživatelů a rolí
   const createNewUser = async (e) => {
     e.preventDefault();
@@ -2161,7 +2191,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 🔥 UPRAVENÝ CYKLUS ROLÍ: uživatel ➔ nakladatel ➔ správce ➔ uživatel
   const toggleRole = async (uId, currentRole) => {
     let nextRole = 'uživatel';
     
@@ -2306,6 +2335,11 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSelectUserFromTable = (p) => {
+    setActiveUser(p);
+    setUserFakeXpInput(p.fake_xp || 0);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 text-slate-800">
       {/* Karty statistik */}
@@ -2382,8 +2416,9 @@ const AdminDashboard = () => {
             </form>
           </Card>
 
+          {/* UPRAVENÁ SEKCE: DISTRIBUCE + FAKE XP FORMULÁŘ */}
           <Card className="border-2 border-indigo-600 bg-indigo-50/5">
-            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce a přímá aktivace</h3>
+            <h3 className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2 text-indigo-600"><UserCheck size={16}/> Distribuce a správa účtu</h3>
             
             <div className="space-y-3">
               <select value={selectedBookId} onChange={e => setSelectedBookId(e.target.value)} className="w-full p-2.5 border border-black/10 rounded-lg bg-white text-slate-950 font-bold text-xs">
@@ -2399,8 +2434,29 @@ const AdminDashboard = () => {
               </button>
               
               {activeUser && (
-                <div className="mt-4 pt-4 border-t border-black/10 space-y-2">
-                  <p className="text-xs font-bold truncate text-indigo-600">Vybraný uživatel: {activeUser.email}</p>
+                <div className="mt-4 pt-4 border-t border-black/10 space-y-3">
+                  <p className="text-xs font-bold truncate text-indigo-600 m-0">Vybraný uživatel: {activeUser.email}</p>
+                  
+                  {/* NOVÝ FORMULÁŘ NA PRIDÁNÍ FAKE XP */}
+                  <div className="bg-black/5 p-3 rounded-xl space-y-2 border border-black/5">
+                    <label className="text-[10px] font-black uppercase tracking-wider opacity-60 block">Bonusové XP pro účet</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        value={userFakeXpInput} 
+                        onChange={e => setUserFakeXpInput(parseInt(e.target.value) || 0)}
+                        className="w-full p-2 border border-black/10 rounded-lg bg-white text-xs font-bold outline-none" 
+                        placeholder="Napiš hodnotu..."
+                      />
+                      <button 
+                        onClick={handleSaveFakeXp}
+                        className="px-3 bg-indigo-600 text-white font-black text-[10px] uppercase rounded-lg border-none cursor-pointer hover:bg-indigo-700 transition-colors shrink-0"
+                      >
+                        Uložit XP
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
                     <Button onClick={assignBookToUser} className="flex-1 text-xs py-2 bg-indigo-600 text-white border-none uppercase hover:bg-indigo-700">Aktivovat vybranou</Button>
                     <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
@@ -2475,9 +2531,11 @@ const AdminDashboard = () => {
                 <tbody>
                   {profiles.map(p => (
                     <tr key={p.id} className="border-b border-black/5 hover:bg-black/[0.02] transition-colors font-bold">
-                      <td className="p-3 truncate max-w-[180px]">{p.email}</td>
+                      <td className="p-3 truncate max-w-[180px]">
+                        <div>{p.email}</div>
+                        {p.fake_xp > 0 && <div className="text-[9px] text-amber-600 font-black">⭐ +{p.fake_xp} Admin XP</div>}
+                      </td>
                       <td className="p-3">
-                        {/* 🔥 UPRAVENÉ ŠTÍTKY: Přidána fialová barva pro roli 'nakladatel' */}
                         <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase ${
                           p.role === 'správce' ? 'bg-red-100 text-red-700' : 
                           p.role === 'nakladatel' ? 'bg-purple-100 text-purple-700' : 
@@ -2487,7 +2545,7 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="p-3 text-right flex justify-end gap-2">
-                        <Button variant="secondary" onClick={() => setActiveUser(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Vybrat</Button>
+                        <Button variant="secondary" onClick={() => handleSelectUserFromTable(p)} className="text-[9px] px-2 py-1 uppercase"><Plus size={10}/> Vybrat</Button>
                         <button onClick={() => toggleRole(p.id, p.role)} className="p-1 border-none bg-transparent cursor-pointer text-slate-500 hover:text-slate-900" title="Změnit roli (Cyklus: Uživatel -> Nakladatel -> Správce)"><Shield size={12}/></button>
                       </td>
                     </tr>
