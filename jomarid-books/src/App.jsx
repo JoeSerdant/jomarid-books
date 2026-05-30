@@ -39,6 +39,7 @@ const Flame = getIcon('Flame');
 const Calendar = getIcon('Calendar');
 const CheckCircle = getIcon('CheckCircle');
 const TrendingUp = getIcon('TrendingUp');
+const Trophy = getIcon('Trophy');
 
 const THEMES = {
   saas: {
