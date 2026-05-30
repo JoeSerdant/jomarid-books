@@ -1132,11 +1132,24 @@ const UserStats = () => {
     return Math.round(100 * Math.pow(1.5, lvl - 1));
   };
 
-  const calculateLevelAndProgress = (totalXp) => {
+ const calculateLevelAndProgress = (totalXp) => {
+    // 🔥 STRÁŽCE PROTI ZASEKNUTÍ (ADMIN ZKRATKA)
+    // Pokud má uživatel 1 000 000 XP a více, okamžitě mu dáme Level 100
+    // bez spouštění náročného cyklu.
+    if (totalXp >= 1000000) {
+      return { 
+        level: 100, 
+        xpInCurrentLevel: 100, 
+        xpNeededForNext: 100 
+      };
+    }
+
     let currentLevel = 1;
-    while (totalXp >= getRequiredXpForLevel(currentLevel + 1)) {
+    // Přidáme pojistku (currentLevel < 100), aby cyklus nikdy nejel do nekonečna
+    while (totalXp >= getRequiredXpForLevel(currentLevel + 1) && currentLevel < 100) {
       currentLevel++;
     }
+    
     const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
     const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
     const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
