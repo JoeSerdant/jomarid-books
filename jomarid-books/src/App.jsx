@@ -2996,10 +2996,19 @@ const AdminDashboard = () => {
     }
   };
 
- // Funkce pro uložení Fake XP uživateli
+// Funkce pro uložení Fake XP uživateli
   const handleSaveFakeXp = async () => {
     if (!activeUser) return;
-    const xpNum = parseInt(userFakeXpInput) || 0;
+    
+    let xpNum = parseInt(userFakeXpInput) || 0;
+    
+    // 🔥 ADMIN ZKRATKA PRO LEVEL 100
+    // Pokud jako admin zadáš cokoli nad 999 999 XP, natvrdo tam pošleme 
+    // bezpečné číslo 1000000. Databáze nezkolabuje a v klientské komponentě 
+    // podle toho pak snadno poznáme, že má uživatel dostat Level 100.
+    if (xpNum >= 1000000) {
+      xpNum = 1000000;
+    }
     
     const { error } = await supabase
       .from('profiles')
@@ -3010,12 +3019,11 @@ const AdminDashboard = () => {
       await safeLog('SUCCESS', `Uživateli ${activeUser.email} nastaveno ${xpNum} bonusových XP.`);
       alert('Bonusové XP byly úspěšně uloženy!');
       
-      // 🔥 AKTUALIZACE LOKÁLNÍHO STAVU PRO OKAMŽITÝ REFRESH
-      // Tímto okamžitě přepíšeme stav vybraného uživatele novou hodnotou,
-      // takže herní statistiky a tabulky v celé aplikaci hned uvidí změnu.
+      // Aktualizace lokálního stavu
       setActiveUser(prev => prev ? { ...prev, fake_xp: xpNum } : null);
+      setUserFakeXpInput(xpNum); // srovná hodnotu i v políčku
       
-      await refreshData();
+      refreshData();
     } else {
       alert('Chyba při ukládání XP: ' + error.message);
     }
