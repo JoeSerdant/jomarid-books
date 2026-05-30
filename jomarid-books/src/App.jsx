@@ -35,6 +35,10 @@ const UserPlus = getIcon('UserPlus');
 const BarChart2 = getIcon('BarChart2');
 const ChartBar = getIcon('ChartBar');
 const Award = getIcon('Award');
+const Flame = getIcon('Flame');
+const Calendar = getIcon('Calendar');
+const CheckCircle = getIcon('CheckCircle');
+const TrendingUp = getIcon('TrendingUp');
 
 const THEMES = {
   saas: {
