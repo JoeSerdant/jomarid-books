@@ -25,7 +25,6 @@ const PhoneIcon = getIcon('Phone');
 const ChevronDown = getIcon('ChevronDown');
 const Clock = getIcon('Clock');
 const Trash = getIcon('Trash');
-
 const Sparkles = getIcon('Sparkles');
 const HelpCircle = getIcon('HelpCircle');
 const Zap = getIcon('Zap');
@@ -39,8 +38,6 @@ const Calendar = getIcon('Calendar');
 const CheckCircle = getIcon('CheckCircle');
 const TrendingUp = getIcon('TrendingUp');
 const Trophy = getIcon('Trophy');
-
-// 🟡 problémová ikona – může chybět podle verze lucide-react
 const BookOpenIcon = getIcon('BookOpen');
 const Compass = getIcon('Compass');
 const Footprints = getIcon('Footprints') || getIcon('FootprintsIcon') || getIcon('Map');
@@ -54,6 +51,7 @@ const Star = getIcon('Star');
 const Gauge = getIcon('Gauge');
 const ZapOff = getIcon('ZapOff');
 const HeartIcon = getIcon('Heart');
+const Target = getIcon('Target');
 
 const THEMES = {
   saas: {
