@@ -394,7 +394,7 @@ const UserStatsDropdown = () => {
     </div>
   );
 };
- 
+
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, role } = useAuth();
 
@@ -439,6 +439,7 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
     </nav>
   );
 };
+
 
 const SettingsModal = ({ isOpen, onClose }) => {
   const { currentTheme, changeTheme } = useTheme();
