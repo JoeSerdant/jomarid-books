@@ -200,7 +200,7 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
               <Link to="/admin" className="no-underline"><Button className="text-xs bg-red-600 border-none text-white hover:bg-red-700">Admin Panel</Button></Link>
             )}
             
-            {(role === 'správce' || role === 'nakladatel') && (
+            {(role === 'správce') && (
               <Link to="/publisher" className="no-underline"><Button className="text-xs bg-purple-600 border-none text-white">Nakladatel</Button></Link>
             )}
           </>
