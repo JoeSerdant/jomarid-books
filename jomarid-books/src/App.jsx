@@ -1073,7 +1073,7 @@ const ReaderPage = () => {
             }`}
           >
             <Heart size={14} className={isLiked ? "fill-red-500 text-red-500" : ""} />
-            <span>{likesCount} lajků</span>
+            <span>{likesCount} </span>
           </button>
         </div>
 
