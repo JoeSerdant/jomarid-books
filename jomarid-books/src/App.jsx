@@ -406,6 +406,290 @@ const SettingsModal = ({ isOpen, onClose }) => {
   );
 };
 
+const UserStats = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    streak: 0,
+    monthlyRead: 0,
+    monthlyGoal: 5,
+    totalRead: 0,
+    weeklyActivity: [], // Pole pro posledních 7 dní
+    xp: 0,
+    level: 1,
+    levelName: "Nováček"
+  });
+
+  // Pomocná funkce pro určení titulu podle levelu
+  const getLevelName = (lvl) => {
+    if (lvl >= 15) return "Mág nejvyšší knihovny 🧙‍♂️";
+    if (lvl >= 10) return "Archon vědění 🏛️";
+    if (lvl >= 5) return "Sečtělý učenec 📜";
+    if (lvl >= 2) return "Pravidelný knihomol 🐛";
+    return "Začínající čtenář 🌱";
+  };
+
+  useEffect(() => {
+    const fetchFullStats = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        // 1. Načtení přečtených knih
+        const { data: userBooks } = await supabase
+          .from('user_books')
+          .select('updated_at, is_read')
+          .eq('user_id', user.id)
+          .eq('is_read', true);
+
+        // 2. Načtení historie aktivity (posledních 30 dní)
+        const { data: activityData } = await supabase
+          .from('user_daily_activity')
+          .select('activity_date')
+          .eq('user_id', user.id)
+          .order('activity_date', { ascending: false });
+
+        const totalRead = userBooks?.length || 0;
+
+        // Výpočet měsíčního progresu
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth();
+        const monthlyRead = userBooks?.filter(ub => {
+          const date = new Date(ub.updated_at);
+          return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+        }).length || 0;
+
+        // Výpočet Streaku
+        let streak = 0;
+        const activeDates = activityData?.map(a => a.activity_date) || [];
+        
+        if (activeDates.length > 0) {
+          const todayStr = new Date().toLocaleDateString('sv');
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toLocaleDateString('sv');
+
+          if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
+            let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
+            while (true) {
+              const checkDateStr = checkDate.toLocaleDateString('sv');
+              if (activeDates.includes(checkDateStr)) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+              } else {
+                break;
+              }
+            }
+          }
+        }
+
+        // 3. Generování přehledu za posledních 7 dní (Po-Ne)
+        const daysOfWeek = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toLocaleDateString('sv');
+          last7Days.push({
+            dayLabel: daysOfWeek[d.getDay()],
+            isActive: activeDates.includes(dateStr),
+            isToday: i === 0
+          });
+        }
+
+        // 4. Výpočet gamifikace (XP a Levely)
+        // Každá přečtená kniha = 100 XP, každý den v sérii (streak) = 25 XP
+        const totalXp = (totalRead * 100) + (streak * 25);
+        const calculatedLevel = Math.floor(totalXp / 300) + 1; // 300 XP na jeden level
+
+        setStats({
+          streak,
+          monthlyRead,
+          monthlyGoal: 5, // Tady můžeš v budoucnu napojit uživatelské nastavení cíle
+          totalRead,
+          weeklyActivity: last7Days,
+          xp: totalXp % 300, // Zbytek XP do dalšího levelu
+          level: calculatedLevel,
+          levelName: getLevelName(calculatedLevel)
+        });
+
+      } catch (err) {
+        console.error("Chyba při sestavování statistik:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFullStats();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-sm font-bold opacity-60">Sestavuji tvůj čtenářský report...</p>
+      </div>
+    );
+  }
+
+  const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
+  const xpPercent = Math.round((stats.xp / 300) * 100);
+
+  // Dynamický motivační citát podle úspěchu
+  const getMotivationQuote = () => {
+    if (progressPercent >= 100) return "Neuvěřitelné! Měsíční cíl splněn. Jsi absolutní mašina! 🏆";
+    if (progressPercent >= 50) return "Skvělá práce, jsi v polovině! Jen tak dál. 📖";
+    if (stats.streak > 0) return `Držíš sérii ${stats.streak} dní! Každá stránka se počítá. 🔥`;
+    return "Otevři dnes jakoukoliv knihu na 5 minut a nastartuj svou sérii! 🚀";
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12 text-slate-800">
+      
+      {/* HLAVIČKA PROFILU */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl"></div>
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div>
+            <span className="text-xs bg-indigo-500/30 text-indigo-300 px-3 py-1 rounded-full font-black uppercase tracking-wider mb-2 inline-block">
+              {stats.levelName}
+            </span>
+            <h1 className="text-3xl font-black tracking-tight mb-1">Tvoje Čtenářské Úspěchy</h1>
+            <p className="text-sm text-slate-300 font-medium">{getMotivationQuote()}</p>
+          </div>
+          
+          {/* LEVEL UKAZATEL */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[200px]">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-xl font-black shadow-lg">
+              {stats.level}
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <span>Úroveň</span>
+                <span>{stats.xp} / 300 XP</span>
+              </div>
+              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                <div className="bg-indigo-400 h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%` }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* HLAVNÍ MŘÍŽKA STATISTIK */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        
+        {/* KARTA: STREAK */}
+        <div className="bg-white border border-black/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div className="space-y-1 text-left">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Aktuální Streak</h3>
+              <p className="text-3xl font-black text-amber-600 flex items-baseline gap-1">
+                {stats.streak} <span className="text-xs uppercase text-slate-400 font-bold">dní</span>
+              </p>
+            </div>
+            <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl">
+              <Flame size={24} className={stats.streak > 0 ? "fill-amber-500" : ""} />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-4 pt-3 border-t border-black/5">
+            {stats.streak > 0 ? "Skvělé, dnes máš splněno! Udržuj plamínek." : "Dnes jsi ještě nečetl. Zachraň svůj streak!"}
+          </p>
+        </div>
+
+        {/* KARTA: MĚSÍČNÍ VÝZVA */}
+        <div className="bg-white border border-black/5 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="space-y-1 text-left">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Měsíční výzva</h3>
+              <p className="text-3xl font-black text-indigo-600">
+                {stats.monthlyRead} <span className="text-xs uppercase text-slate-400 font-bold">z {stats.monthlyGoal} knih</span>
+              </p>
+            </div>
+            <div className="p-3 bg-indigo-600/10 text-indigo-600 rounded-xl">
+              <Calendar size={24} />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
+              <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+            </div>
+            <div className="flex justify-between text-[10px] font-black uppercase opacity-50">
+              <span>{progressPercent}% kompletní</span>
+              <span>Zbývá {Math.max(0, stats.monthlyGoal - stats.monthlyRead)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KARTA: CELKEM PŘEČTENO */}
+        <div className="bg-white border border-black/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div className="space-y-1 text-left">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Celková moudrost</h3>
+              <p className="text-3xl font-black text-emerald-600">
+                {stats.totalRead} <span className="text-xs uppercase text-slate-400 font-bold">knih</span>
+              </p>
+            </div>
+            <div className="p-3 bg-emerald-600/10 text-emerald-600 rounded-xl">
+              <CheckCircle size={24} />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-4 pt-3 border-t border-black/5 flex items-center gap-1">
+            <Sparkles size={12} className="text-emerald-500" /> Celkem jsi zdolal už moc pěknou řádku děl!
+          </p>
+        </div>
+
+      </div>
+
+      {/* SPREAD: TÝDENNÍ KALENDÁŘ AKTIVITY */}
+      <div className="bg-white border border-black/5 rounded-2xl p-6 shadow-sm mb-8">
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4 text-left flex items-center gap-1.5">
+          <TrendingUp size={14} className="text-slate-500" /> Aktivita v tomto týdnu
+        </h3>
+        
+        <div className="grid grid-cols-7 gap-2 md:gap-4 text-center">
+          {stats.weeklyActivity.map((day, idx) => (
+            <div 
+              key={idx} 
+              className={`p-3 rounded-xl flex flex-col items-center gap-2 border ${
+                day.isToday ? 'border-indigo-600 bg-indigo-50/30' : 'border-transparent'
+              }`}
+            >
+              <span className={`text-xs font-black uppercase ${day.isToday ? 'text-indigo-600' : 'opacity-40'}`}>
+                {day.dayLabel}
+              </span>
+              <div 
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                  day.isActive 
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' 
+                    : 'bg-black/5 text-slate-300'
+                }`}
+              >
+                {day.isActive ? (
+                  <Flame size={16} className="fill-white" />
+                ) : (
+                  <div className="w-1.5 h-1.5 bg-current rounded-full"></div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SPODNÍ ROZCESTNÍK */}
+      <div className="flex justify-end">
+        <Link to="/app" className="no-underline">
+          <button className="flex items-center gap-1 px-4 py-2 bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-80 transition-opacity border-none cursor-pointer">
+            Zpět do knihovny <ChevronRight size={14} />
+          </button>
+        </Link>
+      </div>
+
+    </div>
+  );
+};
+
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('');
   const [userBooks, setUserBooks] = useState([]);
