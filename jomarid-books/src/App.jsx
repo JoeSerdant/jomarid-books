@@ -354,7 +354,6 @@ const UserStatsDropdown = () => {
   );
 };
 
-// --- HLAVNÍ NAVBAR COMPONENTA ---
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, role } = useAuth();
 
@@ -369,8 +368,16 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
         <button onClick={onOpenSearch} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Search size={20} /></button>
         <button onClick={onOpenSettings} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Settings size={20} /></button>
         
-        {/* 🔥 Tlačítko statistik se vykreslí komukoliv, kdo je přihlášený */}
-        {user && <UserStatsDropdown />}
+        {/* 🔥 Tlačítko statistik, které hodí uživatele na samostatnou stránku /stats */}
+        {user && (
+          <Link 
+            to="/stats" 
+            className="p-2 opacity-60 hover:opacity-100 rounded-lg text-current bg-transparent border-none outline-none flex items-center"
+            title="Moje statistiky"
+          >
+            <BarChart2 size={20} />
+          </Link>
+        )}
 
         {user ? (
           <>
