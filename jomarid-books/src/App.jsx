@@ -1206,7 +1206,7 @@ const UserStats = () => {
         ];
         const currentMonthName = monthNames[currentMonth];
 
-let streak = 0;
+        let streak = 0;
         const activeDates = activityData?.map(a => a.activity_date) || [];
         
         if (activeDates.length > 0) {
@@ -1230,15 +1230,28 @@ let streak = 0;
         }
 
         // ========================================================
-        // 🔥 OPRAVA: DYNAMICKÉ SČÍTÁNÍ REÁLNÝCH XP A FAKE XP
+        // 🔥 NOVÁ OPRAVA: GENEROVÁNÍ DAT PRO TÝDENNÍ GRAF AKTIVITY
         // ========================================================
-        // Předpokládáme například 100 XP za každou kompletně přečtenou knihu
+        const czechDays = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
+        const weeklyActivityGenerated = [];
+
+        // Vygenerujeme posledních 7 dní od dneška směrem do minulosti
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toLocaleDateString('sv'); // formát YYYY-MM-DD
+          
+          weeklyActivityGenerated.push({
+            dayLabel: czechDays[d.getDay()],
+            isActive: activeDates.includes(dateStr),
+            isToday: i === 0
+          });
+        }
+
+        // Predpokládáme například 100 XP za každou kompletně přečtenou knihu
         const baseXpFromBooks = totalRead * 100; 
-        
-        // Sečteme reálná XP z knih + bonusová fake_xp z admin panelu
         const totalXp = baseXpFromBooks + bonusXp;
 
-        // Spočítáme level a progresi z celkového sloučeného balíku XP
         const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
         const visuals = getLevelVisuals(level);
 
@@ -1248,17 +1261,17 @@ let streak = 0;
           monthlyRead,
           monthlyGoal: currentGoal,
           totalRead,
-          weeklyActivity: activeDates.slice(0, 7), // posledních 7 aktivních dní pro graf
-          xp: xpInCurrentLevel,                     // XP v rámci aktuálního levelu pro Progress Bar
+          weeklyActivity: weeklyActivityGenerated, // 🔥 Teď posíláme správně vygenerované dny s popisky!
+          xp: xpInCurrentLevel,
           level,
           levelName: visuals.name,
           levelBadgeClass: visuals.badge,
           levelBoxClass: visuals.box,
-          xpNeededForNext,                         // Kolik celkem XP potřebuje na další level
+          xpNeededForNext,
           daysRemainingInMonth,
           currentMonthName
         });
-
+        
       } catch (error) {
         console.error("Chyba při načítání statistik čtenáře:", error);
       } finally {
