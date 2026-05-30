@@ -2996,7 +2996,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Funkce pro uložení Fake XP uživateli
+ // Funkce pro uložení Fake XP uživateli
   const handleSaveFakeXp = async () => {
     if (!activeUser) return;
     const xpNum = parseInt(userFakeXpInput) || 0;
@@ -3009,7 +3009,13 @@ const AdminDashboard = () => {
     if (!error) {
       await safeLog('SUCCESS', `Uživateli ${activeUser.email} nastaveno ${xpNum} bonusových XP.`);
       alert('Bonusové XP byly úspěšně uloženy!');
-      refreshData();
+      
+      // 🔥 AKTUALIZACE LOKÁLNÍHO STAVU PRO OKAMŽITÝ REFRESH
+      // Tímto okamžitě přepíšeme stav vybraného uživatele novou hodnotou,
+      // takže herní statistiky a tabulky v celé aplikaci hned uvidí změnu.
+      setActiveUser(prev => prev ? { ...prev, fake_xp: xpNum } : null);
+      
+      await refreshData();
     } else {
       alert('Chyba při ukládání XP: ' + error.message);
     }
