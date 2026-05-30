@@ -1,14 +1,13 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
-// 🔥 PŘÍMÝ IMPORT PRO SRDÍČKO A DALŠÍ IKONY, ABY NEZÁVISELY NA DYNAMICKÉ FUNKCI:
-import { Heart, BookOpen, Book, ChevronRight, Loader2, LogOut, Shield } from 'lucide-react';
+import { Book, ChevronRight, Loader2, LogOut, Shield, Heart, BookOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-// Pomocná funkce pro ikony (ponech ji tu pro starší komponenty, pokud ji využívají)
+// bezpečný getter ikon
 const getIcon = (name) => Icons[name] || Icons.Book || Icons.HelpCircle;
 
-// Definice ikon
+// ICON MAP
 const Lock = getIcon('Lock');
 const Plus = getIcon('Plus');
 const ShieldCheck = getIcon('ShieldCheck');
@@ -23,13 +22,13 @@ const Users = getIcon('Users');
 const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
 const PhoneIcon = getIcon('Phone');
-const ChevronDown = getIcon('ChevronDown'); // Ujisti se, že tu máš i tuhle
+const ChevronDown = getIcon('ChevronDown');
 const Clock = getIcon('Clock');
 const Trash = getIcon('Trash');
-// Přidej tyto řádky pod tvoje stávající definice ikon:
+
 const Sparkles = getIcon('Sparkles');
 const HelpCircle = getIcon('HelpCircle');
-const Zap = getIcon('Zap'); // Lucide ho zná jako Zap, přes getIcon se bezpečně namapuje
+const Zap = getIcon('Zap');
 const Check = getIcon('Check');
 const UserPlus = getIcon('UserPlus');
 const BarChart2 = getIcon('BarChart2');
@@ -40,19 +39,21 @@ const Calendar = getIcon('Calendar');
 const CheckCircle = getIcon('CheckCircle');
 const TrendingUp = getIcon('TrendingUp');
 const Trophy = getIcon('Trophy');
-const BookOpen = getIcon('BookOpen');
+
+// 🟡 problémová ikona – může chybět podle verze lucide-react
+const BookOpenIcon = getIcon('BookOpen');
 const Compass = getIcon('Compass');
-const Footprints = getIcon('Footprints');
+const Footprints = getIcon('Footprints') || getIcon('FootprintsIcon') || getIcon('Map');
 const Scroll = getIcon('Scroll');
 const BookMarked = getIcon('BookMarked');
 const Feather = getIcon('Feather');
 const Crown = getIcon('Crown');
-const Infinity = getIcon('Infinity');
+const InfinityIcon = getIcon('Infinity');
 const Gem = getIcon('Gem');
 const Star = getIcon('Star');
 const Gauge = getIcon('Gauge');
 const ZapOff = getIcon('ZapOff');
-const Heart = getIcon('Heart');
+const HeartIcon = getIcon('Heart');
 
 const THEMES = {
   saas: {
