@@ -2132,16 +2132,21 @@ const UserLibrary = () => {
         };
       });
 
-      // Kombinované řazení
+      // 🔥 NOVÉ SROVNANÉ ŘAZENÍ KNIH
       processedBooks.sort((a, b) => {
+        // Obě knihy jsou aktivní a přístupné
         if (a.hasAccess && b.hasAccess) {
+          // 1. Kritérium: Nepřečtené/rozečtené knihy jdou VŽDY dopředu
+          if (a.isRead !== b.isRead) {
+            return a.isRead ? 1 : -1; // Pokud je 'a' přečtená, posune se dozadu (1), pokud 'b', posune se 'a' dopředu (-1)
+          }
+          // 2. Kritérium: V rámci stejné skupiny (rozečtené vs přečtené) řadíme podle poslední aktivity
           if (b.lastOpened !== a.lastOpened) {
             return b.lastOpened - a.lastOpened;
           }
-          if (a.isRead !== b.isRead) {
-            return a.isRead ? 1 : -1;
-          }
         }
+        
+        // Pokud nemají obě stejný přístup, seřadíme podle hierarchie (Aktivní -> Čekající -> Zamčené)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
         if (a.isPending !== b.isPending) return b.isPending - a.isPending;
         return 0;
@@ -2320,11 +2325,16 @@ const ReaderPage = () => {
   const navigate = useNavigate();
   const [book, setBook] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0); // 🔥 Sledování celkového počtu lajků
+  const [likesCount, setLikesCount] = useState(0); 
   const [isRead, setIsRead] = useState(false); 
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  
+  // 🔥 NOVÉ: Nastavení velikosti textu pro pohodlné čtení
+  const [textSize, setTextSize] = useState('base'); // 'base' | 'lg' | 'xl'
+  // 🔥 NOVÉ: Sledování procentuálního průběhu čtení pro horní progress bar
+  const [readingProgress, setReadingProgress] = useState(0);
 
   const saveReadingProgress = async () => {
     const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
@@ -2341,6 +2351,20 @@ const ReaderPage = () => {
       .eq('user_id', currentUserId)
       .eq('book_id', id);
   };
+
+  // 🔥 NOVÉ: Výpočet progressu při scrollování
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 0) {
+        const progress = (window.scrollY / totalHeight) * 100;
+        setReadingProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading]);
 
   useEffect(() => {
     async function verifyAndLoad() {
@@ -2363,7 +2387,6 @@ const ReaderPage = () => {
 
       setIsRead(access.is_read || false); 
 
-      // Načtení knihy včetně fake_likes a reálných book_likes pro správný výpočet
       const { data: b } = await supabase
         .from('books')
         .select('title, author, content, fake_likes, book_likes(count)')
@@ -2374,7 +2397,7 @@ const ReaderPage = () => {
         setBook(b);
         const realLikes = b.book_likes?.[0]?.count || 0;
         const fakeLikes = b.fake_likes || 0;
-        setLikesCount(realLikes + fakeLikes); // 🔥 Výpočet shodný s administrací
+        setLikesCount(realLikes + fakeLikes);
       }
 
       if (currentUserId) {
@@ -2399,7 +2422,6 @@ const ReaderPage = () => {
 
     verifyAndLoad();
 
-    // Přidání event listenerů pro uložení pozice při odchodu/zavření tabu
     const handleBeforeUnload = () => {
       saveReadingProgress();
     };
@@ -2410,7 +2432,6 @@ const ReaderPage = () => {
     };
   }, [id, userId]);
 
-  // Funkce pro přepnutí stavu přečteno
   const toggleReadStatus = async (status) => {
     await supabase
       .from('user_books')
@@ -2422,12 +2443,10 @@ const ReaderPage = () => {
     if (status) navigate('/app'); 
   };
 
-  // 🔥 Kompletní funkční toggleLike pro čtenáře
   const toggleLike = async () => {
     if (!userId || !id) return;
 
     if (isLiked) {
-      // Smazat lajk
       const { error } = await supabase
         .from('book_likes')
         .delete()
@@ -2439,7 +2458,6 @@ const ReaderPage = () => {
         setLikesCount(prev => Math.max(0, prev - 1));
       }
     } else {
-      // Přidat lajk
       const { error } = await supabase
         .from('book_likes')
         .insert([{ user_id: userId, book_id: id }]);
@@ -2457,24 +2475,86 @@ const ReaderPage = () => {
     navigate('/app');
   };
 
-  if (loading) return <div style={{ color: 'var(--text-body)' }} className="text-center py-20"><Loader2 style={{ color: 'var(--bg-primary)' }} className="animate-spin mx-auto"/></div>;
-  if (err) return <div className="max-w-sm mx-auto py-20 px-4"><Card className="text-center font-bold text-red-500 p-4">{err}</Card></div>;
+  if (loading) return (
+    <div style={{ color: 'var(--text-body)' }} className="text-center py-32">
+      <Loader2 style={{ color: 'var(--bg-primary)' }} className="animate-spin mx-auto w-10 h-10 mb-4" />
+      <p className="text-sm font-bold opacity-60 animate-pulse uppercase tracking-wider">Otevírám starodávný svazek...</p>
+    </div>
+  );
+  
+  if (err) return (
+    <div className="max-w-md mx-auto py-20 px-4 animate-in zoom-in-95 duration-200">
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="text-center border p-8 rounded-2xl shadow-xl">
+        <p className="font-black text-red-500 uppercase tracking-wide mb-2">Přístup odepřen</p>
+        <p style={{ color: 'var(--text-body)' }} className="text-sm opacity-80 mb-6">{err}</p>
+        <Link to="/app" className="no-underline">
+          <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer border-none shadow-md">
+            Zpět do knihovny
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
+
+  // Pomocná třída pro dynamickou velikost písma
+  const getTextSizeClass = () => {
+    if (textSize === 'lg') return 'text-lg md:text-xl leading-relaxed';
+    if (textSize === 'xl') return 'text-xl md:text-2xl leading-loose';
+    return 'text-base md:text-lg leading-relaxed';
+  };
 
   return (
-    <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in duration-300">
-      <a href="/app" onClick={handleBack} style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold no-underline opacity-60 hover:opacity-100 flex items-center gap-1 mb-4 transition-opacity">
-        ← Zpět do knihovny
-      </a>
+    <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       
-      <Card className="p-8 md:p-12 relative overflow-hidden">
-        {/* Hlavička knihy, autor a tvoje lajky */}
-        <div style={{ borderColor: 'var(--border-color)' }} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b">
+      {/* 🔥 NOVÝ PLOVOUCÍ PROGRESS BAR NA VRCHU STRÁNKY */}
+      <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-sm">
+        <div 
+          className="h-full rounded-r-full transition-all duration-100 ease-out" 
+          style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}
+        />
+      </div>
+
+      {/* Ovládací horní lišta */}
+      <div className="flex justify-between items-center mb-6">
+        <a href="/app" onClick={handleBack} style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-black no-underline opacity-60 hover:opacity-100 flex items-center gap-1.5 transition-all group">
+          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Zpět do knihovny
+        </a>
+
+        {/* 🔥 NOVÉ: Přepínač velikosti textu (Aa) */}
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-xl p-1 flex items-center gap-1 shadow-sm">
+          {['base', 'lg', 'xl'].map((size) => (
+            <button
+              key={size}
+              onClick={() => setTextSize(size)}
+              style={{
+                backgroundColor: textSize === size ? 'var(--bg-primary)' : 'transparent',
+                color: textSize === size ? 'var(--text-primary)' : 'var(--text-muted)'
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase transition-all border-none cursor-pointer ${textSize !== size && 'hover:bg-black/5 opacity-70'}`}
+            >
+              {size === 'base' ? 'A' : size === 'lg' ? 'A+' : 'A++'}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      {/* HLAVNÍ ČTECÍ KARTA */}
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-12 shadow-xl relative overflow-hidden transition-all duration-300">
+        
+        {/* Dekorativní prvek na pozadí doplňující imerzi */}
+        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -left-16 -top-16 w-32 h-32 opacity-5 rounded-full blur-xl"></div>
+        
+        {/* Hlavička knihy */}
+        <div style={{ borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b relative z-10">
           <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight mb-1">{book?.title}</h1>
-            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-bold uppercase opacity-80">Autor: {book?.author || 'Neznámý'}</p>
+            <div className="flex items-center gap-2 mb-1.5">
+              <BookOpen size={16} style={{ color: 'var(--bg-primary)' }} />
+              <p style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 opacity-70">{book?.author || 'Neznámý autor'}</p>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight m-0">{book?.title}</h1>
           </div>
           
-          {/* Tlačítko pro lajkování */}
+          {/* Tlačítko pro lajkování s animací */}
           <button 
             onClick={toggleLike}
             style={{ 
@@ -2482,33 +2562,60 @@ const ReaderPage = () => {
               borderColor: isLiked ? 'var(--bg-primary)' : 'var(--border-color)',
               color: isLiked ? 'var(--bg-primary)' : 'var(--text-muted)'
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase border tracking-wider cursor-pointer transition-all hover:opacity-90"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-xs uppercase border tracking-wider cursor-pointer transition-all active:scale-90 ${isLiked ? 'shadow-inner' : 'hover:bg-black/5'}`}
           >
-            <Heart size={14} style={{ fill: isLiked ? 'var(--bg-primary)' : 'transparent', color: isLiked ? 'var(--bg-primary)' : 'currentColor' }} />
+            <Heart 
+              size={14} 
+              className={isLiked ? "animate-pulse" : ""}
+              style={{ 
+                fill: isLiked ? 'var(--bg-primary)' : 'transparent', 
+                color: isLiked ? 'var(--bg-primary)' : 'currentColor' 
+              }} 
+            />
             <span>{likesCount}</span>
           </button>
         </div>
 
-        {/* Text knihy */}
-        <div style={{ color: 'var(--text-body)' }} className="text-base leading-relaxed whitespace-pre-line text-justify font-medium tracking-wide">
+        {/* Text knihy s nastavitelnou velikostí a moderním formátováním */}
+        <div 
+          style={{ color: 'var(--text-body)' }} 
+          className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 ${getTextSizeClass()}`}
+        >
           {book?.content}
         </div>
 
-        {/* NOVÁ SEKCE NA KONCI */}
-        <div style={{ borderColor: 'var(--border-color)' }} className="mt-16 pt-8 border-t flex flex-col items-center gap-4">
+        {/* UKONČOVACÍ SEKCE NA KONCI KNIHY */}
+        <div style={{ borderColor: 'var(--border-color)' }} className="mt-16 pt-8 border-t flex flex-col items-center gap-4 relative z-10">
+          <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-10 h-10 rounded-full flex items-center justify-center mb-2">
+            <BookOpen size={18} style={{ color: 'var(--text-muted)' }} className="opacity-60" />
+          </div>
+          
           <button 
             onClick={() => toggleReadStatus(!isRead)}
             style={{ 
               backgroundColor: isRead ? 'var(--bg-secondary)' : 'var(--bg-primary)', 
-              color: isRead ? 'var(--text-muted)' : 'var(--text-primary)'
+              color: isRead ? 'var(--text-body)' : 'var(--text-primary)'
             }}
-            className="px-8 py-3 rounded-full font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.99] shadow-md"
+            className="px-10 py-3.5 rounded-xl font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all hover:scale-[1.03] active:scale-[0.98] shadow-md flex items-center gap-2"
           >
-            {isRead ? "Znovu otevřít svazek" : "Dokončit svazek ✓"}
+            {isRead ? (
+              <>
+                <RefreshCw size={14} /> Znovu otevřít svazek
+              </>
+            ) : (
+              <>
+                <Check size={14} /> Dokončit svazek
+              </>
+            )}
           </button>
-          {isRead && <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-bold uppercase opacity-50">Tento svazek je v knihovně označen jako přečtený.</p>}
+          
+          {isRead && (
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wide opacity-50 m-0 animate-fade-in">
+              ✓ Tento svazek je v knihovně označen jako přečtený.
+            </p>
+          )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
@@ -2516,19 +2623,24 @@ const ReaderPage = () => {
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]); // 🔥 Nový stav pro čekající žádosti
+  const [pendingRequests, setPendingRequests] = useState([]); 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedBookId, setSelectedBookId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
   const getUsername = (email) => {
     return email ? email.split('@')[0] : '';
   };
 
-  // Funkce pro načtení knih nakladatele včetně agregovaného počtu lajků
+  // Výpočet celkového počtu lajků nakladatele pro statistickou kartu
+  const getTotalLikes = () => {
+    return myBooks.reduce((sum, b) => sum + (b.likesCount || 0), 0);
+  };
+
   const fetchPublisherBooks = async (username) => {
     const { data, error } = await supabase
       .from('books')
@@ -2546,17 +2658,15 @@ const PublisherDashboard = () => {
         id: book.id,
         title: book.title,
         author: book.author,
-        likesCount: (book.book_likes?.[0]?.count || 0) + (book.fake_likes || 0) // 🔥 Sčítáme i fake_likes
+        likesCount: (book.book_likes?.[0]?.count || 0) + (book.fake_likes || 0) 
       }));
       setMyBooks(booksWithLikes);
     }
   };
 
-  // 🔥 NOVÁ FUNKCE: Načtení žádostí o licence pouze pro knihy tohoto nakladatele
   const fetchPendingRequests = async (username) => {
     setLoadingRequests(true);
     try {
-      // Nejprve vytáhneme ID všech knih, které patří tomuto autorovi
       const { data: publisherBooks } = await supabase
         .from('books')
         .select('id')
@@ -2569,7 +2679,6 @@ const PublisherDashboard = () => {
         return;
       }
 
-      // Vytáhneme žádosti 'requested' navázané na tyto knihy + dotáhneme profily a info o knize
       const { data: requests, error } = await supabase
         .from('user_books')
         .select(`
@@ -2613,6 +2722,7 @@ const PublisherDashboard = () => {
     e.preventDefault();
     if (!title || !content) return alert('Doplňte název a text knihy.');
 
+    setIsSubmitting(true);
     const username = getUsername(user.email);
 
     const { error } = await supabase.from('books').insert([{ 
@@ -2622,8 +2732,9 @@ const PublisherDashboard = () => {
       fake_likes: 0
     }]);
 
+    setIsSubmitting(false);
+
     if (!error) {
-      alert('Kniha úspěšně publikována!');
       setTitle(''); 
       setContent('');
       fetchPublisherBooks(username);
@@ -2632,7 +2743,6 @@ const PublisherDashboard = () => {
     }
   };
 
-  // Přímé ruční přiřazení (vytvoří rovnou aktivní licenci)
   const assignBook = async () => {
     if (!selectedBookId || !selectedUserId) return alert('Vyberte knihu a uživatele');
     
@@ -2651,7 +2761,6 @@ const PublisherDashboard = () => {
     }
   };
 
-  // 🔥 NOVÁ FUNKCE: Schválení žádosti čtenáře
   const handleApproveRequest = async (requestId) => {
     const { error } = await supabase
       .from('user_books')
@@ -2665,7 +2774,6 @@ const PublisherDashboard = () => {
     }
   };
 
-  // 🔥 NOVÁ FUNKCE: Zamítnutí / smazání žádosti čtenáře
   const handleRejectRequest = async (requestId) => {
     const { error } = await supabase
       .from('user_books')
@@ -2680,47 +2788,95 @@ const PublisherDashboard = () => {
   };
 
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto py-12 px-4 space-y-8 animate-in fade-in duration-300">
-      <div style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center mb-4 border-b pb-4">
-        <h2 className="text-2xl font-black uppercase tracking-tight">Nakladatelský Panel</h2>
-        <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }} className="text-xs px-3 py-1.5 rounded-full font-bold uppercase opacity-80">
-          Vydavatel: {getUsername(user?.email)}
+    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto py-12 px-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* HLAVIČKA PANELU */}
+      <div style={{ borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-6">
+        <div>
+          <h2 className="text-3xl font-black uppercase tracking-tight m-0">Nakladatelský Panel</h2>
+          <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium mt-1 opacity-70">Správa rukopisů, autorských licencí a čtenářské komunity.</p>
+        </div>
+        <span style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="text-xs px-4 py-2 border rounded-xl font-bold uppercase flex items-center gap-2 shadow-sm">
+          <ShieldCheck size={14} style={{ color: 'var(--bg-primary)' }} />
+          <span>Vydavatel: {getUsername(user?.email)}</span>
         </span>
+      </div>
+
+      {/* 🔥 NOVÉ: MINI STATISTICKÝ PŘEHLED (DASHBOARD) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm">
+          <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-current">
+            <BookOpen size={20} className="opacity-80" />
+          </div>
+          <div>
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Vydané svazky</p>
+            <h3 className="text-xl font-black m-0">{myBooks.length}</h3>
+          </div>
+        </Card>
+
+        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm">
+          <div style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--bg-primary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center">
+            <Heart size={20} className="fill-current" />
+          </div>
+          <div>
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Ohlasy celkem</p>
+            <h3 className="text-xl font-black m-0">{getTotalLikes()} lajků</h3>
+          </div>
+        </Card>
+
+        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className={`p-4 flex items-center gap-4 shadow-sm transition-all ${pendingRequests.length > 0 ? 'border-amber-500/30' : ''}`}>
+          <div style={{ backgroundColor: pendingRequests.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-secondary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center">
+            <Clock size={20} className={pendingRequests.length > 0 ? "text-amber-500 animate-pulse" : "opacity-80"} />
+          </div>
+          <div>
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Čekající žádosti</p>
+            <h3 className={`text-xl font-black m-0 ${pendingRequests.length > 0 ? 'text-amber-500' : ''}`}>{pendingRequests.length}</h3>
+          </div>
+        </Card>
       </div>
       
       {/* SEKCE 1: ČEKAJÍCÍ ŽÁDOSTI O LICENCE */}
-      <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-        <h3 style={{ color: 'var(--bg-primary)' }} className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2">
-          <Clock size={20} /> Žádosti o schválení licencí k Vašim knihám
+      <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+        <h3 style={{ color: 'var(--bg-primary)' }} className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
+          <Clock size={18} className={pendingRequests.length > 0 ? "animate-spin duration-1000" : ""} /> Žádosti o schválení licencí k Vašim knihám
         </h3>
         
         {loadingRequests ? (
-          <div className="flex items-center gap-2 text-sm opacity-60 py-4"><Loader2 className="animate-spin" size={16}/> Načítám žádosti čtenářů...</div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase opacity-60 py-6 justify-center">
+            <Loader2 className="animate-spin" size={16}/> Načítám žádosti čtenářů...
+          </div>
         ) : pendingRequests.length === 0 ? (
-          <p className="text-sm font-medium opacity-60 italic py-2">Žádný čtenář aktuálně nečeká na schválení licence.</p>
+          <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="text-center py-6 rounded-xl border border-dashed border-neutral-300/30">
+            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Všechny licence jsou vyřízeny. Žádný čtenář nečeká.</p>
+          </div>
         ) : (
-          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y">
+          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y border rounded-xl overflow-hidden shadow-sm">
             {pendingRequests.map(req => (
-              <div key={req.id} style={{ borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 gap-3 first:pt-0 last:pb-0">
-                <div>
-                  <h4 className="font-black text-sm uppercase">{req.books?.title}</h4>
-                  <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email}</span></p>
+              <div key={req.id} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-4 gap-4 transition-colors hover:bg-black/5">
+                <div className="flex items-start gap-3">
+                  <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="w-9 h-9 rounded-lg border flex items-center justify-center opacity-70">
+                    <Mail size={16} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-sm uppercase m-0 tracking-tight">{req.books?.title}</h4>
+                    <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email}</span></p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="success" 
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button 
                     onClick={() => handleApproveRequest(req.id)}
-                    className="py-2 px-3"
+                    style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    className="py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider border-none cursor-pointer hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
                   >
-                    <Check size={14} /> Schválit přístup
-                  </Button>
-                  <Button 
-                    variant="danger" 
+                    <Check size={14} /> Schválit
+                  </button>
+                  <button 
                     onClick={() => handleRejectRequest(req.id)}
-                    className="py-2 px-2"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                    className="py-2 px-3 rounded-xl text-xs font-black uppercase border cursor-pointer hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 active:scale-95 transition-all flex items-center justify-center"
                   >
                     <X size={14} />
-                  </Button>
+                  </button>
                 </div>
               </div>
             ))}
@@ -2728,94 +2884,110 @@ const PublisherDashboard = () => {
         )}
       </Card>
 
+      {/* DVOUSLOUPCOVÝ EDITAČNÍ BLOK */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
         {/* FORMULÁŘ PRO NOVOU KNIHU */}
-        <Card>
-          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight">Vložit novou knihu</h3>
+        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+          <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
+            <PlusCircle size={18} style={{ color: 'var(--bg-primary)' }} /> Vložit novou knihu do katalogu
+          </h3>
           <form onSubmit={createBook} className="space-y-4">
             <input 
               type="text" 
               placeholder="Název knihy" 
               value={title} 
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-              className="w-full p-3 border rounded-lg font-bold outline-none text-sm placeholder:opacity-50" 
+              className="w-full p-3.5 border rounded-xl font-bold outline-none text-sm placeholder:opacity-40 transition-all focus:border-[var(--bg-primary)]" 
               onChange={e => setTitle(e.target.value)} 
               required 
             />
             <textarea 
-              placeholder="Text knihy..." 
+              placeholder="Sem vložte kompletní text knihy nebo kapitoly..." 
               value={content} 
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-              className="w-full p-3 border rounded-lg font-bold outline-none resize-none text-sm placeholder:opacity-50" 
-              rows={6} 
+              className="w-full p-3.5 border rounded-xl font-bold outline-none resize-none text-sm placeholder:opacity-40 transition-all focus:border-[var(--bg-primary)]" 
+              rows={7} 
               onChange={e => setContent(e.target.value)} 
               required 
             />
-            <Button type="submit" className="w-full py-3 uppercase tracking-wider">
-              Publikovat knihu
-            </Button>
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+              className="w-full py-3.5 rounded-xl font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <><BookOpen size={14}/> Publikovat svazek</>}
+            </button>
           </form>
         </Card>
         
         {/* RUČNÍ PŘIŘAZENÍ LICENCE */}
-        <Card>
-          <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-1.5">
-            <UserPlus size={18}/> Nucené přiřazení licence
-          </h3>
-          <div className="space-y-3">
-            <select 
-              onChange={e => setSelectedBookId(e.target.value)} 
-              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-              className="w-full p-3 border rounded-lg font-bold text-xs outline-none"
-              value={selectedBookId}
-            >
-              <option value="">-- Vyberte SVOU knihu --</option>
-              {myBooks.map(b => (
-                <option key={b.id} value={b.id}>{b.title}</option>
-              ))}
-            </select>
+        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl flex flex-col justify-between">
+          <div>
+            <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-1.5">
+              <UserPlus size={18} style={{ color: 'var(--bg-primary)' }} /> Přímé přiřazení licence čtenáři
+            </h3>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium mb-4 opacity-70">Umožňuje okamžitě darovat nebo přiřadit licenci vybranému uživateli bez nutnosti schvalovacího procesu.</p>
             
-            <select 
-              onChange={e => setSelectedUserId(e.target.value)} 
-              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-              className="w-full p-3 border rounded-lg font-bold text-xs outline-none"
-              value={selectedUserId}
-            >
-              <option value="">-- Vyberte čtenáře --</option>
-              {profiles.map(p => (
-                <option key={p.id} value={p.id}>{p.email}</option>
-              ))}
-            </select>
-            
-            <Button 
-              onClick={assignBook} 
-              variant="purple"
-              className="w-full py-3 font-bold uppercase text-xs"
-            >
-              Přiřadit licenci natvrdo
-            </Button>
+            <div className="space-y-3">
+              <select 
+                onChange={e => setSelectedBookId(e.target.value)} 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3.5 border rounded-xl font-bold text-xs outline-none cursor-pointer transition-all focus:border-[var(--bg-primary)]"
+                value={selectedBookId}
+              >
+                <option value="">-- Vyberte SVOU knihu --</option>
+                {myBooks.map(b => (
+                  <option key={b.id} value={b.id}>{b.title}</option>
+                ))}
+              </select>
+              
+              <select 
+                onChange={e => setSelectedUserId(e.target.value)} 
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="w-full p-3.5 border rounded-xl font-bold text-xs outline-none cursor-pointer transition-all focus:border-[var(--bg-primary)]"
+                value={selectedUserId}
+              >
+                <option value="">-- Vyberte čtenáře podle e-mailu --</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.email}</option>
+                ))}
+              </select>
+            </div>
           </div>
+          
+          <button 
+            onClick={assignBook} 
+            style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }}
+            className="w-full py-3.5 mt-4 rounded-xl font-black uppercase text-xs tracking-wider border-none cursor-pointer transition-all hover:opacity-90 active:scale-[0.99] shadow-md flex items-center justify-center gap-2"
+          >
+            <UserPlus size={14} /> Aktivovat licenci natvrdo
+          </button>
         </Card>
       </div>
 
       {/* STATISTIKY VYDANÝCH KNIH */}
-      <Card>
-        <h3 className="font-bold mb-4 text-lg uppercase tracking-tight flex items-center gap-2">
-          <BookOpen size={20} /> Moje vydané tituly a ohlasy
+      <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+        <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
+          <BarChart3 size={18} style={{ color: 'var(--bg-primary)' }} /> Katalog Vašich děl a čtenářské ohlasy
         </h3>
+        
         {myBooks.length === 0 ? (
-          <p className="text-sm font-medium opacity-60 italic py-2">Zatím jste nevydal(a) žádné knihy.</p>
+          <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="text-center py-8 rounded-xl border border-dashed border-neutral-300/30">
+            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Zatím jste do katalogu nevložil(a) žádné knihy.</p>
+          </div>
         ) : (
-          <div style={{ borderColor: 'var(--border-color)' }} className="divide-y max-h-72 overflow-y-auto">
+          <div style={{ borderColor: 'var(--border-color)' }} className="border rounded-xl divide-y max-h-72 overflow-y-auto shadow-sm">
             {myBooks.map(b => (
-              <div key={b.id} style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center py-3 first:pt-0 last:pb-0">
+              <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="flex justify-between items-center p-4 transition-colors hover:bg-black/5">
                 <div>
-                  <h4 className="font-bold text-sm">{b.title}</h4>
-                  <p style={{ color: 'var(--text-muted)' }} className="text-[10px] uppercase opacity-60 font-bold">Autor: {b.author}</p>
+                  <h4 className="font-black text-sm uppercase m-0 tracking-tight">{b.title}</h4>
+                  <p style={{ color: 'var(--text-muted)' }} className="text-[10px] uppercase opacity-50 font-black m-0 mt-0.5">ID svazku: {b.id}</p>
                 </div>
-                <div style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--bg-primary)', color: 'var(--bg-primary)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border">
-                  <Heart size={14} className="fill-current text-current" />
-                  <span className="font-black text-xs">{b.likesCount} lajků</span>
+                <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--bg-primary)', color: 'var(--bg-primary)' }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-sm font-black text-xs select-none">
+                  <Heart size={12} className="fill-current text-current" />
+                  <span>{b.likesCount}</span>
                 </div>
               </div>
             ))}
