@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -6,7 +6,7 @@ import { supabase } from './lib/supabase';
 // Bezpečný getter ikon z balíčku lucide-react
 const getIcon = (name) => Icons[name] || Icons.Book || Icons.HelpCircle;
 
-// --- KOMPLETNÍ ICON MAP (Včetně nově přidaných ikon pro modernizaci) ---
+// --- KOMPLETNÍ ICON MAP ---
 const Book = getIcon('Book');
 const ChevronRight = getIcon('ChevronRight');
 const Loader2 = getIcon('Loader2');
@@ -45,9 +45,9 @@ const Calendar = getIcon('Calendar');
 const CheckCircle = getIcon('CheckCircle');
 const TrendingUp = getIcon('TrendingUp');
 const Trophy = getIcon('Trophy');
-const BookOpenIcon = BookOpen; // sjednoceno s BookOpen
+const BookOpenIcon = BookOpen;
 const Compass = getIcon('Compass');
-const Footprints = getIcon('Footprints') || getIcon('FootprintsIcon') || getIcon('Map');
+const Footprints = getIcon('Footprints') || getIcon('Map');
 const Scroll = getIcon('Scroll');
 const BookMarked = getIcon('BookMarked');
 const Feather = getIcon('Feather');
@@ -57,10 +57,8 @@ const Gem = getIcon('Gem');
 const Star = getIcon('Star');
 const Gauge = getIcon('Gauge');
 const ZapOff = getIcon('ZapOff');
-const HeartIcon = Heart; // sjednoceno s Heart
+const HeartIcon = Heart;
 const Target = getIcon('Target');
-
-// 🔥 NOVĚ PŘIDANÉ IKONY PRO MODERNÍ REFRESH STRÁNEK ČTEČKY A NAKLADATELE:
 const ArrowLeft = getIcon('ArrowLeft');
 const RefreshCw = getIcon('RefreshCw');
 const PlusCircle = getIcon('PlusCircle');
