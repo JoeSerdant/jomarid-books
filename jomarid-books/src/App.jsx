@@ -40,6 +40,19 @@ const Calendar = getIcon('Calendar');
 const CheckCircle = getIcon('CheckCircle');
 const TrendingUp = getIcon('TrendingUp');
 const Trophy = getIcon('Trophy');
+const BookOpen = getIcon('BookOpen');
+const Compass = getIcon('Compass');
+const Footprints = getIcon('Footprints');
+const Scroll = getIcon('Scroll');
+const BookMarked = getIcon('BookMarked');
+const Feather = getIcon('Feather');
+const Crown = getIcon('Crown');
+const Infinity = getIcon('Infinity');
+const Gem = getIcon('Gem');
+const Star = getIcon('Star');
+const Gauge = getIcon('Gauge');
+const ZapOff = getIcon('ZapOff');
+const Heart = getIcon('Heart');
 
 const THEMES = {
   saas: {
