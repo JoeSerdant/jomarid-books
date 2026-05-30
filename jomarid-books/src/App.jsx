@@ -464,13 +464,13 @@ const SettingsModal = ({ isOpen, onClose }) => {
 
 const BOOK_BADGES = [
   // ==========================================
-  // KATEGORIE 1: POČET PŘEČTENÝCH KNIH
+  // KATEGORIE 1: POČET PŘEČTENÝCH KNIH (25 odznáčků)
   // ==========================================
   {
     id: 'books_1',
     title: 'První zářez',
     description: 'Přečetl jsi svou první 5minutovku.',
-    icon: Footprints, // Tvůj bezpečný getter (Footprints / Map)
+    icon: Footprints,
     condition: (stats) => (stats?.totalRead || 0) >= 1,
   },
   {
@@ -488,11 +488,32 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.totalRead || 0) >= 10,
   },
   {
+    id: 'books_15',
+    title: 'Knižní chuťovka',
+    description: 'Dokončil jsi úspěšně 15 krátkých knih.',
+    icon: BookMarked,
+    condition: (stats) => (stats?.totalRead || 0) >= 15,
+  },
+  {
     id: 'books_20',
     title: 'Hltoun kapitol',
     description: 'Pokořil jsi hranici 20 přečtených knih.',
     icon: BookMarked,
     condition: (stats) => (stats?.totalRead || 0) >= 20,
+  },
+  {
+    id: 'books_25',
+    title: 'Čtverec příběhů',
+    description: 'Máš za sebou rovných 25 textů.',
+    icon: Scroll,
+    condition: (stats) => (stats?.totalRead || 0) >= 25,
+  },
+  {
+    id: 'books_30',
+    title: 'Měsíční ekvivalent',
+    description: 'Přečetl jsi 30 knih (jako každý den jednu).',
+    icon: Library,
+    condition: (stats) => (stats?.totalRead || 0) >= 30,
   },
   {
     id: 'books_35',
@@ -502,11 +523,32 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.totalRead || 0) >= 35,
   },
   {
+    id: 'books_40',
+    title: 'Sběratel stránek',
+    description: 'Už jsi pokořil hranici 40 příběhů.',
+    icon: Feather,
+    condition: (stats) => (stats?.totalRead || 0) >= 40,
+  },
+  {
     id: 'books_50',
     title: 'Skutečný Knihomol',
-    description: 'Přečetl jsi neuvěřitelných 50 knih!',
-    icon: BookOpen, // Použije přímý import z lucide-react nahoře
+    description: 'Přečetl jsi parádních 50 knih!',
+    icon: BookOpen,
     condition: (stats) => (stats?.totalRead || 0) >= 50,
+  },
+  {
+    id: 'books_60',
+    title: 'Příběhový klub',
+    description: '60 zářezů ve tvé knihovně.',
+    icon: Users,
+    condition: (stats) => (stats?.totalRead || 0) >= 60,
+  },
+  {
+    id: 'books_70',
+    title: 'Zkušený předčítač',
+    description: 'Dosáhl jsi milníku 70 přečtených děl.',
+    icon: ShieldCheck,
+    condition: (stats) => (stats?.totalRead || 0) >= 70,
   },
   {
     id: 'books_75',
@@ -516,11 +558,32 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.totalRead || 0) >= 75,
   },
   {
+    id: 'books_80',
+    title: 'Vznešená knihovna',
+    description: 'Dokončil jsi už 80 textů.',
+    icon: Library,
+    condition: (stats) => (stats?.totalRead || 0) >= 80,
+  },
+  {
+    id: 'books_90',
+    title: 'Před branami stovky',
+    description: 'Už jen krůček! Máš za sebou 90 knih.',
+    icon: TrendingUp,
+    condition: (stats) => (stats?.totalRead || 0) >= 90,
+  },
+  {
     id: 'books_100',
     title: 'Chodící encyklopedie',
     description: 'Dosáhl jsi magické stovky (100 knih).',
     icon: Gem,
     condition: (stats) => (stats?.totalRead || 0) >= 100,
+  },
+  {
+    id: 'books_120',
+    title: 'Nezastavitelný čtenář',
+    description: 'Pokořil jsi neuvěřitelných 120 děl.',
+    icon: Zap,
+    condition: (stats) => (stats?.totalRead || 0) >= 120,
   },
   {
     id: 'books_150',
@@ -529,9 +592,58 @@ const BOOK_BADGES = [
     icon: Crown,
     condition: (stats) => (stats?.totalRead || 0) >= 150,
   },
+  {
+    id: 'books_180',
+    title: 'Knižní maratonec',
+    description: 'Zvládl jsi přečíst 180 titulů.',
+    icon: Trophy,
+    condition: (stats) => (stats?.totalRead || 0) >= 180,
+  },
+  {
+    id: 'books_200',
+    title: 'Knižní magnát',
+    description: 'Dosáhl jsi monstrózního milníku 200 knih.',
+    icon: Trophy,
+    condition: (stats) => (stats?.totalRead || 0) >= 200,
+  },
+  {
+    id: 'books_250',
+    title: 'Půlmaraton příběhů',
+    description: 'Na tvém kontě svítí 250 knih.',
+    icon: BarChart2,
+    condition: (stats) => (stats?.totalRead || 0) >= 250,
+  },
+  {
+    id: 'books_300',
+    title: 'Knižní Imperátor',
+    description: 'Úctyhodných 300 přečtených 5minutovek.',
+    icon: Crown,
+    condition: (stats) => (stats?.totalRead || 0) >= 300,
+  },
+  {
+    id: 'books_400',
+    title: 'Osvícená mysl',
+    description: 'Pokořil jsi bájnou hranici 400 knih.',
+    icon: Sparkles,
+    condition: (stats) => (stats?.totalRead || 0) >= 400,
+  },
+  {
+    id: 'books_500',
+    title: 'Půl tisícovky',
+    description: 'Přečetl jsi 500 knih! Jsi vůbec člověk?',
+    icon: Gem,
+    condition: (stats) => (stats?.totalRead || 0) >= 500,
+  },
+  {
+    id: 'books_1000',
+    title: 'Bůh literárního světa',
+    description: '1000 přečtených děl. Absolutní vrchol, dál už nic není.',
+    icon: InfinityIcon,
+    condition: (stats) => (stats?.totalRead || 0) >= 1000,
+  },
 
   // ==========================================
-  // KATEGORIE 2: AKTIVITA A PLAMÍNKY (Streak)
+  // KATEGORIE 2: DENNÍ SÉRIE / STREAK (22 odznáčků)
   // ==========================================
   {
     id: 'streak_2',
@@ -542,10 +654,17 @@ const BOOK_BADGES = [
   },
   {
     id: 'streak_3',
-    title: 'Plamenná šíla',
+    title: 'Plamenná síla',
     description: 'Čteš poctivě 3 dny za sebou.',
     icon: Flame,
     condition: (stats) => (stats?.streak || 0) >= 3,
+  },
+  {
+    id: 'streak_4',
+    title: 'Čtyřlístek',
+    description: 'Série čtení trvá 4 dny.',
+    icon: Flame,
+    condition: (stats) => (stats?.streak || 0) >= 4,
   },
   {
     id: 'streak_5',
@@ -555,11 +674,32 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.streak || 0) >= 5,
   },
   {
+    id: 'streak_6',
+    title: 'Skoro týden',
+    description: 'Udržel jsi plamínek po dobu 6 dní.',
+    icon: Flame,
+    condition: (stats) => (stats?.streak || 0) >= 6,
+  },
+  {
     id: 'streak_7',
     title: 'Týdenní maraton',
     description: 'Udržel jsi plamínek po celých 7 dní.',
     icon: Zap,
     condition: (stats) => (stats?.streak || 0) >= 7,
+  },
+  {
+    id: 'streak_8',
+    title: 'Osmá vlna',
+    description: 'Čteš už 8 dní v řadě bez přestávky.',
+    icon: Zap,
+    condition: (stats) => (stats?.streak || 0) >= 8,
+  },
+  {
+    id: 'streak_9',
+    title: 'Devítkový mág',
+    description: 'Udržel jsi sérii po dobu 9 dní.',
+    icon: Sparkles,
+    condition: (stats) => (stats?.streak || 0) >= 9,
   },
   {
     id: 'streak_10',
@@ -569,6 +709,27 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.streak || 0) >= 10,
   },
   {
+    id: 'streak_11',
+    title: 'Dvojitá jednička',
+    description: 'Tvoje série dosáhla 11 dní.',
+    icon: Gauge,
+    condition: (stats) => (stats?.streak || 0) >= 11,
+  },
+  {
+    id: 'streak_12',
+    title: 'Dvanáct měsíčků',
+    description: 'Čteš nepřetržitě už 12 dní.',
+    icon: Calendar,
+    condition: (stats) => (stats?.streak || 0) >= 12,
+  },
+  {
+    id: 'streak_13',
+    title: 'Páteční štěstí',
+    description: 'Zvládl jsi 13 dní v řadě.',
+    icon: Flame,
+    condition: (stats) => (stats?.streak || 0) >= 13,
+  },
+  {
     id: 'streak_14',
     title: 'Čtrnáctidenní rituál',
     description: 'Dva týdny bez jediného vynechaného dne.',
@@ -576,22 +737,180 @@ const BOOK_BADGES = [
     condition: (stats) => (stats?.streak || 0) >= 14,
   },
   {
+    id: 'streak_15',
+    title: 'Půl měsíce v ohni',
+    description: 'Udržel jsi sérii po dobu 15 dní.',
+    icon: Flame,
+    condition: (stats) => (stats?.streak || 0) >= 15,
+  },
+  {
     id: 'streak_20',
     title: 'Závislost na příbězích',
     description: '20 dní v kuse s knihou v ruce.',
-    icon: HeartIcon, // OPRAVENO: mapováno na tvůj HeartIcon
+    icon: HeartIcon,
     condition: (stats) => (stats?.streak || 0) >= 20,
+  },
+  {
+    id: 'streak_25',
+    title: 'Čtvrt století',
+    description: 'Tvoje série čtení má délku 25 dní.',
+    icon: HeartIcon,
+    condition: (stats) => (stats?.streak || 0) >= 25,
   },
   {
     id: 'streak_30',
     title: 'Měsíční fanatik',
     description: 'Dokázal jsi číst každý den po dobu 30 dní!',
-    icon: InfinityIcon, // OPRAVENO: mapováno na tvůj InfinityIcon
+    icon: InfinityIcon,
     condition: (stats) => (stats?.streak || 0) >= 30,
+  },
+  {
+    id: 'streak_45',
+    title: 'Rozpálená pec',
+    description: 'Tvoje série hoří už dlouhých 45 dní.',
+    icon: Zap,
+    condition: (stats) => (stats?.streak || 0) >= 45,
+  },
+  {
+    id: 'streak_60',
+    title: 'Dva měsíce v kuse',
+    description: 'Neskutečných 60 dní každodenního čtení.',
+    icon: InfinityIcon,
+    condition: (stats) => (stats?.streak || 0) >= 60,
+  },
+  {
+    id: 'streak_75',
+    title: 'Plamenný veterán',
+    description: 'Udržel jsi streak po dobu 75 dní.',
+    icon: Trophy,
+    condition: (stats) => (stats?.streak || 0) >= 75,
+  },
+  {
+    id: 'streak_90',
+    title: 'Čtvrt roku v kuse',
+    description: 'Úctyhodných 90 dní bez jediného zaváhání.',
+    icon: Crown,
+    condition: (stats) => (stats?.streak || 0) >= 90,
+  },
+  {
+    id: 'streak_100',
+    title: 'Stovka v plamenech',
+    description: 'Dosáhl jsi bájné stovky dní nepřerušeného čtení!',
+    icon: Crown,
+    condition: (stats) => (stats?.streak || 0) >= 100,
   },
 
   // ==========================================
-  // KATEGORIE 3: MĚSÍČNÍ VÝZVY A CÍLE
+  // KATEGORIE 3: ČTENÁŘSKÉ ÚROVNĚ / LEVEL (15 odznáčků)
+  // ==========================================
+  {
+    id: 'lvl_2',
+    title: 'Zapálený začátečník',
+    description: 'Dosáhl jsi čtenářské úrovně 2.',
+    icon: Sparkles,
+    condition: (stats) => (stats?.level || 1) >= 2,
+  },
+  {
+    id: 'lvl_3',
+    title: 'Učeň slov',
+    description: 'Dosáhl jsi čtenářské úrovně 3.',
+    icon: Sparkles,
+    condition: (stats) => (stats?.level || 1) >= 3,
+  },
+  {
+    id: 'lvl_4',
+    title: 'Zvědavý čtenář',
+    description: 'Dosáhl jsi čtenářské úrovně 4.',
+    icon: Compass,
+    condition: (stats) => (stats?.level || 1) >= 4,
+  },
+  {
+    id: 'lvl_5',
+    title: 'Průzkumník světů',
+    description: 'Dosáhl jsi čtenářské úrovně 5.',
+    icon: Compass,
+    condition: (stats) => (stats?.level || 1) >= 5,
+  },
+  {
+    id: 'lvl_7',
+    title: 'Sběratel vědění',
+    description: 'Dosáhl jsi čtenářské úrovně 7.',
+    icon: Scroll,
+    condition: (stats) => (stats?.level || 1) >= 7,
+  },
+  {
+    id: 'lvl_10',
+    title: 'Vášnivá duše',
+    description: 'Dosáhl jsi čtenářské úrovně 10.',
+    icon: Star,
+    condition: (stats) => (stats?.level || 1) >= 10,
+  },
+  {
+    id: 'lvl_12',
+    title: 'Knižní šlechtic',
+    description: 'Dosáhl jsi čtenářské úrovně 12.',
+    icon: Star,
+    condition: (stats) => (stats?.level || 1) >= 12,
+  },
+  {
+    id: 'lvl_15',
+    title: 'Mistr literatury',
+    description: 'Dosáhl jsi čtenářské úrovně 15.',
+    icon: Award,
+    condition: (stats) => (stats?.level || 1) >= 15,
+  },
+  {
+    id: 'lvl_18',
+    title: 'Elitní akademik',
+    description: 'Dosáhl jsi čtenářské úrovně 18.',
+    icon: Award,
+    condition: (stats) => (stats?.level || 1) >= 18,
+  },
+  {
+    id: 'lvl_20',
+    title: 'Nejvyšší Mág',
+    description: 'Dosáhl jsi čtenářské úrovně 20.',
+    icon: Zap,
+    condition: (stats) => (stats?.level || 1) >= 20,
+  },
+  {
+    id: 'lvl_25',
+    title: 'Bůh příběhů',
+    description: 'Dosáhl jsi úrovně 25.',
+    icon: Crown,
+    condition: (stats) => (stats?.level || 1) >= 25,
+  },
+  {
+    id: 'lvl_30',
+    title: 'Legendární archivář',
+    description: 'Dosáhl jsi čtenářské úrovně 30.',
+    icon: Crown,
+    condition: (stats) => (stats?.level || 1) >= 30,
+  },
+  {
+    id: 'lvl_40',
+    title: 'Osvícený mudrc',
+    description: 'Dosáhl jsi čtenářské úrovně 40.',
+    icon: Gem,
+    condition: (stats) => (stats?.level || 1) >= 40,
+  },
+  {
+    id: 'lvl_50',
+    title: 'Nesmrtelný čtenář',
+    description: 'Dosáhl jsi obří čtenářské úrovně 50.',
+    icon: Gem,
+    condition: (stats) => (stats?.level || 1) >= 50,
+  },
+  {
+    id: 'lvl_100',
+    title: 'Avatar vědění',
+    description: 'Dosáhl jsi bájné úrovně 100.',
+    icon: InfinityIcon,
+    condition: (stats) => (stats?.level || 1) >= 100,
+  },
+
+  // ==========================================
+  // KATEGORIE 4: MĚSÍČNÍ VÝZVY A CÍLE (6 odznáčků)
   // ==========================================
   {
     id: 'goal_first_step',
@@ -628,60 +947,109 @@ const BOOK_BADGES = [
     icon: Trophy,
     condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) * 2),
   },
-
-  // ==========================================
-  // KATEGORIE 4: DOSAŽENÉ ČTENÁŘSKÉ ÚROVNĚ
-  // ==========================================
   {
-    id: 'lvl_2',
-    title: 'Zapálený začátečník',
-    description: 'Dosáhl jsi čtenářské úrovně 2.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.level || 1) >= 2,
-  },
-  {
-    id: 'lvl_5',
-    title: 'Průzkumník světů',
-    description: 'Dosáhl jsi čtenářské úrovně 5.',
-    icon: Compass,
-    condition: (stats) => (stats?.level || 1) >= 5,
-  },
-  {
-    id: 'lvl_10',
-    title: 'Vášnivá duše',
-    description: 'Dosáhl jsi čtenářské úrovně 10.',
-    icon: Star,
-    condition: (stats) => (stats?.level || 1) >= 10,
-  },
-  {
-    id: 'lvl_15',
-    title: 'Mistr literatury',
-    description: 'Dosáhl jsi čtenářské úrovně 15.',
-    icon: Award,
-    condition: (stats) => (stats?.level || 1) >= 15,
-  },
-  {
-    id: 'lvl_20',
-    title: 'Nejvyšší Mág',
-    description: 'Dosáhl jsi čtenářské úrovně 20.',
-    icon: Zap,
-    condition: (stats) => (stats?.level || 1) >= 20,
-  },
-  {
-    id: 'lvl_25',
-    title: 'Bůh příběhů',
-    description: 'Dosáhl jsi ultimátní úrovně 25.',
+    id: 'goal_triple',
+    title: 'Trojitá koruna',
+    description: 'Ztrojnásobil jsi svůj měsíční plán.',
     icon: Crown,
-    condition: (stats) => (stats?.level || 1) >= 25,
+    condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) * 3),
   },
 
   // ==========================================
-  // KATEGORIE 5: ČASOVÉ MILNÍKY
+  // KATEGORIE 5: KALENDÁŘNÍ MĚSÍCE (12 odznáčků)
+  // ==========================================
+  {
+    id: 'month_jan',
+    title: 'Novoroční start',
+    description: 'Byl jsi aktivní během měsíce Leden.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Leden' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_feb',
+    title: 'Únorový ledoborec',
+    description: 'Byl jsi aktivní během měsíce Únor.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Únor' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_mar',
+    title: 'Březnová moudrost',
+    description: 'Byl jsi aktivní během měsíce Březen.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Březen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_apr',
+    title: 'Aprílové stránky',
+    description: 'Byl jsi aktivní během měsíce Duben.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Duben' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_may',
+    title: 'Májový květ',
+    description: 'Byl jsi aktivní během měsíce Květen.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Květen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_jun',
+    title: 'Slunovrat příběhů',
+    description: 'Byl jsi aktivní během měsíce Červen.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Červen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_jul',
+    title: 'Letní čtení',
+    description: 'Byl jsi aktivní během měsíce Červenec.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Červenec' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_aug',
+    title: 'Srpnová pohoda',
+    description: 'Byl jsi aktivní během měsíce Srpen.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Srpen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_sep',
+    title: 'Zářijová škola',
+    description: 'Byl jsi aktivní během měsíce Září.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Září' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_oct',
+    title: 'Podzimní archiv',
+    description: 'Byl jsi aktivní během měsíce Říjen.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Říjen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_nov',
+    title: 'Listopadová melancholie',
+    description: 'Byl jsi aktivní během měsíce Listopad.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Listopad' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+  {
+    id: 'month_dec',
+    title: 'Zimní pohoda',
+    description: 'Byl jsi aktivní během měsíce Prosinec.',
+    icon: Calendar,
+    condition: (stats) => stats?.currentMonthName === 'Prosinec' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
+  },
+
+  // ==========================================
+  // KATEGORIE 6: ČASOVÝ FINIŠ / SPECIÁLNÍ (4 odznáčky)
   // ==========================================
   {
     id: 'time_15_days',
     title: 'Klidný čtenář',
-    description: 'Do konce měsíce zbývá víc než 15 dní a ty už čteš.',
+    description: 'Do konce měsíce zbývá víc než 15 dní a ty už pilně čteš.',
     icon: Calendar,
     condition: (stats) => (stats?.daysRemainingInMonth || 0) >= 15 && (stats?.monthlyRead || 0) >= 1,
   },
@@ -703,29 +1071,8 @@ const BOOK_BADGES = [
     id: 'time_panic',
     title: 'Čtenářská panika',
     description: 'V poslední den měsíce ti chybí už jen 1 kniha do cíle.',
-    icon: ZapOff, // Tvůj funkční getter pro ZapOff
+    icon: ZapOff,
     condition: (stats) => (stats?.daysRemainingInMonth || 0) === 0 && ((stats?.monthlyGoal || 5) - (stats?.monthlyRead || 0) === 1),
-  },
-  {
-    id: 'month_jan',
-    title: 'Novoroční start',
-    description: 'Byl jsi aktivní během měsíce Leden.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Leden' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_may',
-    title: 'Májový květ',
-    description: 'Byl jsi aktivní během měsíce Květen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Květen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_dec',
-    title: 'Zimní pohoda',
-    description: 'Byl jsi aktivní během měsíce Prosinec.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Prosinec' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
   }
 ];
 
