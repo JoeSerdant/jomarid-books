@@ -417,10 +417,6 @@ const SettingsModal = ({ isOpen, onClose }) => {
   );
 };
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // uprav podle sebe
-import { useAuth } from '../context/AuthContext'; // uprav podle sebe
-import { Link } from 'react-router-dom';
 
 const UserStats = () => {
   const { user } = useAuth();
