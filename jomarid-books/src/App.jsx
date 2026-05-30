@@ -2088,7 +2088,7 @@ const UserLibrary = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 🔥 STREAK: Zapíšeme dnešní aktivitu uživatele do databáze
+      // 🔥 STREAK
       const todayStr = new Date().toLocaleDateString('sv');
       await supabase
         .from('user_daily_activity')
@@ -2097,71 +2097,56 @@ const UserLibrary = () => {
           { onConflict: 'user_id,activity_date' }
         );
 
-      // 1. Načteme VŠECHNY knihy samostatně
+      // 1. Načteme VŠECHNY knihy
       const { data: allBooks, error: booksError } = await supabase
         .from('books')
         .select('*');
 
       if (booksError) throw booksError;
 
-      // 2. Načteme záznamy user_books
+      // 2. Načteme záznamy user_books VČETNĚ scroll_position
       const { data: myUserBooks, error: userBooksError } = await supabase
         .from('user_books')
-        .select('book_id, is_read, status, updated_at')
+        .select('book_id, is_read, status, updated_at, scroll_position')
         .eq('user_id', user.id);
 
       if (userBooksError) throw userBooksError;
 
-      // 3. Načteme ID knih, které uživatel lajknul
-      const { data: likesData, error: likesError } = await supabase
+      // 3. Lajky
+      const { data: likesData } = await supabase
         .from('book_likes')
         .select('book_id')
         .eq('user_id', user.id);
-
-      if (likesError) throw likesError;
       if (likesData) setLikedBookIds(likesData.map(l => l.book_id));
 
-      // 4. Načteme celkové počty lajků
-      const { data: allLikes, error: allLikesError } = await supabase
+      const { data: allLikes } = await supabase
         .from('book_likes')
         .select('book_id');
 
-      if (allLikesError) throw allLikesError;
-
-      // 5. Sloučení dat v JavaScriptu
+      // 4. Sloučení dat
       const processedBooks = (allBooks || []).map(b => {
         const userBookEntry = myUserBooks?.find(ub => ub.book_id === b.id);
-        const totalLikesCount = allLikes?.filter(l => l.book_id === b.id).length || 0;
+        const totalLikesCount = (allLikes?.filter(l => l.book_id === b.id).length || 0) + (b.fake_likes || 0);
 
         return {
           id: b.id,
           title: b.title,
           author: b.author,
-          likesCount: totalLikesCount + (b.fake_likes || 0),
+          likesCount: totalLikesCount,
           hasAccess: userBookEntry?.status === 'active',
           isPending: userBookEntry?.status === 'requested',
           isRead: userBookEntry?.is_read || false,
+          scrollPosition: userBookEntry?.scroll_position || 0, // ✅ Přidáno
           lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
         };
       });
 
-      // 🔥 NOVÉ SROVNANÉ ŘAZENÍ KNIH
       processedBooks.sort((a, b) => {
-        // Obě knihy jsou aktivní a přístupné
         if (a.hasAccess && b.hasAccess) {
-          // 1. Kritérium: Nepřečtené/rozečtené knihy jdou VŽDY dopředu
-          if (a.isRead !== b.isRead) {
-            return a.isRead ? 1 : -1; // Pokud je 'a' přečtená, posune se dozadu (1), pokud 'b', posune se 'a' dopředu (-1)
-          }
-          // 2. Kritérium: V rámci stejné skupiny (rozečtené vs přečtené) řadíme podle poslední aktivity
-          if (b.lastOpened !== a.lastOpened) {
-            return b.lastOpened - a.lastOpened;
-          }
+          if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+          return b.lastOpened - a.lastOpened;
         }
-        
-        // Pokud nemají obě stejný přístup, seřadíme podle hierarchie (Aktivní -> Čekající -> Zamčené)
         if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
-        if (a.isPending !== b.isPending) return b.isPending - a.isPending;
         return 0;
       });
       
@@ -2173,161 +2158,78 @@ const UserLibrary = () => {
     }
   };
 
-  useEffect(() => {
-    loadLibraryData();
-  }, [user]);
+  useEffect(() => { loadLibraryData(); }, [user]);
 
   const handleRequestLicense = async (bookId) => {
     if (!user) return;
     setSubmittingId(bookId);
-
     try {
-      const { error } = await supabase
-        .from('user_books')
-        .insert([
-          { 
-            user_id: user.id, 
-            book_id: bookId, 
-            status: 'requested', 
-            is_read: false 
-          }
-        ]);
-
-      if (error) throw error;
-
+      await supabase.from('user_books').insert([{ user_id: user.id, book_id: bookId, status: 'requested', is_read: false }]);
       setBooks(prev => prev.map(b => b.id === bookId ? { ...b, isPending: true } : b));
-    } catch (error) {
-      console.error("Chyba při odesílání žádosti:", error);
-      alert("Žádost se nepodařilo odeslat. Zkuste to prosím znovu.");
-    } finally {
-      setSubmittingId(null);
-    }
+    } finally { setSubmittingId(null); }
   };
 
-  if (loading) {
-    return (
-      <div style={{ color: 'var(--text-body)' }} className="text-center py-20">
-        <Loader2 style={{ color: 'var(--bg-primary)' }} className="animate-spin mx-auto mb-2" />
-        <p className="text-sm font-medium opacity-60">Načítám knihovnu...</p>
-      </div>
-    );
-  }
-
-  const userRole = user?.role || user?.user_metadata?.role;
+  if (loading) return (
+    <div className="text-center py-20">
+      <Loader2 className="animate-spin mx-auto mb-2" style={{ color: 'var(--bg-primary)' }} />
+      <p className="text-sm font-medium opacity-60">Načítám knihovnu...</p>
+    </div>
+  );
 
   return (
     <div style={{ color: 'var(--text-body)' }} className="max-w-6xl mx-auto px-4 py-12 animate-in fade-in duration-300">
-      {/* Horní lišta s navigací */}
-      <div style={{ borderColor: 'var(--border-color)' }} className="flex justify-between items-center mb-8 border-b pb-4">
-        <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna a katalog</h2>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {userRole === 'admin' && (
-            <Link to="/admin" style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="text-xs px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-90 transition-opacity">
-              Admin Panel
-            </Link>
-          )}
-          {userRole === 'nakladatel' && (
-            <Link to="/nakladatel" style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="text-xs px-3 py-2 rounded font-bold uppercase tracking-wider no-underline hover:opacity-90 transition-opacity">
-              Nakladatel
-            </Link>
-          )}
-          <Button variant="danger" onClick={logout} className="text-xs flex items-center gap-1">
-            <LogOut size={14}/> Odhlásit
-          </Button>
-        </div>
+      <div className="flex justify-between items-center mb-8 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
+        <h2 className="text-2xl font-black uppercase tracking-tight">Knihovna</h2>
+        <Button variant="danger" onClick={logout} className="text-xs">Odhlásit</Button>
       </div>
 
-      {/* Mřížka knih */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-        {books.length === 0 ? (
-          <p className="col-span-full text-center py-10 opacity-60">Žádné knihy k zobrazení. Zkontroluj databázi.</p>
-        ) : (
-          books.map(b => {
-            const isUserLiked = likedBookIds.includes(b.id);
+        {books.map(b => {
+          const isUserLiked = likedBookIds.includes(b.id);
+          
+          return (
+            <Card key={b.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="flex flex-col justify-between group">
+              <div>
+                <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
+                  {b.hasAccess ? <Book size={32} className="opacity-30" /> : <Lock size={32} className="opacity-30" />}
+                  <div className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold bg-[var(--bg-card)]">
+                    <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
+                    <span>{b.likesCount}</span>
+                  </div>
+                </div>
+                <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
+                <p className="text-xs uppercase font-medium mt-1 opacity-80" style={{ color: 'var(--text-muted)' }}>{b.author}</p>
+                
+                {/* 🔥 PROGRESS BAR V KARTĚ */}
+                {b.hasAccess && (
+                  <div className="mt-4 space-y-1">
+                    <div className="flex justify-between text-[9px] font-black uppercase opacity-60">
+                      <span>{b.isRead ? 'Dokončeno' : 'Rozečteno'}</span>
+                      <span>{Math.round(b.scrollPosition)}%</span>
+                    </div>
+                    <div className="w-full h-1 bg-black/5 rounded-full overflow-hidden">
+                      <div className="h-full transition-all duration-500" style={{ width: `${b.isRead ? 100 : b.scrollPosition}%`, backgroundColor: 'var(--bg-primary)' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            return b.hasAccess ? (
-              /* STAV 1: Kniha je přístupná */
-              <Link to={`/read/${b.id}`} key={b.id} className="no-underline text-current">
-                <Card style={{ backgroundColor: b.isRead ? 'var(--bg-secondary)' : 'var(--bg-card)', borderColor: 'var(--border-color)' }} className={`hover:scale-[1.02] cursor-pointer h-full flex flex-col justify-between transition-all ${b.isRead ? 'opacity-60' : ''}`}>
-                  <div>
-                    <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
-                      <Book size={32} style={{ color: 'var(--text-muted)' }} className="opacity-30" />
-                      
-                      {/* UKAZATEL LAJKŮ */}
-                      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
-                        <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
-                        <span>{b.likesCount}</span>
-                      </div>
-                    </div>
-                    <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                    <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
-                    {b.isRead && (
-                      <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="text-[9px] px-2 py-0.5 rounded font-black uppercase mt-2 inline-block">
-                        ✓ Přečteno
-                      </span>
-                    )}
+              {b.hasAccess ? (
+                <Link to={`/read/${b.id}`} className="no-underline mt-4">
+                  <div className="w-full py-2.5 rounded-xl font-black text-[10px] uppercase border flex items-center justify-center gap-1.5 transition-all hover:bg-[var(--bg-primary)] hover:text-white" style={{ borderColor: 'var(--border-color)' }}>
+                    <BookOpen size={12} /> {b.isRead ? 'Znovu otevřít' : 'Pokračovat'}
                   </div>
-                  <div style={{ borderColor: 'var(--border-color)', color: b.isRead ? 'var(--text-muted)' : 'var(--bg-primary)' }} className="mt-4 pt-3 border-t text-[10px] font-black uppercase flex items-center justify-between">
-                    <span>{b.isRead ? "Znovu otevřít" : "Otevřít knihu"}</span>
-                    <ChevronRight size={12}/>
-                  </div>
-                </Card>
-              </Link>
-            ) : b.isPending ? (
-              /* STAV 2: Čeká se na schválení */
-              <Card key={b.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="opacity-80 flex flex-col justify-between">
-                <div>
-                  <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
-                    <Clock size={32} style={{ color: 'var(--bg-primary)' }} className="opacity-40" />
-                    
-                    {/* UKAZATEL LAJKŮ */}
-                    <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
-                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
-                      <span>{b.likesCount}</span>
-                    </div>
-                  </div>
-                  <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                  <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
-                </div>
-                <div style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }} className="mt-4 w-full py-2 text-center rounded font-black text-[10px] uppercase flex items-center justify-center gap-1 border border-transparent">
-                  <Clock size={12} className="animate-pulse" /> Čeká na schválení
-                </div>
-              </Card>
-            ) : (
-              /* STAV 3: Zamknuto / Zažádat o licenci */
-              <Card key={b.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="opacity-50 flex flex-col justify-between">
-                <div>
-                  <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-lg mb-4 flex items-center justify-center relative">
-                    <Lock size={32} style={{ color: 'var(--text-muted)' }} className="opacity-30" />
-                    
-                    {/* UKAZATEL LAJKŮ */}
-                    <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="absolute top-2 right-2 border px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold">
-                      <Heart size={10} className={isUserLiked ? "fill-red-500 text-red-500" : "opacity-40"} />
-                      <span>{b.likesCount}</span>
-                    </div>
-                  </div>
-                  <h4 className="font-black uppercase text-sm line-clamp-2">{b.title}</h4>
-                  <p style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-medium mt-1 opacity-80">{b.author}</p>
-                </div>
-                <button 
-                  disabled={submittingId === b.id}
-                  onClick={() => handleRequestLicense(b.id)}
-                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
-                  className="mt-4 w-full py-2 hover:opacity-80 disabled:opacity-50 border rounded font-black text-[10px] uppercase cursor-pointer transition-all flex items-center justify-center"
-                >
-                  {submittingId === b.id ? (
-                    <Loader2 size={12} className="animate-spin" />
-                  ) : (
-                    "Zažádat o licenci"
-                  )}
+                </Link>
+              ) : b.isPending ? (
+                <div className="mt-4 py-2 text-center rounded text-[10px] font-black uppercase opacity-60 bg-[var(--bg-secondary)]">Čeká na schválení</div>
+              ) : (
+                <button onClick={() => handleRequestLicense(b.id)} className="mt-4 w-full py-2 rounded font-black text-[10px] uppercase cursor-pointer border-none" style={{ backgroundColor: 'var(--bg-primary)', color: 'white' }}>
+                  Zažádat o licenci
                 </button>
-              </Card>
-            );
-          })
-        )}
+              )}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -2344,40 +2246,69 @@ const ReaderPage = () => {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   
-  // 🔥 NOVÉ: Nastavení velikosti textu pro pohodlné čtení
   const [textSize, setTextSize] = useState('base'); // 'base' | 'lg' | 'xl'
-  // 🔥 NOVÉ: Sledování procentuálního průběhu čtení pro horní progress bar
   const [readingProgress, setReadingProgress] = useState(0);
+  
+  // Ref pro udržení aktuálního progressu bez nutnosti neustále re-triggerovat event listenery
+  const progressRef = useRef(0);
 
+  // Pomocná funkce pro výpočet aktuálního procentuálního progressu
+  const calculateCurrentProgress = () => {
+    const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (totalHeight <= 0) return 0;
+    return (window.scrollY / totalHeight) * 100;
+  };
+
+  // 🔥 UKLÁDÁNÍ: Nyní ukládáme čistá procenta (0-100) namísto pixelů scrollu!
   const saveReadingProgress = async () => {
     const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
     if (!currentUserId || !id) return;
 
-    const currentScroll = window.scrollY;
+    // Zaokrouhlíme progress na jedno desetinné místo pro přesnost
+    const progressToSave = Math.min(100, Math.max(0, Math.round(progressRef.current * 10) / 10));
 
     await supabase
       .from('user_books')
       .update({
         last_read_at: new Date().toISOString(),
-        scroll_position: Math.floor(currentScroll)
+        scroll_position: progressToSave // 🔥 Tady teď žijí procenta!
       })
       .eq('user_id', currentUserId)
       .eq('book_id', id);
   };
 
-  // 🔥 NOVÉ: Výpočet progressu při scrollování
+  // Sledování scrollování a aktualizace progress baru + refu
   useEffect(() => {
     const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalHeight > 0) {
-        const progress = (window.scrollY / totalHeight) * 100;
-        setReadingProgress(Math.min(100, Math.max(0, progress)));
-      }
+      const progress = calculateCurrentProgress();
+      setReadingProgress(progress);
+      progressRef.current = progress;
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading]);
+
+  // 🔥 CHYTRÉ PŘEPOVÁZÁNÍ PŘI ZMĚNĚ VELIKOSTI PÍSMA
+  // Když uživatel změní velikost textu, text se roztáhne, ale my ho udržíme na stejném procentuálním místě!
+  useEffect(() => {
+    if (loading) return;
+    
+    const currentPct = progressRef.current;
+    
+    // Malý timeout, aby se stihl přepočítat DOM po změně třídy písma
+    const timer = setTimeout(() => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const targetScroll = (currentPct * totalHeight) / 100;
+      
+      window.scrollTo({
+        top: targetScroll,
+        behavior: 'instant' // okamžitě, aby to čtenáře „nešokovalo“ divokým scrollem
+      });
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [textSize, loading]);
 
   useEffect(() => {
     async function verifyAndLoad() {
@@ -2426,10 +2357,17 @@ const ReaderPage = () => {
 
       setLoading(false);
 
+      // 🔥 NAČÍTÁNÍ: Přepočet uložených procent zpět na pixely podle aktuálního zobrazení
       if (access.scroll_position && access.scroll_position > 0) {
+        progressRef.current = access.scroll_position;
+        setReadingProgress(access.scroll_position);
+        
         setTimeout(() => {
-          window.scrollTo({ top: access.scroll_position, behavior: 'smooth' });
-        }, 150);
+          const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const pixelPosition = (access.scroll_position * totalHeight) / 100;
+          
+          window.scrollTo({ top: pixelPosition, behavior: 'smooth' });
+        }, 200); // nepatrně delší timeout, aby se spolehlivě vykreslil text knihy
       }
     }
 
@@ -2509,7 +2447,6 @@ const ReaderPage = () => {
     </div>
   );
 
-  // Pomocná třída pro dynamickou velikost písma
   const getTextSizeClass = () => {
     if (textSize === 'lg') return 'text-lg md:text-xl leading-relaxed';
     if (textSize === 'xl') return 'text-xl md:text-2xl leading-loose';
@@ -2519,7 +2456,7 @@ const ReaderPage = () => {
   return (
     <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       
-      {/* 🔥 NOVÝ PLOVOUCÍ PROGRESS BAR NA VRCHU STRÁNKY */}
+      {/* PLOVOUCÍ PROGRESS BAR */}
       <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-sm">
         <div 
           className="h-full rounded-r-full transition-all duration-100 ease-out" 
@@ -2533,7 +2470,7 @@ const ReaderPage = () => {
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Zpět do knihovny
         </a>
 
-        {/* 🔥 NOVÉ: Přepínač velikosti textu (Aa) */}
+        {/* Přepínač velikosti textu (Aa) */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-xl p-1 flex items-center gap-1 shadow-sm">
           {['base', 'lg', 'xl'].map((size) => (
             <button
@@ -2554,7 +2491,6 @@ const ReaderPage = () => {
       {/* HLAVNÍ ČTECÍ KARTA */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-12 shadow-xl relative overflow-hidden transition-all duration-300">
         
-        {/* Dekorativní prvek na pozadí doplňující imerzi */}
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -left-16 -top-16 w-32 h-32 opacity-5 rounded-full blur-xl"></div>
         
         {/* Hlavička knihy */}
@@ -2567,7 +2503,6 @@ const ReaderPage = () => {
             <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight m-0">{book?.title}</h1>
           </div>
           
-          {/* Tlačítko pro lajkování s animací */}
           <button 
             onClick={toggleLike}
             style={{ 
@@ -2589,7 +2524,7 @@ const ReaderPage = () => {
           </button>
         </div>
 
-        {/* Text knihy s nastavitelnou velikostí a moderním formátováním */}
+        {/* Text knihy */}
         <div 
           style={{ color: 'var(--text-body)' }} 
           className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 ${getTextSizeClass()}`}
@@ -2597,7 +2532,7 @@ const ReaderPage = () => {
           {book?.content}
         </div>
 
-        {/* UKONČOVACÍ SEKCE NA KONCI KNIHY */}
+        {/* UKONČOVACÍ SEKCE */}
         <div style={{ borderColor: 'var(--border-color)' }} className="mt-16 pt-8 border-t flex flex-col items-center gap-4 relative z-10">
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-10 h-10 rounded-full flex items-center justify-center mb-2">
             <BookOpen size={18} style={{ color: 'var(--text-muted)' }} className="opacity-60" />
@@ -2623,7 +2558,7 @@ const ReaderPage = () => {
           </button>
           
           {isRead && (
-            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wide opacity-50 m-0 animate-fade-in">
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wide opacity-50 m-0">
               ✓ Tento svazek je v knihovně označen jako přečtený.
             </p>
           )}
