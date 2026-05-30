@@ -448,6 +448,37 @@ const SettingsModal = ({ isOpen, onClose }) => {
 };
 
 
+const BOOK_BADGES = [
+  {
+    id: 'first_book',
+    title: 'První zářez',
+    description: 'Přečetl jsi svou první knihu.',
+    icon: Award,
+    condition: (stats) => stats.totalRead >= 1,
+  },
+  {
+    id: 'bookworm',
+    title: 'Velký Knihomol',
+    description: 'Dokončil jsi úspěšně 10 knih.',
+    icon: BookOpen,
+    condition: (stats) => stats.totalRead >= 10,
+  },
+  {
+    id: 'streak_hunter',
+    title: 'Plamenná síla',
+    description: 'Udržel jsi sérii čtení aspoň 3 dny za sebou.',
+    icon: Flame,
+    condition: (stats) => stats.streak >= 3,
+  },
+  {
+    id: 'goal_slayer',
+    title: 'Drtič výzev',
+    description: 'Splnil jsi aktuální měsíční cíl.',
+    icon: Trophy,
+    condition: (stats) => stats.monthlyRead >= stats.monthlyGoal,
+  },
+];
+
 const UserStats = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -463,69 +494,40 @@ const UserStats = () => {
     xp: 0,
     level: 1,
     levelName: "Začínající čtenář 🌱",
-    levelBadgeClass: "bg-indigo-500/30 text-indigo-300",
-    levelBoxClass: "bg-indigo-600 text-white",
+    levelBadgeClass: "",
+    levelBoxClass: "",
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
     currentMonthName: ""
   });
 
-  // Ponecháno pro herní progres (Tiers 1-7)
+  // Přizpůsobení herních vizuálů tak, aby ladily s jakýmkoliv vybraným motivem (SaaS, Dark i Dark Oak)
   const getLevelVisuals = (lvl) => {
-    if (lvl >= 30) return {
-      name: "Transcendentní bytost čistého vědění 👁️",
-      badge: "bg-gradient-to-r from-fuchsia-600 via-purple-600 to-pink-600 text-white animate-pulse shadow-fuchsia-500/50 shadow-lg",
-      box: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/50"
-    };
-    if (lvl >= 25) return {
-      name: "Bůh zapomenutých příběhů 🌌",
-      badge: "bg-violet-950 text-violet-300 border border-violet-500/30 font-black shadow-md shadow-violet-500/20",
-      box: "bg-gradient-to-br from-violet-600 to-indigo-900 text-white shadow-xl shadow-indigo-500/30"
-    };
-    if (lvl >= 24) return { name: "Strážce nekonečné knihovny ♾️", badge: "bg-indigo-950 text-indigo-300 border border-indigo-500/20", box: "bg-indigo-800 text-white shadow-md" };
-    if (lvl >= 23) return { name: "Osvícený kronikář věků ⏳", badge: "bg-indigo-900 text-indigo-200", box: "bg-indigo-700 text-white" };
-    if (lvl >= 22) return { name: "Pán literárních světů 🌍", badge: "bg-indigo-800 text-indigo-100", box: "bg-indigo-600 text-white" };
-    if (lvl >= 21) return { name: "Tkadlec knižních osudů 🪡", badge: "bg-indigo-700 text-white", box: "bg-indigo-500 text-white" };
-
     if (lvl >= 20) return {
-      name: "Mág nejvyšší knihovny 🧙‍♂️",
-      badge: "bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/40",
-      box: "bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20"
+      name: "Bůh zapomenutých příběhů 🌌",
+      badge: "border border-amber-500/40 text-amber-500 bg-amber-500/10 font-black animate-pulse",
+      box: "bg-gradient-to-br from-amber-500 to-amber-700 text-black shadow-lg"
     };
-    if (lvl >= 19) return { name: "Archon vědění 🏛️", badge: "bg-amber-950 text-amber-300 border border-amber-500/20", box: "bg-amber-700 text-white" };
-    if (lvl >= 18) return { name: "Strážce prastarých svitků 📜", badge: "bg-amber-900 text-amber-200", box: "bg-amber-600 text-white" };
-    if (lvl >= 17) return { name: "Mistr skrytých pravd 🗝️", badge: "bg-amber-800 text-amber-100", box: "bg-amber-500 text-white" };
-    if (lvl >= 16) return { name: "Zasvěcenec Velké moudrosti 👁️", badge: "bg-amber-700 text-white", box: "bg-amber-500 text-white" };
-
-    if (lvl >= 15) return {
-      name: "Mistr literárních věd 🎓",
-      badge: "bg-emerald-600 text-white shadow-sm shadow-emerald-500/30",
-      box: "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+    if (lvl >= 15) return { 
+      name: "Mág nejvyšší knihovny 🧙‍♂️", 
+      badge: "border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-bold", 
+      box: "bg-emerald-700 text-white" 
     };
-    if (lvl >= 14) return { name: "Filosof slova 💭", badge: "bg-emerald-950 text-emerald-300 border border-emerald-500/20", box: "bg-emerald-700 text-white" };
-    if (lvl >= 13) return { name: "Sečtělý učenec 📚", badge: "bg-emerald-900 text-emerald-200", box: "bg-emerald-600 text-white" };
-    if (lvl >= 12) return { name: "Profesor příběhů 👨‍🏫", badge: "bg-emerald-800 text-emerald-100", box: "bg-emerald-500 text-white" };
-    if (lvl >= 11) return { name: "Hledač pravdy ⚖️", badge: "bg-emerald-700 text-white", box: "bg-emerald-500 text-white" };
-
-    if (lvl >= 10) return {
-      name: "Vášnivý čtenář 🔖",
-      badge: "bg-cyan-600 text-white",
-      box: "bg-cyan-600 text-white shadow-md shadow-cyan-600/20"
+    if (lvl >= 10) return { 
+      name: "Mistr skrytých pravd 🗝️", 
+      badge: "style-badge-adaptive border border-current opacity-90", 
+      box: "style-box-adaptive bg-current text-[var(--bg-card)] opacity-90" 
     };
-    if (lvl >= 9)  return { name: "Lovec kapitol 🏹", badge: "bg-cyan-950 text-cyan-300 border border-cyan-500/20", box: "bg-cyan-700 text-white" };
-    if (lvl >= 8)  return { name: "Pravidelný knihomol 🐛", badge: "bg-cyan-900 text-cyan-200", box: "bg-cyan-600 text-white" };
-    if (lvl >= 7)  return { name: "Polykač stránek 😮‍💨", badge: "bg-cyan-800 text-cyan-100", box: "bg-cyan-500 text-white" };
-    if (lvl >= 6)  return { name: "Noční čtenář 🌙", badge: "bg-cyan-700 text-white", box: "bg-cyan-500 text-white" };
-
-    if (lvl >= 5)  return { name: "Průzkumník příběhů 🗺️", badge: "bg-slate-700 text-white", box: "bg-slate-600 text-white" };
-    if (lvl >= 4)  return { name: "Hledač moudrosti 🔍", badge: "bg-slate-600 text-slate-200", box: "bg-slate-500 text-white" };
-    if (lvl >= 3)  return { name: "Objevitel světů 🚀", badge: "bg-slate-500 text-slate-100", box: "bg-slate-500 text-white" };
-    if (lvl >= 2)  return { name: "Zapálený začátečník 🔥", badge: "bg-slate-400 text-slate-900", box: "bg-slate-400 text-slate-900" };
+    if (lvl >= 5)  return { 
+      name: "Pravidelný knihomol 🐛", 
+      badge: "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)]", 
+      box: "bg-[var(--bg-primary)] text-[var(--text-primary)]" 
+    };
 
     return {
       name: "Začínající čtenář 🌱",
-      badge: "bg-indigo-500/30 text-indigo-300",
-      box: "bg-indigo-600 text-white"
+      badge: "bg-[var(--bg-badge)] text-[var(--text-badge)]",
+      box: "bg-[var(--bg-primary)] text-[var(--text-primary)]"
     };
   };
 
@@ -739,7 +741,7 @@ const UserStats = () => {
           </p>
         </div>
 
-        {/* 2. KARTA: MĚSÍČNÍ VÝZVA S EDITACÍ */}
+        {/* 2. KARTA: MĚSÍČNÍ VÝZVA */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
@@ -756,7 +758,7 @@ const UserStats = () => {
             
             <div className="space-y-1">
               <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                <div style={{ backgroundColor: 'var(--bg-primary)' }} className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
               </div>
               <div style={{ color: 'var(--text-muted)' }} className="flex justify-between text-[10px] font-black uppercase opacity-80">
                 <span>{progressPercent}% splněno</span>
@@ -813,7 +815,6 @@ const UserStats = () => {
             <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku tvého profilu.
           </p>
         </div>
-
       </div>
 
       {/* TÝDENNÍ AKTIVITA */}
@@ -855,6 +856,61 @@ const UserStats = () => {
           ))}
         </div>
       </div>
+
+      {/* ================= NÝNÍ PŘIDANÁ SEKCE: MOJE ÚSPĚCHY ================= */}
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
+        <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-6 text-left flex items-center gap-1.5">
+          <Award size={16} style={{ color: 'var(--bg-primary)' }} /> Sběratelské Odznáčky Knihovny
+        </h3>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {BOOK_BADGES.map((badge) => {
+            // Každý odznáček si zkontroluje aktuální vypočítaný stav
+            const isUnlocked = badge.condition(stats);
+            const BadgeIcon = badge.icon;
+
+            return (
+              <div
+                key={badge.id}
+                style={{
+                  backgroundColor: isUnlocked ? 'var(--bg-badge)' : 'rgba(0, 0, 0, 0.1)',
+                  borderColor: isUnlocked ? 'var(--border-color)' : 'transparent',
+                  opacity: isUnlocked ? 1 : 0.4
+                }}
+                className={`p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 shadow-inner ${
+                  isUnlocked ? 'scale-100' : 'scale-95'
+                }`}
+              >
+                <div
+                  style={{
+                    backgroundColor: isUnlocked ? 'var(--bg-primary)' : 'rgba(255,255,255,0.05)',
+                    color: isUnlocked ? 'var(--text-primary)' : 'var(--text-muted)'
+                  }}
+                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform duration-500"
+                >
+                  <BadgeIcon size={22} className={isUnlocked ? "animate-pulse" : ""} />
+                </div>
+                
+                <div className="text-left flex flex-col">
+                  <span
+                    style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }}
+                    className="font-black text-sm tracking-wide uppercase"
+                  >
+                    {badge.title}
+                  </span>
+                  <span
+                    style={{ color: 'var(--text-body)' }}
+                    className="text-xs opacity-70 mt-0.5"
+                  >
+                    {badge.description}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* =================================================================== */}
 
       {/* TLAČÍTKO ZPĚT */}
       <div className="flex justify-end">
