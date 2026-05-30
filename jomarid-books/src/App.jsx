@@ -433,27 +433,81 @@ const UserStats = () => {
     xp: 0,
     level: 1,
     levelName: "Začínající čtenář 🌱",
+    levelBadgeClass: "bg-indigo-500/30 text-indigo-300",
+    levelBoxClass: "bg-indigo-600 text-white",
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
     currentMonthName: ""
   });
 
-  // 10 levelových titulů s větším spacingem
-  const getLevelName = (lvl) => {
-    if (lvl >= 10) return "Mág nejvyšší knihovny 🧙‍♂️";
-    if (lvl >= 9)  return "Archon vědění 🏛️";
-    if (lvl >= 8)  return "Strážce prastarých svitků 📜";
-    if (lvl >= 7)  return "Mistr literárních věd 🎓";
-    if (lvl >= 6)  return "Sečtělý učenec 📚";
-    if (lvl >= 5)  return "Vášnivý čtenář 🔖";
-    if (lvl >= 4)  return "Pravidelný knihomol 🐛";
-    if (lvl >= 3)  return "Průzkumník příběhů 🗺️";
-    if (lvl >= 2)  return "Hledač moudrosti 🔍";
-    return "Začínající čtenář 🌱";
+  // 30 levelových titulů rozdělených do vizuálních tierů s unikátními barvami
+  const getLevelVisuals = (lvl) => {
+    // TIER 7: ABSOLUTNÍ MAXIMUM (Level 30+)
+    if (lvl >= 30) return {
+      name: "Transcendentní bytost čistého vědění 👁️",
+      badge: "bg-gradient-to-r from-fuchsia-600 via-purple-600 to-pink-600 text-white animate-pulse shadow-fuchsia-500/50 shadow-lg",
+      box: "bg-gradient-to-br from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/50"
+    };
+    
+    // TIER 6: Knižní božstva a mýtické bytosti (Level 25-29) - Hluboký mystický vesmír
+    if (lvl >= 25) return {
+      name: "Bůh zapomenutých příběhů 🌌",
+      badge: "bg-violet-950 text-violet-300 border border-violet-500/30 font-black shadow-md shadow-violet-500/20",
+      box: "bg-gradient-to-br from-violet-600 to-indigo-900 text-white shadow-xl shadow-indigo-500/30"
+    };
+    if (lvl >= 24) return { name: "Strážce nekonečné knihovny ♾️", badge: "bg-indigo-950 text-indigo-300 border border-indigo-500/20", box: "bg-indigo-800 text-white shadow-md" };
+    if (lvl >= 23) return { name: "Osvícený kronikář věků ⏳", badge: "bg-indigo-900 text-indigo-200", box: "bg-indigo-700 text-white" };
+    if (lvl >= 22) return { name: "Pán literárních světů 🌍", badge: "bg-indigo-800 text-indigo-100", box: "bg-indigo-600 text-white" };
+    if (lvl >= 21) return { name: "Tkadlec knižních osudů 🪡", badge: "bg-indigo-700 text-white", box: "bg-indigo-500 text-white" };
+
+    // TIER 5: Mágové a Archoni (Level 16-20) - Legendární zlatavý vizuál
+    if (lvl >= 20) return {
+      name: "Mág nejvyšší knihovny 🧙‍♂️",
+      badge: "bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/40",
+      box: "bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20"
+    };
+    if (lvl >= 19) return { name: "Archon vědění 🏛️", badge: "bg-amber-950 text-amber-300 border border-amber-500/20", box: "bg-amber-700 text-white" };
+    if (lvl >= 18) return { name: "Strážce prastarých svitků 📜", badge: "bg-amber-900 text-amber-200", box: "bg-amber-600 text-white" };
+    if (lvl >= 17) return { name: "Mistr skrytých pravd 🗝️", badge: "bg-amber-800 text-amber-100", box: "bg-amber-500 text-white" };
+    if (lvl >= 16) return { name: "Zasvěcenec Velké moudrosti 👁️‍عون", badge: "bg-amber-700 text-white", box: "bg-amber-500 text-white" };
+
+    // TIER 4: Učenci a Elita (Level 11-15) - Smaragdově zelený vizuál učenosti
+    if (lvl >= 15) return {
+      name: "Mistr literárních věd 🎓",
+      badge: "bg-emerald-600 text-white shadow-sm shadow-emerald-500/30",
+      box: "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+    };
+    if (lvl >= 14) return { name: "Filosof slova 💭", badge: "bg-emerald-950 text-emerald-300 border border-emerald-500/20", box: "bg-emerald-700 text-white" };
+    if (lvl >= 13) return { name: "Sečtělý učenec 📚", badge: "bg-emerald-900 text-emerald-200", box: "bg-emerald-600 text-white" };
+    if (lvl >= 12) return { name: "Profesor příběhů 👨‍🏫", badge: "bg-emerald-800 text-emerald-100", box: "bg-emerald-500 text-white" };
+    if (lvl >= 11) return { name: "Hledač pravdy ⚖️", badge: "bg-emerald-700 text-white", box: "bg-emerald-500 text-white" };
+
+    // TIER 3: Pokročilí knihomolové (Level 6-10) - Svěží kyanový / tyrkysový vizuál
+    if (lvl >= 10) return {
+      name: "Vášnivý čtenář 🔖",
+      badge: "bg-cyan-600 text-white",
+      box: "bg-cyan-600 text-white shadow-md shadow-cyan-600/20"
+    };
+    if (lvl >= 9)  return { name: "Lovec kapitol 🏹", badge: "bg-cyan-950 text-cyan-300 border border-cyan-500/20", box: "bg-cyan-700 text-white" };
+    if (lvl >= 8)  return { name: "Pravidelný knihomol 🐛", badge: "bg-cyan-900 text-cyan-200", box: "bg-cyan-600 text-white" };
+    if (lvl >= 7)  return { name: "Polykač stránek 😮‍💨", badge: "bg-cyan-800 text-cyan-100", box: "bg-cyan-500 text-white" };
+    if (lvl >= 6)  return { name: "Noční čtenář 🌙", badge: "bg-cyan-700 text-white", box: "bg-cyan-500 text-white" };
+
+    // TIER 2: Průzkumníci (Level 2-5) - Slate břidlicová klasika
+    if (lvl >= 5)  return { name: "Průzkumník příběhů 🗺️", badge: "bg-slate-700 text-white", box: "bg-slate-600 text-white" };
+    if (lvl >= 4)  return { name: "Hledač moudrosti 🔍", badge: "bg-slate-600 text-slate-200", box: "bg-slate-500 text-white" };
+    if (lvl >= 3)  return { name: "Objevitel světů 🚀", badge: "bg-slate-500 text-slate-100", box: "bg-slate-500 text-white" };
+    if (lvl >= 2)  return { name: "Zapálený začátečník 🔥", badge: "bg-slate-400 text-slate-900", box: "bg-slate-400 text-slate-900" };
+
+    // TIER 1: Úplný nováček (Level 1)
+    return {
+      name: "Začínající čtenář 🌱",
+      badge: "bg-indigo-500/30 text-indigo-300",
+      box: "bg-indigo-600 text-white"
+    };
   };
 
   // Exponenciální funkce pro výpočet potřebných XP pro daný level
-  // Level 1 potřebuje celkem 0 XP, Level 2 potřebuje 150 XP, Level 3 potřebuje 450 XP atd.
   const getRequiredXpForLevel = (lvl) => {
     if (lvl <= 1) return 0;
     return Math.round(100 * Math.pow(1.5, lvl - 1));
@@ -471,9 +525,7 @@ const UserStats = () => {
     const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
     const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
     
-    // XP získaná v rámci aktuálního levelu
     const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
-    // Kolik XP celkem je potřeba na přechod z aktuálního na další level
     const xpNeededForNext = xpForNextLevelStart - xpForCurrentLevelStart;
 
     return {
@@ -507,7 +559,7 @@ const UserStats = () => {
           .eq('user_id', user.id)
           .order('activity_date', { ascending: false });
 
-        // 3. Načtení bonusových XP z profilu (vytvořeno v kroku 2)
+        // 3. Načtení bonusových XP z profilu
         const { data: profileData } = await supabase
           .from('profiles')
           .select('fake_xp')
@@ -580,6 +632,7 @@ const UserStats = () => {
 
         // Použití naší exponenciální kalkulačky
         const lvlSpecs = calculateLevelAndProgress(totalXpCalculated);
+        const visuals = getLevelVisuals(lvlSpecs.level);
 
         setStats({
           streak,
@@ -589,7 +642,9 @@ const UserStats = () => {
           weeklyActivity: last7Days,
           xp: lvlSpecs.xpInCurrentLevel,
           level: lvlSpecs.level,
-          levelName: getLevelName(lvlSpecs.level),
+          levelName: visuals.name,
+          levelBadgeClass: visuals.badge,
+          levelBoxClass: visuals.box,
           xpNeededForNext: lvlSpecs.xpNeededForNext,
           daysRemainingInMonth,
           currentMonthName
@@ -635,7 +690,7 @@ const UserStats = () => {
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="text-left">
-            <span className="text-xs bg-indigo-500/30 text-indigo-300 px-3 py-1 rounded-full font-black uppercase tracking-wider mb-2 inline-block">
+            <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider mb-2 inline-block transition-all duration-300 ${stats.levelBadgeClass}`}>
               {stats.levelName}
             </span>
             <h1 className="text-3xl font-black tracking-tight mb-1">Moje Statistiky</h1>
@@ -644,7 +699,7 @@ const UserStats = () => {
           
           {/* LEVEL BAR */}
           <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
-            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-xl font-black shadow-lg">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>
               {stats.level}
             </div>
             <div className="flex-1 space-y-1 text-left">
@@ -803,7 +858,6 @@ const UserStats = () => {
     </div>
   );
 };
-
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('');
