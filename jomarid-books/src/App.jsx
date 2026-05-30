@@ -551,7 +551,7 @@ const UserStats = () => {
 
       } catch (err) {
         console.error("Chyba při sestavování statistik:", err);
-      } finaly {
+      } finally {
         setLoading(false);
       }
     };
@@ -572,8 +572,8 @@ const UserStats = () => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <Loader2 className="animate-spin mx-auto mb-4 text-indigo-600" size={32} />
-        <p className="text-sm font-bold opacity-60">Sestavuji tvůj kompletní přehled...</p>
+        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled...</p>
       </div>
     );
   }
@@ -761,7 +761,6 @@ const UserStats = () => {
   );
 };
 
-export default UserStats;
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('');
@@ -2576,17 +2575,25 @@ export default function App() {
         <Router>
           <div style={{ background: 'var(--bg-body)', color: 'var(--text-body)' }} className="min-h-screen flex flex-col font-sans antialiased transition-all duration-200">
             <Navbar onOpenSearch={() => setIsSearchOpen(true)} onOpenSettings={() => setIsSettingsOpen(true)} />
+            
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
+                
+                {/* Chráněné uživatelské sekce */}
                 <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
                 <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
-                <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
                 <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
-                <Route path="/stats" element={<UserStats />} />
+                
+                {/* 🔥 Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
+                <Route path="/stats" element={<ProtectedUserRoute><UserStats /></ProtectedUserRoute>} />
+                
+                {/* Administrace */}
+                <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
               </Routes>
             </main>
+            
             <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
           </div>
@@ -2595,4 +2602,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-
