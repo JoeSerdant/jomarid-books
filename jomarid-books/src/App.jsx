@@ -1193,7 +1193,7 @@ const UserStats = () => {
         ];
         const currentMonthName = monthNames[currentMonth];
 
-        let streak = 0;
+let streak = 0;
         const activeDates = activityData?.map(a => a.activity_date) || [];
         
         if (activeDates.length > 0) {
@@ -1216,43 +1216,38 @@ const UserStats = () => {
           }
         }
 
-        const daysOfWeek = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
-        const last7Days = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toLocaleDateString('sv');
-          last7Days.push({
-            dayLabel: daysOfWeek[d.getDay()],
-            isActive: activeDates.includes(dateStr),
-            isToday: i === 0
-          });
-        }
+        // ========================================================
+        // 🔥 OPRAVA: DYNAMICKÉ SČÍTÁNÍ REÁLNÝCH XP A FAKE XP
+        // ========================================================
+        // Předpokládáme například 100 XP za každou kompletně přečtenou knihu
+        const baseXpFromBooks = totalRead * 100; 
+        
+        // Sečteme reálná XP z knih + bonusová fake_xp z admin panelu
+        const totalXp = baseXpFromBooks + bonusXp;
 
-        const baseXp = (totalRead * 100) + (streak * 25);
-        const totalXpCalculated = baseXp + bonusXp;
+        // Spočítáme level a progresi z celkového sloučeného balíku XP
+        const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
+        const visuals = getLevelVisuals(level);
 
-        const lvlSpecs = calculateLevelAndProgress(totalXpCalculated);
-        const visuals = getLevelVisuals(lvlSpecs.level);
-
+        // Uložení kompletních herních statistik do stavu componenty
         setStats({
           streak,
           monthlyRead,
           monthlyGoal: currentGoal,
           totalRead,
-          weeklyActivity: last7Days,
-          xp: lvlSpecs.xpInCurrentLevel,
-          level: lvlSpecs.level,
+          weeklyActivity: activeDates.slice(0, 7), // posledních 7 aktivních dní pro graf
+          xp: xpInCurrentLevel,                     // XP v rámci aktuálního levelu pro Progress Bar
+          level,
           levelName: visuals.name,
           levelBadgeClass: visuals.badge,
           levelBoxClass: visuals.box,
-          xpNeededForNext: lvlSpecs.xpNeededForNext,
+          xpNeededForNext,                         // Kolik celkem XP potřebuje na další level
           daysRemainingInMonth,
           currentMonthName
         });
 
-      } catch (err) {
-        console.error("Chyba při sestavování statistik:", err);
+      } catch (error) {
+        console.error("Chyba při načítání statistik čtenáře:", error);
       } finally {
         setLoading(false);
       }
@@ -1260,7 +1255,7 @@ const UserStats = () => {
 
     fetchFullStats();
   }, [user]);
-
+        
   const handleSaveGoal = () => {
     const goalNum = parseInt(newGoalInput, 10);
     if (isNaN(goalNum) || goalNum < 1) return;
