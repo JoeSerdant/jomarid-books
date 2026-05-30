@@ -70,30 +70,18 @@ const THEMES = {
     '--text-badge': '#a78bfa',
   },
 emerald: {
-  // Sytější, teplý tón zralého dřeva (dub/bambus) místo světlého krému
-  '--bg-body': '#e6d5bc',       
-  // Velmi tmavá čokoládově-hnědá pro perfektní čitelnost na dřevěném podkladu
-  '--text-body': '#231508',     
-  // Čistý, teplý podklad pro karty (jako barva světlého březového dřeva nebo papíru)
-  '--bg-card': '#f5ebd7',       
-  // Výraznější hnědá barva opracovaného dřeva na okraje a linky
-  '--border-color': '#bfa382',  
-  // Poloprůhledný navbar v tónu podkladového dřeva
-  '--bg-navbar': 'rgba(230, 213, 188, 0.85)',
-  // Tlumená zemitá hnědá pro méně důležité texty
-  '--text-muted': '#6b5138',    
-  
-  // Sytá lesní zelená pro hlavní tlačítka a akce (tady to k sobě dokonale sedne)
-  '--bg-primary': '#1b4d3e',    
+  '--bg-body': '#2d1a10',        // Hluboká barva tmavého dřeva (mahagon/ořech)
+  '--text-body': '#f4ebd9',      // Krémový text, aby na tmavém dřevě skvěle svítil
+  '--bg-card': '#3d2518',        // Karty (trochu světlejší tmavé dřevo)
+  '--border-color': '#543523',    // Okraje karet
+  '--bg-navbar': 'rgba(45, 26, 16, 0.85)',
+  '--text-muted': '#bda691',     
+  '--bg-primary': '#246b54',     // Trochu jasnější lesní zelená pro kontrast na tmavém
   '--text-primary': '#ffffff',
-  
-  // Sekundární prvky mají o něco tmavší dřevitý odstín
-  '--bg-secondary': '#d9c4a4',
-  '--text-secondary': '#1b4d3e',
-  
-  // Badge v kombinaci jemné zelené s tmavým textem
-  '--bg-badge': '#d1dfd8',
-  '--text-badge': '#1b4d3e',
+  '--bg-secondary': '#4d3223',
+  '--text-secondary': '#246b54',
+  '--bg-badge': '#1f4237',
+  '--text-badge': '#a3cfc0',
 }
 };
 
