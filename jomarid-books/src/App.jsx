@@ -22,6 +22,7 @@ const Users = getIcon('Users');
 const AlertTriangle = getIcon('AlertTriangle');
 const UserCheck = getIcon('UserCheck');
 const PhoneIcon = getIcon('Phone');
+const Phone = PhoneIcon;
 const ChevronDown = getIcon('ChevronDown');
 const Clock = getIcon('Clock');
 const Trash = getIcon('Trash');
