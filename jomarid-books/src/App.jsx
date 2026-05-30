@@ -32,6 +32,8 @@ const HelpCircle = getIcon('HelpCircle');
 const Zap = getIcon('Zap'); // Lucide ho zná jako Zap, přes getIcon se bezpečně namapuje
 const Check = getIcon('Check');
 const UserPlus = getIcon('UserPlus');
+const BarChart2 = getIcon('BarChart2');
+const ChartBar = getIcon('ChartBar');
 
 const THEMES = {
   saas: {
