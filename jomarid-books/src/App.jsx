@@ -12,6 +12,7 @@ const ChevronRight = getIcon('ChevronRight');
 const Loader2 = getIcon('Loader2');
 const LogOut = getIcon('LogOut');
 const Shield = getIcon('Shield');
+const ShieldOff = getIcon('ShieldOff'); // ✨ Nově přidaná ikona pro skrytí v žebříčku
 const Heart = getIcon('Heart');
 const BookOpen = getIcon('BookOpen');
 const Lock = getIcon('Lock');
