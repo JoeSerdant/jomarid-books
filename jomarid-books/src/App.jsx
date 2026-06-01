@@ -2378,6 +2378,13 @@ const ReaderPage = () => {
   
   const progressRef = useRef(0);
 
+  // Bezpečná lokální mapa velikostí písma nahrazující nefunkční getTextSizeClass
+  const fontSizeMap = {
+    'base': 'text-base',
+    'lg': 'text-lg',
+    'xl': 'text-xl'
+  };
+
   const calculateCurrentProgress = () => {
     const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
     if (totalHeight <= 0) return 0;
@@ -2385,7 +2392,6 @@ const ReaderPage = () => {
   };
 
   const saveReadingProgress = async () => {
-    // Použijeme userId z state nebo session
     const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
     if (!currentUserId || !id) return;
 
@@ -2530,14 +2536,30 @@ const ReaderPage = () => {
     navigate('/app');
   };
 
-  // ... [zbytek renderu zůstává stejný jako v předchozí verzi] ...
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <Loader2 className="animate-spin text-indigo-600" size={32} />
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center p-4 text-center">
+        <AlertTriangle className="text-amber-500 mb-2" size={40} />
+        <p className="font-bold text-sm max-w-sm">{err}</p>
+        <button onClick={() => navigate('/app')} className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer border-none">Zpět do knihovny</button>
+      </div>
+    );
+  }
+
   return (
-    // (Render zůstává beze změny)
     <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-sm">
         <div className="h-full rounded-r-full transition-all duration-100 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}/>
       </div>
-      {/* ... zbytek JSX ... */}
+
       <div className="flex justify-between items-center mb-6">
         <a href="/app" onClick={handleBack} style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-black no-underline opacity-60 hover:opacity-100 flex items-center gap-1.5 transition-all group">
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> Zpět do knihovny
@@ -2550,6 +2572,7 @@ const ReaderPage = () => {
           ))}
         </div>
       </div>
+
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-12 shadow-xl relative overflow-hidden transition-all duration-300">
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -left-16 -top-16 w-32 h-32 opacity-5 rounded-full blur-xl"></div>
         <div style={{ borderColor: 'var(--border-color)' }} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b relative z-10">
@@ -2565,9 +2588,12 @@ const ReaderPage = () => {
             <span>{likesCount}</span>
           </button>
         </div>
-        <div style={{ color: 'var(--text-body)' }} className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 ${getTextSizeClass()}`}>
+
+        {/* FIX PROBĚHL ZDE: Třída se nyní tahá bezpečně z interní fontSizeMap na základě stavu textSize */}
+        <div style={{ color: 'var(--text-body)' }} className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 ${fontSizeMap[textSize] || 'text-base'}`}>
           {book?.content}
         </div>
+
         <div style={{ borderColor: 'var(--border-color)' }} className="mt-16 pt-8 border-t flex flex-col items-center gap-4 relative z-10">
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-10 h-10 rounded-full flex items-center justify-center mb-2">
             <BookOpen size={18} style={{ color: 'var(--text-muted)' }} className="opacity-60" />
@@ -3697,73 +3723,7 @@ const AdminDashboard = () => {
   );
 };
 
-// --- POMOCNÁ FUNKCE PRO VELIKOST TEXTU ---
-// Pokud tvůj SettingsModal nebo ReaderPage mění velikost písma (např. 'small', 'normal', 'large'),
-// tato funkce zajistí správné přiřazení Tailwind tříd a zabrání pádu aplikace.
-const getTextSizeClass = (size) => {
-  switch (size) {
-    case 'small':
-    case 'sm': 
-      return 'text-sm';
-    case 'large':
-    case 'lg': 
-      return 'text-lg';
-    case 'xlarge':
-    case 'xl': 
-      return 'text-xl';
-    case '2xl': 
-      return 'text-2xl';
-    case 'normal':
-    case 'md':
-    default: 
-      return 'text-base';
-  }
-};
 
-export default function App() {
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('jomarid-books-theme') || 'saas');
-
-  useEffect(() => {
-    const vars = THEMES[currentTheme] || THEMES.saas;
-    const b = document.body;
-    Object.keys(vars).forEach(k => b.style.setProperty(k, vars[k]));
-  }, [currentTheme]);
-
-  return (
-    <AuthProvider>
-      <ThemeContext.Provider value={{ currentTheme, changeTheme: (t) => { setCurrentTheme(t); localStorage.setItem('jomarid-books-theme', t); } }}>
-        <Router>
-          <div style={{ background: 'var(--bg-body)', color: 'var(--text-body)' }} className="min-h-screen flex flex-col font-sans antialiased transition-all duration-200">
-            <Navbar onOpenSearch={() => setIsSearchOpen(true)} onOpenSettings={() => setIsSettingsOpen(true)} />
-            
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                
-                {/* Chráněné uživatelské sekce */}
-                <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
-                <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
-                <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
-                
-                {/* 🔥 Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
-                <Route path="/stats" element={<ProtectedUserRoute><UserStats /></ProtectedUserRoute>} />
-                
-                {/* Administrace */}
-                <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
-              </Routes>
-            </main>
-            
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-            <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
-          </div>
-        </Router>
-      </ThemeContext.Provider>
-    </AuthProvider>
-  );
-}
 
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
