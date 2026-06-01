@@ -3697,6 +3697,74 @@ const AdminDashboard = () => {
   );
 };
 
+// --- POMOCNÁ FUNKCE PRO VELIKOST TEXTU ---
+// Pokud tvůj SettingsModal nebo ReaderPage mění velikost písma (např. 'small', 'normal', 'large'),
+// tato funkce zajistí správné přiřazení Tailwind tříd a zabrání pádu aplikace.
+const getTextSizeClass = (size) => {
+  switch (size) {
+    case 'small':
+    case 'sm': 
+      return 'text-sm';
+    case 'large':
+    case 'lg': 
+      return 'text-lg';
+    case 'xlarge':
+    case 'xl': 
+      return 'text-xl';
+    case '2xl': 
+      return 'text-2xl';
+    case 'normal':
+    case 'md':
+    default: 
+      return 'text-base';
+  }
+};
+
+export default function App() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('jomarid-books-theme') || 'saas');
+
+  useEffect(() => {
+    const vars = THEMES[currentTheme] || THEMES.saas;
+    const b = document.body;
+    Object.keys(vars).forEach(k => b.style.setProperty(k, vars[k]));
+  }, [currentTheme]);
+
+  return (
+    <AuthProvider>
+      <ThemeContext.Provider value={{ currentTheme, changeTheme: (t) => { setCurrentTheme(t); localStorage.setItem('jomarid-books-theme', t); } }}>
+        <Router>
+          <div style={{ background: 'var(--bg-body)', color: 'var(--text-body)' }} className="min-h-screen flex flex-col font-sans antialiased transition-all duration-200">
+            <Navbar onOpenSearch={() => setIsSearchOpen(true)} onOpenSettings={() => setIsSettingsOpen(true)} />
+            
+            <main className="flex-1">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                
+                {/* Chráněné uživatelské sekce */}
+                <Route path="/app" element={<ProtectedUserRoute><UserLibrary /></ProtectedUserRoute>} />
+                <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
+                <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
+                
+                {/* 🔥 Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
+                <Route path="/stats" element={<ProtectedUserRoute><UserStats /></ProtectedUserRoute>} />
+                
+                {/* Administrace */}
+                <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
+              </Routes>
+            </main>
+            
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+            <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+          </div>
+        </Router>
+      </ThemeContext.Provider>
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
