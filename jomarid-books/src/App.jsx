@@ -1091,6 +1091,8 @@ const UserStats = () => {
   const [loading, setLoading] = useState(true);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [newGoalInput, setNewGoalInput] = useState(5);
+  const [activeTab, setActiveTab] = useState('streak'); // Výchozí kategorie žebříčku
+  const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
   
   const [stats, setStats] = useState({
     streak: 0,
@@ -1105,10 +1107,18 @@ const UserStats = () => {
     levelBoxClass: "",
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
-    currentMonthName: ""
+    currentMonthName: "",
+    showInLeaderboard: true // Výchozí nastavení soukromí
   });
 
-  // Přizpůsobení herních vizuálů tak, aby ladily s jakýmkoliv vybraným motivem (SaaS, Dark i Dark Oak)
+  const [leaderboards, setLeaderboards] = useState({
+    streak: [],
+    level: [],
+    totalRead: [],
+    monthlyRead: [],
+    xp: []
+  });
+
   const getLevelVisuals = (lvl) => {
     if (lvl >= 20) return {
       name: "Bůh zapomenutých příběhů 🌌",
@@ -1143,24 +1153,14 @@ const UserStats = () => {
     return Math.round(100 * Math.pow(1.5, lvl - 1));
   };
 
- const calculateLevelAndProgress = (totalXp) => {
-    // 🔥 STRÁŽCE PROTI ZASEKNUTÍ (ADMIN ZKRATKA)
-    // Pokud má uživatel 1 000 000 XP a více, okamžitě mu dáme Level 100
-    // bez spouštění náročného cyklu.
+  const calculateLevelAndProgress = (totalXp) => {
     if (totalXp >= 1000000) {
-      return { 
-        level: 100, 
-        xpInCurrentLevel: 100, 
-        xpNeededForNext: 100 
-      };
+      return { level: 100, xpInCurrentLevel: 100, xpNeededForNext: 100 };
     }
-
     let currentLevel = 1;
-    // Přidáme pojistku (currentLevel < 100), aby cyklus nikdy nejel do nekonečna
     while (totalXp >= getRequiredXpForLevel(currentLevel + 1) && currentLevel < 100) {
       currentLevel++;
     }
-    
     const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
     const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
     const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
@@ -1169,134 +1169,210 @@ const UserStats = () => {
     return { level: currentLevel, xpInCurrentLevel, xpNeededForNext };
   };
 
-  useEffect(() => {
-    const fetchFullStats = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
-        const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 5;
-        setNewGoalInput(currentGoal);
+  const fetchFullStats = async () => {
+    if (!user) return;
+    try {
+      const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
+      const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 5;
+      setNewGoalInput(currentGoal);
 
-        const { data: userBooks } = await supabase
-          .from('user_books')
-          .select('updated_at, is_read')
-          .eq('user_id', user.id)
-          .eq('is_read', true);
+      // 1. Načtení dat aktuálního uživatele
+      const { data: userBooks } = await supabase
+        .from('user_books')
+        .select('updated_at, is_read')
+        .eq('user_id', user.id)
+        .eq('is_read', true);
 
-        const { data: activityData } = await supabase
-          .from('user_daily_activity')
-          .select('activity_date')
-          .eq('user_id', user.id)
-          .order('activity_date', { ascending: false });
+      const { data: activityData } = await supabase
+        .from('user_daily_activity')
+        .select('activity_date')
+        .eq('user_id', user.id)
+        .order('activity_date', { ascending: false });
 
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('fake_xp')
-          .eq('id', user.id)
-          .single();
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('fake_xp, show_in_leaderboard, email')
+        .eq('id', user.id)
+        .single();
 
-        const bonusXp = profileData?.fake_xp ? parseInt(profileData.fake_xp, 10) : 0;
-        const totalRead = userBooks?.length || 0;
+      const bonusXp = profileData?.fake_xp ? parseInt(profileData.fake_xp, 10) : 0;
+      const showInLeaderboard = profileData?.show_in_leaderboard ?? true;
+      const totalRead = userBooks?.length || 0;
 
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        
-        const monthlyRead = userBooks?.filter(ub => {
-          const date = new Date(ub.updated_at);
-          return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-        }).length || 0;
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      
+      const monthlyRead = userBooks?.filter(ub => {
+        const date = new Date(ub.updated_at);
+        return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+      }).length || 0;
 
-        const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const daysRemainingInMonth = lastDayOfMonth - now.getDate();
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const daysRemainingInMonth = lastDayOfMonth - now.getDate();
 
-        const monthNames = [
-          "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", 
-          "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"
-        ];
-        const currentMonthName = monthNames[currentMonth];
+      const monthNames = [
+        "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", 
+        "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"
+      ];
+      const currentMonthName = monthNames[currentMonth];
 
-        let streak = 0;
-        const activeDates = activityData?.map(a => a.activity_date) || [];
-        
-        if (activeDates.length > 0) {
-          const todayStr = new Date().toLocaleDateString('sv');
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toLocaleDateString('sv');
+      let streak = 0;
+      const activeDates = activityData?.map(a => a.activity_date) || [];
+      
+      if (activeDates.length > 0) {
+        const todayStr = new Date().toLocaleDateString('sv');
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('sv');
 
-          if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
-            let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
-            while (true) {
-              const checkDateStr = checkDate.toLocaleDateString('sv');
-              if (activeDates.includes(checkDateStr)) {
-                streak++;
-                checkDate.setDate(checkDate.getDate() - 1);
-              } else {
-                break;
-              }
+        if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
+          let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
+          while (true) {
+            const checkDateStr = checkDate.toLocaleDateString('sv');
+            if (activeDates.includes(checkDateStr)) {
+              streak++;
+              checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+              break;
             }
           }
         }
-
-        // ========================================================
-        // 🔥 NOVÁ OPRAVA: GENEROVÁNÍ DAT PRO TÝDENNÍ GRAF AKTIVITY
-        // ========================================================
-        const czechDays = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
-        const weeklyActivityGenerated = [];
-
-        // Vygenerujeme posledních 7 dní od dneška směrem do minulosti
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toLocaleDateString('sv'); // formát YYYY-MM-DD
-          
-          weeklyActivityGenerated.push({
-            dayLabel: czechDays[d.getDay()],
-            isActive: activeDates.includes(dateStr),
-            isToday: i === 0
-          });
-        }
-
-        // Predpokládáme například 100 XP za každou kompletně přečtenou knihu
-        const baseXpFromBooks = totalRead * 100; 
-        const totalXp = baseXpFromBooks + bonusXp;
-
-        const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
-        const visuals = getLevelVisuals(level);
-
-        // Uložení kompletních herních statistik do stavu componenty
-        setStats({
-          streak,
-          monthlyRead,
-          monthlyGoal: currentGoal,
-          totalRead,
-          weeklyActivity: weeklyActivityGenerated, // 🔥 Teď posíláme správně vygenerované dny s popisky!
-          xp: xpInCurrentLevel,
-          level,
-          levelName: visuals.name,
-          levelBadgeClass: visuals.badge,
-          levelBoxClass: visuals.box,
-          xpNeededForNext,
-          daysRemainingInMonth,
-          currentMonthName
-        });
-        
-      } catch (error) {
-        console.error("Chyba při načítání statistik čtenáře:", error);
-      } finally {
-        setLoading(false);
       }
-    };
 
+      const czechDays = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
+      const weeklyActivityGenerated = [];
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toLocaleDateString('sv');
+        
+        weeklyActivityGenerated.push({
+          dayLabel: czechDays[d.getDay()],
+          isActive: activeDates.includes(dateStr),
+          isToday: i === 0
+        });
+      }
+
+      const baseXpFromBooks = totalRead * 100; 
+      const totalXp = baseXpFromBooks + bonusXp;
+      const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
+      const visuals = getLevelVisuals(level);
+
+      setStats({
+        streak,
+        monthlyRead,
+        monthlyGoal: currentGoal,
+        totalRead,
+        weeklyActivity: weeklyActivityGenerated,
+        xp: xpInCurrentLevel,
+        level,
+        levelName: visuals.name,
+        levelBadgeClass: visuals.badge,
+        levelBoxClass: visuals.box,
+        xpNeededForNext,
+        daysRemainingInMonth,
+        currentMonthName,
+        showInLeaderboard
+      });
+
+      // 2. GENERUJEME LEADERBOARDY Z VEŘEJNÝCH PROFILŮ
+      // Stáhneme všechny uživatele, kteří mají povolené sdílení
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, email, fake_xp, show_in_leaderboard')
+        .eq('show_in_leaderboard', true);
+
+      if (allProfiles) {
+        // Načteme všechny přečtené knihy a aktivity pro spočítání žebříčků
+        const { data: allBooks } = await supabase.from('user_books').select('user_id, updated_at').eq('is_read', true);
+        const { data: allActivities } = await supabase.from('user_daily_activity').select('user_id, activity_date');
+
+        const mappedUsers = allProfiles.map(p => {
+          const uBooks = allBooks?.filter(b => b.user_id === p.id) || [];
+          const uActs = allActivities?.filter(a => a.user_id === p.id).map(a => a.activity_date) || [];
+
+          // Spočítáme streak pro daného uživatele
+          let uStreak = 0;
+          if (uActs.length > 0) {
+            const todayStr = new Date().toLocaleDateString('sv');
+            const yest = new Date(); yest.setDate(yest.getDate() - 1);
+            const yestStr = yest.toLocaleDateString('sv');
+            if (uActs.includes(todayStr) || uActs.includes(yestStr)) {
+              let chk = uActs.includes(todayStr) ? new Date() : yest;
+              while (uActs.includes(chk.toLocaleDateString('sv'))) {
+                uStreak++;
+                chk.setDate(chk.getDate() - 1);
+              }
+            }
+          }
+
+          const uMRead = uBooks.filter(b => {
+            const d = new Date(b.updated_at);
+            return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+          }).length;
+
+          const uXpTotal = (uBooks.length * 100) + (parseInt(p.fake_xp, 10) || 0);
+          const { level: uLvl } = calculateLevelAndProgress(uXpTotal);
+
+          return {
+            email: p.email || 'Anonymní čtenář',
+            streak: uStreak,
+            level: uLvl,
+            totalRead: uBooks.length,
+            monthlyRead: uMRead,
+            xp: uXpTotal,
+            isMe: p.id === user.id
+          };
+        });
+
+        // Roztřídíme do 5 kategorií (Top 10 v každé)
+        setLeaderboards({
+          streak: [...mappedUsers].sort((a, b) => b.streak - a.streak).slice(0, 10),
+          level: [...mappedUsers].sort((a, b) => b.level - a.level).slice(0, 10),
+          totalRead: [...mappedUsers].sort((a, b) => b.totalRead - a.totalRead).slice(0, 10),
+          monthlyRead: [...mappedUsers].sort((a, b) => b.monthlyRead - a.monthlyRead).slice(0, 10),
+          xp: [...mappedUsers].sort((a, b) => b.xp - a.xp).slice(0, 10)
+        });
+      }
+
+    } catch (error) {
+      console.error("Chyba při načítání kompletních statistik a žebříčků:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchFullStats();
   }, [user]);
+
+  // Přepínání soukromí (Zveřejnit/Skrýt výsledky)
+  const togglePrivacy = async () => {
+    if (!user || isUpdatingPrivacy) return;
+    setIsUpdatingPrivacy(true);
+    const newValue = !stats.showInLeaderboard;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ show_in_leaderboard: newValue })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setStats(prev => ({ ...prev, showInLeaderboard: newValue }));
+      // Znovu načteme žebříčky, aby se změna ihned projevila
+      fetchFullStats();
+    } catch (err) {
+      console.error("Chyba při ukládání nastavení soukromí:", err);
+    } finally {
+      setIsUpdatingPrivacy(false);
+    }
+  };
         
   const handleSaveGoal = () => {
     const goalNum = parseInt(newGoalInput, 10);
     if (isNaN(goalNum) || goalNum < 1) return;
-    
     localStorage.setItem(`monthly_goal_${user.id}`, goalNum);
     setStats(prev => ({ ...prev, monthlyGoal: goalNum }));
     setIsEditingGoal(false);
@@ -1306,7 +1382,7 @@ const UserStats = () => {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <div style={{ borderTopColor: 'transparent', borderLeftColor: 'var(--bg-primary)', borderRightColor: 'var(--bg-primary)', borderBottomColor: 'var(--bg-primary)' }} className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-4"></div>
-        <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled...</p>
+        <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled a síň slávy...</p>
       </div>
     );
   }
@@ -1314,9 +1390,46 @@ const UserStats = () => {
   const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
   const xpPercent = Math.min(100, Math.round((stats.xp / stats.xpNeededForNext) * 100));
 
+  // Pomocná data pro vykreslení kategorií žebříčku
+  const categories = [
+    { id: 'streak', label: 'Plamínky 🔥', icon: Flame, suffix: 'dní' },
+    { id: 'level', label: 'Úroveň 🏆', icon: Trophy, suffix: 'lvl' },
+    { id: 'totalRead', label: 'Celkem knih 📚', icon: CheckCircle, suffix: 'knih' },
+    { id: 'monthlyRead', label: 'Tento měsíc 📅', icon: Calendar, suffix: 'knih' },
+    { id: 'xp', label: 'Celkové XP ⭐', icon: Sparkles, suffix: 'XP' }
+  ];
+
   return (
     <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in duration-300">
       
+      {/* SEKCE: NASTAVENÍ SOUKROMÍ ŽEBŘÍČKU */}
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
+        <div className="flex items-center gap-3 text-left">
+          {stats.showInLeaderboard ? (
+            <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg"><Shield size={20} /></div>
+          ) : (
+            <div className="p-2 bg-red-500/10 text-red-500 rounded-lg"><ShieldOff size={20} /></div>
+          )}
+          <div>
+            <h4 className="text-sm font-black m-0">Zveřejnění v Síni slávy</h4>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs m-0">
+              {stats.showInLeaderboard ? "Ostatní čtenáři tě vidí v žebříčcích. Soutěž o první místa!" : "Tvůj profil je skrytý. Výsledky vidíš pouze ty."}
+            </p>
+          </div>
+        </div>
+        <button 
+          onClick={togglePrivacy} 
+          disabled={isUpdatingPrivacy}
+          style={{ 
+            backgroundColor: stats.showInLeaderboard ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-primary)', 
+            color: stats.showInLeaderboard ? '#ef4444' : 'var(--text-primary)' 
+          }} 
+          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-sm hover:opacity-90 transition-all"
+        >
+          {isUpdatingPrivacy ? 'Aktualizuji...' : stats.showInLeaderboard ? 'Skrýt mé výsledky 🔒' : 'Chci soutěžit! 🌍'}
+        </button>
+      </div>
+
       {/* VELKÁ PROFILOVÁ HLAVIČKA */}
       <div style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
@@ -1350,8 +1463,7 @@ const UserStats = () => {
 
       {/* TŘI HLAVNÍ METRIKY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        
-        {/* 1. KARTA: STREAK */}
+        {/* STREAK */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
@@ -1369,7 +1481,7 @@ const UserStats = () => {
           </p>
         </div>
 
-        {/* 2. KARTA: MĚSÍČNÍ VÝZVA */}
+        {/* MĚSÍČNÍ VÝZVA */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
@@ -1383,27 +1495,21 @@ const UserStats = () => {
                 <Calendar size={24} />
               </div>
             </div>
-            
             <div className="space-y-1">
               <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
               </div>
               <div style={{ color: 'var(--text-muted)' }} className="flex justify-between text-[10px] font-black uppercase opacity-80">
                 <span>{progressPercent}% splněno</span>
-                <span>
-                  {stats.daysRemainingInMonth === 0 ? "Dnes je poslední den!" : `Zbývá ${stats.daysRemainingInMonth} dní`}
-                </span>
+                <span>{stats.daysRemainingInMonth === 0 ? "Dnes je poslední den!" : `Zbývá ${stats.daysRemainingInMonth} dní`}</span>
               </div>
             </div>
           </div>
-
           <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-3 border-t flex items-center justify-between text-xs font-bold">
             {isEditingGoal ? (
               <div className="flex items-center gap-2 w-full">
                 <input 
-                  type="number" 
-                  min="1" 
-                  value={newGoalInput} 
+                  type="number" min="1" value={newGoalInput} 
                   onChange={(e) => setNewGoalInput(e.target.value)} 
                   style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
                   className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center"
@@ -1414,19 +1520,13 @@ const UserStats = () => {
             ) : (
               <>
                 <span style={{ color: 'var(--text-muted)' }} className="opacity-70">Chceš změnit svůj cíl?</span>
-                <button 
-                  onClick={() => setIsEditingGoal(true)} 
-                  style={{ color: 'var(--text-badge)' }}
-                  className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]"
-                >
-                  Nastavit cíl
-                </button>
+                <button onClick={() => setIsEditingGoal(true)} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Nastavit cíl</button>
               </>
             )}
           </div>
         </div>
 
-        {/* 3. KARTA: CELKEM PŘEČTENO */}
+        {/* CELKEM PŘEČTENO */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
@@ -1450,97 +1550,125 @@ const UserStats = () => {
         <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-4 text-left flex items-center gap-1.5">
           <TrendingUp size={14} /> Tvoje aktivita v posledních dnech
         </h3>
-        
         <div className="grid grid-cols-7 gap-2 md:gap-4 text-center">
           {stats.weeklyActivity.map((day, idx) => (
-            <div 
-              key={idx} 
-              style={{ 
-                borderColor: day.isToday ? 'var(--bg-primary)' : 'transparent',
-                backgroundColor: day.isToday ? 'var(--bg-badge)' : 'transparent' 
-              }}
-              className="p-3 rounded-xl flex flex-col items-center gap-2 border"
-            >
-              <span 
-                style={{ color: day.isToday ? 'var(--text-badge)' : 'var(--text-muted)' }} 
-                className={`text-xs font-black uppercase ${!day.isToday && 'opacity-60'}`}
-              >
-                {day.dayLabel}
-              </span>
-              <div 
-                style={{
-                  backgroundColor: day.isActive ? 'rgba(245, 158, 11, 1)' : 'rgba(0,0,0,0.05)',
-                  color: day.isActive ? '#ffffff' : 'var(--text-muted)'
-                }}
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm"
-              >
-                {day.isActive ? (
-                  <Flame size={16} className="fill-white text-white" />
-                ) : (
-                  <div style={{ backgroundColor: 'currentColor' }} className="w-1.5 h-1.5 rounded-full opacity-40"></div>
-                )}
+            <div key={idx} style={{ borderColor: day.isToday ? 'var(--bg-primary)' : 'transparent', backgroundColor: day.isToday ? 'var(--bg-badge)' : 'transparent' }} className="p-3 rounded-xl flex flex-col items-center gap-2 border">
+              <span style={{ color: day.isToday ? 'var(--text-badge)' : 'var(--text-muted)' }} className={`text-xs font-black uppercase ${!day.isToday && 'opacity-60'}`}>{day.dayLabel}</span>
+              <div style={{ backgroundColor: day.isActive ? 'rgba(245, 158, 11, 1)' : 'rgba(0,0,0,0.05)', color: day.isActive ? '#ffffff' : 'var(--text-muted)' }} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm">
+                {day.isActive ? <Flame size={16} className="fill-white text-white" /> : <div style={{ backgroundColor: 'currentColor' }} className="w-1.5 h-1.5 rounded-full opacity-40"></div>}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ================= NÝNÍ PŘIDANÁ SEKCE: MOJE ÚSPĚCHY ================= */}
+      {/* ================= NÝNÍ PŘIDANÁ SEKCE: SÍŇ SLÁVY (LEADERBOARDS) ================= */}
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 flex items-center gap-1.5">
+            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books
+          </h3>
+          {!stats.showInLeaderboard && (
+            <span className="text-[10px] font-bold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-md uppercase">
+              Jsi v režimu inkognito 🔒
+            </span>
+          )}
+        </div>
+
+        {/* TLAČÍTKA KATEGORIÍ */}
+        <div className="flex flex-wrap gap-2 mb-6 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
+          {categories.map((cat) => {
+            const CatIcon = cat.icon;
+            const isSelected = activeTab === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveTab(cat.id)}
+                style={{
+                  backgroundColor: isSelected ? 'var(--bg-primary)' : 'var(--bg-badge)',
+                  color: isSelected ? 'var(--text-primary)' : 'var(--text-badge)'
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border-none cursor-pointer transition-all shadow-sm"
+              >
+                <CatIcon size={14} /> {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* VÝPIS ŽEBŘÍČKU */}
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+          {leaderboards[activeTab]?.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold text-center py-6 opacity-60">V této kategorii zatím nikdo nesoutěží.</p>
+          ) : (
+            leaderboards[activeTab].map((row, index) => {
+              const currentCategory = categories.find(c => c.id === activeTab);
+              const displayValue = row[activeTab];
+              
+              // Stylování top 3 příček
+              let medalStyle = "text-xs font-black opacity-40 w-6 text-center";
+              if (index === 0) medalStyle = "text-xl w-6 text-center animate-bounce";
+              if (index === 1) medalStyle = "text-lg w-6 text-center";
+              if (index === 2) medalStyle = "text-md w-6 text-center";
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    backgroundColor: row.isMe ? 'var(--bg-badge)' : 'rgba(0,0,0,0.02)',
+                    borderColor: row.isMe ? 'var(--bg-primary)' : 'transparent'
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${row.isMe && 'font-bold shadow-sm'}`}
+                >
+                  <div className="flex items-center gap-4 text-left">
+                    <span className={medalStyle}>
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
+                        {row.email} {row.isMe && <span className="text-[10px] bg-[var(--bg-primary)] text-[var(--text-primary)] px-1.5 py-0.5 rounded ml-1 uppercase font-black">Ty</span>}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right font-black text-sm flex items-center gap-1">
+                    <span>{displayValue.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }} className="text-[10px] font-bold uppercase opacity-60">
+                      {currentCategory?.suffix}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ODZNÁČKY */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
         <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-6 text-left flex items-center gap-1.5">
           <Award size={16} style={{ color: 'var(--bg-primary)' }} /> Sběratelské Odznáčky Knihovny
         </h3>
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {BOOK_BADGES.map((badge) => {
-            // Každý odznáček si zkontroluje aktuální vypočítaný stav
             const isUnlocked = badge.condition(stats);
             const BadgeIcon = badge.icon;
-
             return (
-              <div
-                key={badge.id}
-                style={{
-                  backgroundColor: isUnlocked ? 'var(--bg-badge)' : 'rgba(0, 0, 0, 0.1)',
-                  borderColor: isUnlocked ? 'var(--border-color)' : 'transparent',
-                  opacity: isUnlocked ? 1 : 0.4
-                }}
-                className={`p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 shadow-inner ${
-                  isUnlocked ? 'scale-100' : 'scale-95'
-                }`}
-              >
-                <div
-                  style={{
-                    backgroundColor: isUnlocked ? 'var(--bg-primary)' : 'rgba(255,255,255,0.05)',
-                    color: isUnlocked ? 'var(--text-primary)' : 'var(--text-muted)'
-                  }}
-                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform duration-500"
-                >
+              <div key={badge.id} style={{ backgroundColor: isUnlocked ? 'var(--bg-badge)' : 'rgba(0, 0, 0, 0.04)', borderColor: isUnlocked ? 'var(--border-color)' : 'transparent', opacity: isUnlocked ? 1 : 0.4 }} className={`p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 shadow-inner ${isUnlocked ? 'scale-100' : 'scale-95'}`}>
+                <div style={{ backgroundColor: isUnlocked ? 'var(--bg-primary)' : 'rgba(255,255,255,0.05)', color: isUnlocked ? 'var(--text-primary)' : 'var(--text-muted)' }} className="w-12 h-12 rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform duration-500">
                   <BadgeIcon size={22} className={isUnlocked ? "animate-pulse" : ""} />
                 </div>
-                
                 <div className="text-left flex flex-col">
-                  <span
-                    style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }}
-                    className="font-black text-sm tracking-wide uppercase"
-                  >
-                    {badge.title}
-                  </span>
-                  <span
-                    style={{ color: 'var(--text-body)' }}
-                    className="text-xs opacity-70 mt-0.5"
-                  >
-                    {badge.description}
-                  </span>
+                  <span style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }} className="font-black text-sm tracking-wide uppercase">{badge.title}</span>
+                  <span style={{ color: 'var(--text-body)' }} className="text-xs opacity-70 mt-0.5">{badge.description}</span>
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-      {/* =================================================================== */}
 
-      {/* TLAČÍTKO ZPĚT */}
+      {/* TLAČÍTKA ZPĚT */}
       <div className="flex justify-end">
         <Link to="/app" className="no-underline">
           <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="flex items-center gap-1 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-opacity border-none cursor-pointer shadow-md">
