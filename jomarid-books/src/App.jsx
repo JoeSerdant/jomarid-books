@@ -2552,7 +2552,7 @@ const ReaderPage = () => {
 
   const progressRef = useRef(0);
   const autoScrollInterval = useRef(null);
-  const isInitialScrollSet = useRef(false); // Pojistka proti házení na konec
+  const isInitialScrollSet = useRef(false); // Klíčový zámek proti házení na konec
 
   // Bezpečná lokální mapa velikostí písma
   const fontSizeMap = {
@@ -2561,7 +2561,6 @@ const ReaderPage = () => {
     'xl': 'text-xl md:text-2xl leading-loose font-semibold'
   };
 
-  // Univerzální výpočet výšky a pozice pro všechny typy prohlížečů
   const getScrollMetrics = () => {
     const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
     const scrollHeight = Math.max(
@@ -2579,7 +2578,6 @@ const ReaderPage = () => {
     return (scrollY / totalHeight) * 100;
   };
 
-  // Výpočet zbývajícího času do konce na základě průměrné rychlosti (200 slov / min)
   const calculateTimeRemaining = useCallback((contentStr, progressPct) => {
     if (!contentStr) return 0;
     const words = contentStr.trim().split(/\s+/).length;
@@ -2591,7 +2589,7 @@ const ReaderPage = () => {
     const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
     if (!currentUserId || !id) return;
 
-    // Ukládáme progress pouze tehdy, pokud byl korektně načten a uživatel už začal číst
+    // Pokud ještě neproběhl úvodní skok na pozici, data neukládáme (přepsali bychom si je nulkou)
     if (!isInitialScrollSet.current) return;
 
     const progressToSave = Math.min(100, Math.max(0, Math.round(progressRef.current * 10) / 10));
@@ -2609,8 +2607,8 @@ const ReaderPage = () => {
   // 1. Sledování scrollování a aktualizace progressu
   useEffect(() => {
     const handleScroll = () => {
-      // Ignorujeme aktualizace progressu, dokud neskočíme na původní pozici
-      if (!isInitialScrollSet.current && progressRef.current > 0) return;
+      // Dokud neskočíme na správné místo, ignorujeme eventy scrollování
+      if (!isInitialScrollSet.current) return;
 
       const progress = calculateCurrentProgress();
       setReadingProgress(progress);
@@ -2625,10 +2623,9 @@ const ReaderPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, book, calculateTimeRemaining]);
 
-  // 2. Opravená a neprůstřelná logika pro Auto-Scroll (Změna na instant posun)
+  // 2. Fungující logika pro Auto-Scroll
   useEffect(() => {
     if (autoScrollSpeed > 0) {
-      // Vyšší frekvence (každých 30ms) a posun bez animace zaručí hladký pohyb na mobilu i PC
       autoScrollInterval.current = setInterval(() => {
         window.scrollBy(0, autoScrollSpeed === 1 ? 1 : 2);
       }, 30);
@@ -2644,7 +2641,7 @@ const ReaderPage = () => {
   // 3. Interval pro automatické ukládání (každých 30 vteřin)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (progressRef.current > 0) {
+      if (progressRef.current > 0 && isInitialScrollSet.current) {
         saveReadingProgress();
       }
     }, 30000);
@@ -2652,14 +2649,14 @@ const ReaderPage = () => {
     return () => clearInterval(interval);
   }, [id, userId]);
 
-  // 4. BeforeUnload pro uložení při nečekaném zavření tabu
+  // 4. BeforeUnload pro uložení při zavření
   useEffect(() => {
     const handleBeforeUnload = () => saveReadingProgress();
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [id, userId]);
 
-  // Korekce skoku na pozici při změně velikosti textu (pouze pokud už byla nastavena výchozí)
+  // Korekce skoku na pozici při změně velikosti textu
   useEffect(() => {
     if (loading || !isInitialScrollSet.current) return;
     
@@ -2718,34 +2715,27 @@ const ReaderPage = () => {
           if (like) setIsLiked(true);
         }
 
-        // Vypnutí loading stavu
+        // 1. Vypneme loading stav
         setLoading(false);
 
-        // BEZPEČNÝ SKOK NA POZICI: Počkáme na vykreslení layoutu v DOMu
+        // 2. Okamžitě naplánujeme skok po vykreslení DOM bez animací
         if (access.scroll_position && access.scroll_position > 0) {
           progressRef.current = access.scroll_position;
           setReadingProgress(access.scroll_position);
           
-          let attempts = 0;
-          const checkAndScroll = setInterval(() => {
+          setTimeout(() => {
             const { totalHeight } = getScrollMetrics();
-            attempts++;
+            const pixelPosition = (access.scroll_position * totalHeight) / 100;
             
-            // Jakmile má dokument reálnou výšku, skočíme tam a uvolníme zámek
-            if (totalHeight > 200 || attempts > 10) {
-              const pixelPosition = (access.scroll_position * totalHeight) / 100;
-              window.scrollTo(0, pixelPosition);
-              
-              // Malá pojistka pro pomalejší telefony
-              setTimeout(() => {
-                isInitialScrollSet.current = true;
-              }, 100);
-              
-              clearInterval(checkAndScroll);
-            }
-          }, 50);
+            // Skočíme okamžitě na přesný pixel, žádný smooth scroll, který by se pral s layoutem
+            window.scrollTo(0, pixelPosition);
+            
+            // Odemkneme ukládání a sledování scrollu až PO úspěšném skoku
+            setTimeout(() => {
+              isInitialScrollSet.current = true;
+            }, 100);
+          }, 150); // Dostatečná pauza, aby prohlížeč schoval loader a vykreslil text
         } else {
-          // Pokud začíná od nuly, odemkneme ihned
           isInitialScrollSet.current = true;
         }
 
@@ -2876,8 +2866,8 @@ const ReaderPage = () => {
         </div>
       </div>
 
-      {/* 3. TĚLO KNIHY */}
-      <div className="max-w-3xl mx-auto pt-36 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      {/* 3. TĚLO KNIHY (Odstraněny layout-breaking animace pro stabilní scroll) */}
+      <div className="max-w-3xl mx-auto pt-36 px-4">
         
         {/* TITULNÍ BLOK KNIHY */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden mb-8">
