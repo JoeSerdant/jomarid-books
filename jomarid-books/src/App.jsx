@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, useRef, useMemo } from 'react'; // ✨ Přidáno useMemo
+import { useState, useEffect, createContext, useContext, useRef, useMemo, useCallback } from 'react'; // ✨ Přidáno useMemo a useCallback
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -68,6 +68,15 @@ const Mail = getIcon('Mail');
 const FileText = getIcon('FileText'); // ✨ Ikona pro textové soubory / logy
 const Filter = getIcon('Filter'); // ✨ Ikona pro filtrování
 const XCircle = getIcon('XCircle'); // ✨ Nově přidaná ikona pro destrukční akce / revokaci
+
+// ✨ Nové ikony pro vylepšenou čtečku (Záložky, Auto-scroll a Módy čtení)
+const Type = getIcon('Type');
+const Eye = getIcon('Eye');
+const Play = getIcon('Play');
+const Pause = getIcon('Pause');
+const Sun = getIcon('Sun');
+const Moon = getIcon('Moon');
+const Coffee = getIcon('Coffee');
 
 const THEMES = {
   saas: {
