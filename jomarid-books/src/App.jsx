@@ -93,6 +93,11 @@ const PauseIcon = getIcon('Pause'); // ✨ Změněno na bezpečný PauseIcon
 const Sun = getIcon('Sun');
 const Moon = getIcon('Moon');
 const Coffee = getIcon('Coffee');
+// ====================================================
+// 🔄 BACKWARD COMPATIBILITY (ZÁCHRANA PRO STARŠÍ KÓD)
+// ====================================================
+const Scroll = ScrollIcon;
+const Phone = PhoneIcon;
 
 const THEMES = {
   saas: {
