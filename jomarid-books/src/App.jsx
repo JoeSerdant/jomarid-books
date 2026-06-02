@@ -1834,7 +1834,7 @@ const FaqItem = ({ question, answer }) => {
         />
       </button>
 
-      {/* Plynulá vysunovací animace bez trhání */}
+      {/* Plynulá vysunovací animace bez trhání přes CSS Grid trick */}
       <div 
         className={`grid transition-all duration-300 ease-in-out ${
           isOpen ? 'grid-rows-[1fr] opacity-100 pt-2 pb-1' : 'grid-rows-[0fr] opacity-0 overflow-hidden'
@@ -1856,11 +1856,11 @@ const FaqItem = ({ question, answer }) => {
 const HomePage = () => {
   const navigate = useNavigate();
 
-  // 🔥 REÁLNÉ TITULY S DYNAMICKÝMI AKCENTY PODLE MOTIVU
+  // 🔥 AKTUALIZOVANÉ TITULY VČETNĚ HOBINA ROODA JAKO HLAVNÍHO MAGNETU
   const featuredBooks = [
     { 
-      title: "Jomirad 1. část", 
-      category: "Superhrdinská sága", 
+      title: "Hobin Rood: DÍL 1: JAK OŽEBRAČIT PRVNÍ VESNICI", 
+      category: "Dobrodružná satira", 
       author: "Jomarid"
     },
     { 
@@ -1869,42 +1869,63 @@ const HomePage = () => {
       author: "Alexandr Heryán"
     },
     { 
-      title: "Jomirad 2. část", 
+      title: "Jomirad 1. část", 
       category: "Superhrdinská sága", 
       author: "Jomarid"
     },
   ];
 
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto px-4 pt-20 pb-12 text-center animate-in fade-in duration-300">
+    <div style={{ color: 'var(--text-body)' }} className="max-w-5xl mx-auto px-4 pt-24 pb-12 text-center animate-in fade-in duration-700 relative overflow-visible font-sans">
       
+      {/* ====================================================
+          🔥 PRÉMIOVÉ SBĚRATELSKÉ RAZÍTKO (VIZUÁLNÍ MAGNET)
+         ==================================================== */}
+      <div className="absolute top-6 right-4 sm:right-12 z-50 pointer-events-none md:scale-110 select-none animate-in zoom-in-50 duration-1000 delay-300">
+        <div 
+          style={{ 
+            borderColor: 'var(--bg-primary)', 
+            color: 'var(--bg-primary)',
+            boxShadow: '0 0 15px rgba(0,0,0,0.05)'
+          }} 
+          className="border-[3px] border-dashed rounded-xl px-4 py-2 font-black text-[11px] sm:text-xs uppercase tracking-widest rotate-12 bg-white/5 backdrop-blur-xs flex flex-col items-center gap-0.5"
+        >
+          <span className="opacity-90 tracking-normal text-[9px] font-bold">Aplikace Ověřena</span>
+          <span className="text-sm font-black tracking-tight">JOMARID BOOKS</span>
+          <div className="w-full h-[1px] bg-current my-0.5 opacity-30" />
+          <span className="text-[9px] tracking-wider">STABLE CORE v2.5</span>
+        </div>
+      </div>
+
       {/* 1. HERO SEKCE */}
-      <section className="mb-20">
-        {/* Horní badge */}
+      <section className="mb-20 relative">
+        {/* Horní badge s pulzováním */}
         <div 
           style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} 
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs uppercase tracking-wider mb-6 animate-pulse"
         >
           <Library size={14} /> Výběrová digitální edice
         </div>
         
-        {/* Hlavní nadpis */}
-        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-6 leading-none">
+        {/* Hlavní nadpis s plynulým náběhem */}
+        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-6 leading-tight animate-in slide-in-from-top-6 duration-500">
           Exkluzivní literární díla <br/>
-          <span style={{ color: 'var(--bg-primary)' }}>na dosah ruky</span>
+          <span style={{ color: 'var(--bg-primary)' }} className="inline-block hover:scale-105 transition-transform duration-300">
+            na dosah ruky
+          </span>
         </h1>
         
         {/* Popisek */}
-        <p style={{ color: 'var(--text-muted)' }} className="text-base md:text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
-          Vítejte v privátním fondu Jomarid Books. Sledujte osudy superhrdiny Jomirada a odhalte tajemství ukrytá v sérii Šepot starých knihoven. Nabíziamo prémiové čtení přes dedikované Cloud-to-Screen rozhraní.
+        <p style={{ color: 'var(--text-muted)' }} className="text-base md:text-lg font-medium max-w-2xl mx-auto mb-10 leading-relaxed opacity-90">
+          Vítejte v privátním fondu Jomarid Books. Sledujte osudy hrdiny Hobina Rooda, odhalte skryté pravdy v ságách Jomirada a rozpleťte tajemství série Šepot starých knihoven prostřednictvím našeho Cloud-to-Screen rozhraní.
         </p>
 
-        {/* Hlavní akční tlačítka */}
-        <div className="max-w-md mx-auto space-y-4 mb-16">
+        {/* Hlavní akční tlačítko */}
+        <div className="max-w-md mx-auto space-y-4 mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
           <button 
             onClick={() => navigate('/app')} 
             style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-            className="w-full py-4 uppercase font-black tracking-wider text-sm border-none rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.99] transition-transform flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-4 uppercase font-black tracking-wider text-sm border-none rounded-xl shadow-lg hover:scale-[1.03] hover:shadow-xl active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
           >
             <BookOpen size={16} /> Odemknout digitální čítárnu
           </button>
@@ -1915,34 +1936,36 @@ const HomePage = () => {
         </div>
 
         {/* SEKCE: NAŠE TITULY + KARTY */}
-        <div className="max-w-3xl mx-auto mt-16">
-          <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-6 text-center">— NAŠE TITULY —</h2>
+        <div className="max-w-3xl mx-auto mt-20">
+          <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-8 text-center">— NAŠE HLAVNÍ TITULY —</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             {featuredBooks.map((book, idx) => (
               <div 
                 key={idx}
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
-                className="group relative h-48 rounded-xl p-4 border flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+                className="group relative h-48 rounded-xl p-5 border flex flex-col justify-between text-left shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer overflow-hidden"
                 onClick={() => navigate('/app')}
               >
-                {/* Podbarvení pozadí při hoveru pomocí sekundární barvy motivu */}
-                <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity" />
+                {/* Dynamické podbarvení pozadí při hoveru */}
+                <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity duration-300" />
                 
                 <div className="relative z-10 flex justify-between items-start w-full">
-                  <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded">
+                  <span style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="text-[9px] uppercase font-black tracking-widest px-2 py-0.5 rounded shadow-xs">
                     {book.category}
                   </span>
-                  <Book size={14} style={{ color: 'var(--text-muted)' }} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all" />
+                  <Book size={14} style={{ color: 'var(--text-muted)' }} className="opacity-60 group-hover:opacity-100 group-hover:rotate-12 transition-all duration-300" />
                 </div>
 
                 <div className="relative z-10">
                   <span style={{ color: 'var(--text-muted)' }} className="text-[9px] uppercase font-bold tracking-wider opacity-70 block mb-0.5">
                     {book.author}
                   </span>
-                  <h4 style={{ color: 'var(--text-body)' }} className="font-black uppercase text-sm leading-tight mb-1 tracking-tight line-clamp-2">{book.title}</h4>
-                  <span style={{ color: 'var(--bg-primary)' }} className="text-[10px] font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    Otevřít knihu <ChevronRight size={10} />
+                  <h4 style={{ color: 'var(--text-body)' }} className="font-black uppercase text-sm leading-tight mb-2 tracking-tight line-clamp-2 transition-colors group-hover:text-indigo-500">
+                    {book.title}
+                  </h4>
+                  <span style={{ color: 'var(--bg-primary)' }} className="text-[10px] font-black tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1">
+                    OTEVŘÍT KNIHU <ChevronRight size={10} />
                   </span>
                 </div>
               </div>
@@ -1964,18 +1987,16 @@ const HomePage = () => {
           <div 
             key={idx} 
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} 
-            className="p-4 rounded-xl border transition-all duration-300 hover:scale-[1.03] shadow-sm"
+            className="p-4 rounded-xl border transition-all duration-300 hover:scale-[1.04] hover:shadow-md shadow-sm"
           >
-            <p style={{ color: 'var(--text-body)' }} className="text-3xl font-black leading-none mb-1">{stat.value}</p>
+            <p style={{ color: 'var(--text-body)' }} className="text-3xl font-black leading-none mb-1 tracking-tight">{stat.value}</p>
             <p style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase tracking-wider opacity-60">{stat.label}</p>
           </div>
         ))}
       </section>
 
-      {/* ==========================================
-          🔥 NOVÁ SEKCE: GAMEFIKACE A PROGRESE
-         ========================================== */}
-      <section className="mb-24">
+      {/* 3. SEKCE: GAMEFIKACE A PROGRESE */}
+      <section className="mb-24 animate-in fade-in duration-1000">
         <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-3 text-center">— ČTENÍ JAKO HRA —</h2>
         <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-10 max-w-xl mx-auto leading-tight">
           Získávejte úrovně, plňte výzvy a odemykejte vzácné trofeje
@@ -1983,8 +2004,8 @@ const HomePage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
           {/* Prvek 1: Úrovně a XP */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm relative overflow-hidden">
-            <div style={{ color: 'var(--bg-primary)' }} className="mb-4"><Award size={24} /></div>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md group">
+            <div style={{ color: 'var(--bg-primary)' }} className="mb-4 transition-transform group-hover:scale-110 duration-300"><Award size={24} /></div>
             <h4 className="text-sm font-black uppercase tracking-wider mb-2" style={{ color: 'var(--text-body)' }}>Čtenářský Level</h4>
             <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Každá přečtená stránka vám generuje zkušenostní body (XP). Postupujte od Zapáleného začátečníka až na bájnou úroveň 100 – Avatar vědění.
@@ -1992,8 +2013,8 @@ const HomePage = () => {
           </div>
 
           {/* Prvek 2: Daily Streak */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm relative overflow-hidden">
-            <div className="mb-4 text-orange-500"><Flame size={24} /></div>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md group">
+            <div className="mb-4 text-orange-500 transition-transform group-hover:scale-110 duration-300"><Flame size={24} /></div>
             <h4 className="text-sm font-black uppercase tracking-wider mb-2" style={{ color: 'var(--text-body)' }}>Denní plamínky</h4>
             <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Udržte si zvyk pravidelného čtení. Čtěte každý den, navyšujte svůj denní Streak a nenechte svůj literární oheň vyhasnout.
@@ -2001,8 +2022,8 @@ const HomePage = () => {
           </div>
 
           {/* Prvek 3: Obří sbírka odznaků */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm relative overflow-hidden">
-            <div className="mb-4 text-yellow-500"><Trophy size={24} /></div>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md group">
+            <div className="mb-4 text-yellow-500 transition-transform group-hover:scale-110 duration-300"><Trophy size={24} /></div>
             <h4 className="text-sm font-black uppercase tracking-wider mb-2" style={{ color: 'var(--text-body)' }}>80+ Achievementů</h4>
             <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Odhalte skryté milníky rozdělené do 6 unikátních kategorií. Systém automaticky sleduje vaše statistiky a odměňuje vaše čtenářské úspěchy.
@@ -2010,8 +2031,8 @@ const HomePage = () => {
           </div>
 
           {/* Prvek 4: Měsíční milníky */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm relative overflow-hidden">
-            <div className="mb-4 text-cyan-500"><Target size={24} /></div>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md group">
+            <div className="mb-4 text-cyan-500 transition-transform group-hover:scale-110 duration-300"><Target size={24} /></div>
             <h4 className="text-sm font-black uppercase tracking-wider mb-2" style={{ color: 'var(--text-body)' }}>Měsíční výzvy</h4>
             <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Stanovte si na začátku měsíce osobní knižní cíl. Zvládnete splnit plán na 100 %, nebo ho překonáte a získáte odznak Dvojitého zásahu?
@@ -2020,36 +2041,36 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 3. VLASTNOSTI / VÝHODY (Features) */}
+      {/* 4. VLASTNOSTI / VÝHODY (Features) */}
       <section className="mb-24">
         <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-10 text-center">— PROČ ČÍST S JOMARID BOOKS —</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
           {/* Feature 1 */}
-          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300">
-            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300 group">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:rotate-6">
               <Zap size={20} />
             </div>
             <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Bleskové Cloud-to-Screen</h3>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
-              Žádné stahování těžkých PDF nebo EPUB souborů. Naše technologie renderuje texty přímo ze šifrovaného cloudu do vašeho prohlížeče v reálném čase.
+              Žádné stahování těžkých PDF nebo EPUB souborů. Naše technologie renderuje texty přímo ze šifrovaného cloudu do vašeho prohlížeče v reálnét čase.
             </p>
           </div>
 
           {/* Feature 2 */}
-          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300">
-            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300 group">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:rotate-6">
               <ShieldCheck size={20} />
             </div>
             <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Privátní kurátorovaný fond</h3>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium leading-relaxed">
-              Nejsme masová knihovna plná balastu. Zaměřujeme se výhradně na prémiové edice, odborné texty a exkluzivní překlady, které jinde nenajdete.
+              Nejsme masová knihovna plná balastu. Zaměřujeme se výhradně na prémiové edice, odborné texty a exkluzivní edice, které jinde nenajdete.
             </p>
           </div>
 
           {/* Feature 3 */}
-          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300">
-            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
+          <div style={{ borderColor: 'var(--border-color)' }} className="space-y-3 p-5 rounded-xl border border-transparent hover:bg-neutral-500/5 transition-all duration-300 group">
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform group-hover:rotate-6">
               <Sparkles size={20} />
             </div>
             <h3 style={{ color: 'var(--text-body)' }} className="text-sm font-black uppercase tracking-wider">Čisté prostředí bez reklam</h3>
@@ -2060,12 +2081,12 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 4. ČASTO KLADENÉ OTÁZKY (FAQ) */}
+      {/* 5. ČASTO KLADENÉ OTÁZKY (FAQ) */}
       <section className="max-w-2xl mx-auto mb-24">
         <h2 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-widest opacity-50 mb-8 text-center">— ČASTO KLADENÉ OTÁZKY —</h2>
         
-        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-5 rounded-xl border">
-          <div className="opacity-95">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 rounded-xl border shadow-sm">
+          <div className="opacity-95 space-y-2">
             <FaqItem 
               question="Jak funguje systém gamifikace a získávání odznaků?" 
               answer="Aplikace na pozadí plně monitoruje vaši čtenářskou aktivitu. Kdykoliv přečtete kapitolu, udržíte denní sérii (streak) nebo splníte měsíční cíl, automaticky se vyhodnotí splnění podmínek. V profilu čtenáře pak okamžitě uvidíte nově odemčené barevné trofeje z celkové sbírky 80 jedinečných odznaků." 
@@ -2090,9 +2111,9 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 5. FINÁLNÍ CTA SEKCE */}
-      <section style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl relative overflow-hidden">
-        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
+      {/* 6. FINÁLNÍ CTA SEKCE */}
+      <section style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-2xl p-8 md:p-12 mb-16 text-center shadow-xl relative overflow-hidden group">
+        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl transition-all group-hover:scale-110 duration-500"></div>
         
         <h3 style={{ color: 'var(--bg-card)' }} className="text-2xl md:text-3xl font-black uppercase tracking-tight mb-3">Začněte číst ještě dnes</h3>
         <p style={{ color: 'var(--bg-body)' }} className="text-xs md:text-sm font-medium max-w-lg mx-auto mb-6 opacity-80">
@@ -2102,14 +2123,14 @@ const HomePage = () => {
           <button 
             onClick={() => navigate('/app')}
             style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
-            className="w-full py-3 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow cursor-pointer hover:opacity-90 hover:scale-[1.02] active:scale-[0.99] transition-all"
+            className="w-full py-3 border-none font-black uppercase text-xs tracking-wider rounded-lg shadow-md cursor-pointer hover:opacity-95 hover:scale-[1.03] active:scale-[0.99] transition-all duration-200"
           >
             Spustit aplikaci
           </button>
         </div>
       </section>
 
-      {/* 6. MODERNÍ KOMPLETNÍ PATIČKA (Footer) */}
+      {/* 7. MODERNÍ KOMPLETNÍ PATIČKA */}
       <footer style={{ borderColor: 'var(--border-color)' }} className="mt-20 pt-8 border-t opacity-70 flex flex-col sm:flex-row items-center justify-between text-[11px] font-black uppercase tracking-wider gap-4">
         <div style={{ color: 'var(--text-muted)' }} className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
           <span>© {new Date().getFullYear()} Jomarid Books Ltd.</span>
@@ -2117,7 +2138,7 @@ const HomePage = () => {
           <span className="font-medium normal-case opacity-70">Verze platformy v2.5 (Stable Core + Gamification)</span>
         </div>
         <div className="flex items-center gap-3">
-          <a href="mailto:wwsigmamango@gmail.com" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="flex items-center gap-2 no-underline hover:opacity-80 px-3 py-1.5 rounded-md transition-colors">
+          <a href="mailto:wwsigmamango@gmail.com" style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="flex items-center gap-2 no-underline hover:opacity-85 px-3 py-1.5 rounded-md transition-all shadow-xs">
             <Phone size={10} /> Podpora: wwsigmamango@gmail.com
           </a>
         </div>
