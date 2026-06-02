@@ -1091,14 +1091,14 @@ const UserStats = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
-  const [newGoalInput, setNewGoalInput] = useState(5);
-  const [activeTab, setActiveTab] = useState('streak'); // Výchozí kategorie žebříčku
+  const [newGoalInput, setNewGoalInput] = useState(25); // Změněno na 25
+  const [activeTab, setActiveTab] = useState('streak'); 
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
   
   const [stats, setStats] = useState({
     streak: 0,
     monthlyRead: 0,
-    monthlyGoal: 5,
+    monthlyGoal: 25, // Změněno na 25
     totalRead: 0,
     weeklyActivity: [],
     xp: 0,
@@ -1109,7 +1109,7 @@ const UserStats = () => {
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
     currentMonthName: "",
-    showInLeaderboard: true // Výchozí nastavení soukromí
+    showInLeaderboard: true 
   });
 
   const [leaderboards, setLeaderboards] = useState({
@@ -1119,6 +1119,17 @@ const UserStats = () => {
     monthlyRead: [],
     xp: []
   });
+
+  // Pomocná funkce pro výpočet XP bonusu z winstreaku podle zadaných pravidel
+  const calculateXpMultiplier = (streakCount) => {
+    if (streakCount >= 50) {
+      return streakCount * 50; // Winstreak 50+ dní = streak * 50 XP
+    }
+    if (streakCount >= 10) {
+      return streakCount * 25; // Winstreak 10-49 dní = streak * 25 XP
+    }
+    return streakCount * 10; // Winstreak 0-9 dní = streak * 10 XP
+  };
 
   const getLevelVisuals = (lvl) => {
     if (lvl >= 20) return {
@@ -1174,7 +1185,7 @@ const UserStats = () => {
     if (!user) return;
     try {
       const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
-      const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 5;
+      const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 25; // Změněno na 25
       setNewGoalInput(currentGoal);
 
       // 1. Načtení dat aktuálního uživatele
@@ -1257,7 +1268,8 @@ const UserStats = () => {
       }
 
       const baseXpFromBooks = totalRead * 100; 
-      const totalXp = baseXpFromBooks + bonusXp;
+      const streakXpBonus = calculateXpMultiplier(streak); // Spočítáme bonus z winstreaku (0-9=*10, 10-49=*25, 50+=*50)
+      const totalXp = baseXpFromBooks + bonusXp + streakXpBonus;
       const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
       const visuals = getLevelVisuals(level);
 
@@ -1279,14 +1291,12 @@ const UserStats = () => {
       });
 
       // 2. GENERUJEME LEADERBOARDY Z VEŘEJNÝCH PROFILŮ
-      // Stáhneme všechny uživatele, kteří mají povolené sdílení
       const { data: allProfiles } = await supabase
         .from('profiles')
         .select('id, email, fake_xp, show_in_leaderboard')
         .eq('show_in_leaderboard', true);
 
       if (allProfiles) {
-        // Načteme všechny přečtené knihy a aktivity pro spočítání žebříčků
         const { data: allBooks } = await supabase.from('user_books').select('user_id, updated_at').eq('is_read', true);
         const { data: allActivities } = await supabase.from('user_daily_activity').select('user_id, activity_date');
 
@@ -1294,7 +1304,6 @@ const UserStats = () => {
           const uBooks = allBooks?.filter(b => b.user_id === p.id) || [];
           const uActs = allActivities?.filter(a => a.user_id === p.id).map(a => a.activity_date) || [];
 
-          // Spočítáme streak pro daného uživatele
           let uStreak = 0;
           if (uActs.length > 0) {
             const todayStr = new Date().toLocaleDateString('sv');
@@ -1314,7 +1323,9 @@ const UserStats = () => {
             return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
           }).length;
 
-          const uXpTotal = (uBooks.length * 100) + (parseInt(p.fake_xp, 10) || 0);
+          // Propis výpočtu winstreak XP násobiče i do globálního žebříčku celkových XP
+          const uStreakXpBonus = calculateXpMultiplier(uStreak);
+          const uXpTotal = (uBooks.length * 100) + (parseInt(p.fake_xp, 10) || 0) + uStreakXpBonus;
           const { level: uLvl } = calculateLevelAndProgress(uXpTotal);
 
           return {
@@ -1328,7 +1339,6 @@ const UserStats = () => {
           };
         });
 
-        // Roztřídíme do 5 kategorií (Top 10 v každé)
         setLeaderboards({
           streak: [...mappedUsers].sort((a, b) => b.streak - a.streak).slice(0, 10),
           level: [...mappedUsers].sort((a, b) => b.level - a.level).slice(0, 10),
@@ -1349,7 +1359,6 @@ const UserStats = () => {
     fetchFullStats();
   }, [user]);
 
-  // Přepínání soukromí (Zveřejnit/Skrýt výsledky)
   const togglePrivacy = async () => {
     if (!user || isUpdatingPrivacy) return;
     setIsUpdatingPrivacy(true);
@@ -1362,7 +1371,6 @@ const UserStats = () => {
 
       if (error) throw error;
       setStats(prev => ({ ...prev, showInLeaderboard: newValue }));
-      // Znovu načteme žebříčky, aby se změna ihned projevila
       fetchFullStats();
     } catch (err) {
       console.error("Chyba při ukládání nastavení soukromí:", err);
@@ -1391,7 +1399,6 @@ const UserStats = () => {
   const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
   const xpPercent = Math.min(100, Math.round((stats.xp / stats.xpNeededForNext) * 100));
 
-  // Pomocná data pro vykreslení kategorií žebříčku
   const categories = [
     { id: 'streak', label: 'Plamínky 🔥', icon: Flame, suffix: 'dní' },
     { id: 'level', label: 'Úroveň 🏆', icon: Trophy, suffix: 'lvl' },
@@ -1477,12 +1484,26 @@ const UserStats = () => {
               <Flame size={24} className={stats.streak > 0 ? "fill-amber-500" : ""} />
             </div>
           </div>
-          <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-4 pt-3 border-t text-left">
+          
+          {/* Informační pole pro motivaci uživatelů k udržení sérií a násobičům */}
+          <div style={{ borderColor: 'var(--border-color)' }} className="mt-2 pt-2 border-t text-left text-[10px] space-y-0.5">
+            <div className={`flex justify-between ${stats.streak < 10 ? 'font-black text-amber-600' : 'opacity-60'}`}>
+              <span>0-9 dní sére:</span><span>winstreak * 10 XP</span>
+            </div>
+            <div className={`flex justify-between ${stats.streak >= 10 && stats.streak < 50 ? 'font-black text-indigo-500' : 'opacity-60'}`}>
+              <span>10-49 dní série 🔥:</span><span>winstreak * 25 XP</span>
+            </div>
+            <div className={`flex justify-between ${stats.streak >= 50 ? 'font-black text-emerald-500 animate-pulse' : 'opacity-60'}`}>
+              <span>50+ dní série 👑:</span><span>winstreak * 50 XP</span>
+            </div>
+          </div>
+
+          <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-3 pt-2 border-t text-left">
             {stats.streak > 0 ? "Skvělé! Dnes máš splněno, série pokračuje." : "Dnes jsi ještě nečetl. Otevři knihu a zachraň plamínek!"}
           </p>
         </div>
 
-        {/* MĚSÍČNÍ VÝZVA */}
+        {/* MĚSÍČNÍ VÝZVA (Natvrdo upraveno na 25) */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
@@ -1520,8 +1541,8 @@ const UserStats = () => {
               </div>
             ) : (
               <>
-                <span style={{ color: 'var(--text-muted)' }} className="opacity-70">Chceš změnit svůj cíl?</span>
-                <button onClick={() => setIsEditingGoal(true)} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Nastavit cíl</button>
+                <span style={{ color: 'var(--text-muted)' }} className="opacity-70">Měsíční limit laťky:</span>
+                <button onClick={() => setIsEditingGoal(true)} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Změnit cíl</button>
               </>
             )}
           </div>
@@ -1563,11 +1584,11 @@ const UserStats = () => {
         </div>
       </div>
 
-      {/* ================= NÝNÍ PŘIDANÁ SEKCE: SÍŇ SLÁVY (LEADERBOARDS) ================= */}
+      {/* SÍŇ SLÁVY (LEADERBOARDS) */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 flex items-center gap-1.5">
-            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books
+            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books (Měsíční cíl: 25 🎯)
           </h3>
           {!stats.showInLeaderboard && (
             <span className="text-[10px] font-bold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-md uppercase">
@@ -1606,7 +1627,6 @@ const UserStats = () => {
               const currentCategory = categories.find(c => c.id === activeTab);
               const displayValue = row[activeTab];
               
-              // Stylování top 3 příček
               let medalStyle = "text-xs font-black opacity-40 w-6 text-center";
               if (index === 0) medalStyle = "text-xl w-6 text-center animate-bounce";
               if (index === 1) medalStyle = "text-lg w-6 text-center";
