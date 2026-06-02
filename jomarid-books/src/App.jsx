@@ -65,8 +65,9 @@ const RefreshCw = getIcon('RefreshCw');
 const PlusCircle = getIcon('PlusCircle');
 const BarChart3 = getIcon('BarChart3');
 const Mail = getIcon('Mail');
-const FileText = getIcon('FileText'); // ✨ Nově přidaná ikona pro textové soubory / logy
-const Filter = getIcon('Filter'); // ✨ Nově přidaná ikona pro filtrování
+const FileText = getIcon('FileText'); // ✨ Ikona pro textové soubory / logy
+const Filter = getIcon('Filter'); // ✨ Ikona pro filtrování
+const XCircle = getIcon('XCircle'); // ✨ Nově přidaná ikona pro destrukční akce / revokaci
 
 const THEMES = {
   saas: {
