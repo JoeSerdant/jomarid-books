@@ -25,7 +25,7 @@ const XCircle = getIcon('XCircle');
 const Plus = getIcon('Plus');
 const PlusCircle = getIcon('PlusCircle');
 const Check = getIcon('Check');
-const CheckCircle = getIcon('CheckCircle');
+const CheckCircle = getCircle => getIcon('CheckCircle');
 const RefreshCw = getIcon('RefreshCw');
 const Trash = getIcon('Trash');
 const Trash2 = getIcon('Trash2');
@@ -56,7 +56,7 @@ const Target = getIcon('Target');
 const Star = getIcon('Star');
 const Gem = getIcon('Gem');
 const Sparkles = getIcon('Sparkles');
-const ScrollIcon = getIcon('Scroll'); // ✨ Změněno na bezpečný ScrollIcon
+const ScrollIcon = getIcon('Scroll'); 
 const Feather = getIcon('Feather');
 const Footprints = getIcon('Footprints') || getIcon('Map');
 const InfinityIcon = getIcon('Infinity');
@@ -66,8 +66,6 @@ const ChartBar = getIcon('ChartBar');
 const TrendingUp = getIcon('TrendingUp');
 const Gauge = getIcon('Gauge');
 const Calendar = getIcon('Calendar');
-const ScrollIcon = getIcon('Scroll'); // Tohle už tam máš
-const Scroll = ScrollIcon;            // ✨ PŘIDEJ TENTO ŘÁDEK HNED POD TO
 
 // ====================================================
 // ⚙️ UKAZATELE, SYSTÉM & INTERAKCE
@@ -80,24 +78,29 @@ const Clock = getIcon('Clock');
 const Loader2 = getIcon('Loader2');
 const AlertTriangle = getIcon('AlertTriangle');
 const HelpCircle = getIcon('HelpCircle');
-const PhoneIcon = getIcon('Phone'); // ✨ Ponechán pouze PhoneIcon (smazán kolidující export "Phone")
+const PhoneIcon = getIcon('Phone'); 
 const Mail = getIcon('Mail');
 
 // ====================================================
 // 👀 PRÉMIOVÁ ČTEČKA (AUTO-SCROLL, CONFIG & MÓDY)
 // ====================================================
-const TypeIcon = getIcon('Type'); // ✨ Změněno na bezpečný TypeIcon
-const EyeIcon = getIcon('Eye');   // ✨ Změněno na bezpečný EyeIcon kvůli budoucím konfliktům
-const PlayIcon = getIcon('Play'); // ✨ Změněno na bezpečný PlayIcon
-const PauseIcon = getIcon('Pause'); // ✨ Změněno na bezpečný PauseIcon
+const TypeIcon = getIcon('Type'); 
+const EyeIcon = getIcon('Eye');   
+const PlayIcon = getIcon('Play'); 
+const PauseIcon = getIcon('Pause'); 
 const Sun = getIcon('Sun');
 const Moon = getIcon('Moon');
 const Coffee = getIcon('Coffee');
+
 // ====================================================
-// 🔄 BACKWARD COMPATIBILITY (ZÁCHRANA PRO STARŠÍ KÓD)
+// 🔄 BEZPEČNÉ ALIASY PRO ZPĚTNOU KOMPATIBILITU
 // ====================================================
 const Scroll = ScrollIcon;
 const Phone = PhoneIcon;
+const Type = TypeIcon;
+const Eye = EyeIcon;
+const Play = PlayIcon;
+const Pause = PauseIcon;
 
 const THEMES = {
   saas: {
