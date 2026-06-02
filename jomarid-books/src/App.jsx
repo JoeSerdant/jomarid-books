@@ -3052,6 +3052,7 @@ const AdminDashboard = () => {
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
   const [fakeLikes, setFakeLikes] = useState(0); 
+  const [isAutoAssigned, setIsAutoAssigned] = useState(false); 
   const [editingBookId, setEditingBookId] = useState(null);
   
   // --- Správa konkrétního uživatele ---
@@ -3075,7 +3076,7 @@ const AdminDashboard = () => {
       // 1. Načtení knih
       const { data: b } = await supabase
         .from('books')
-        .select('id, title, author, fake_likes, book_likes(count)');
+        .select('id, title, author, fake_likes, is_auto_assigned, book_likes(count)');
         
       // 2. Načtení profilů
       const { data: p } = await supabase
@@ -3083,7 +3084,7 @@ const AdminDashboard = () => {
         .select('id, email, role, created_at, fake_xp')
         .order('created_at', { ascending: false });
       
-      // 3. Načtení logů (limit zvýšen na 30 pro lepší přehled)
+      // 3. Načtení logů
       const { data: l } = await supabase
         .from('system_logs')
         .select('*')
@@ -3098,7 +3099,7 @@ const AdminDashboard = () => {
 
       if (reqError) console.error("Chyba při načítání user_books:", reqError);
 
-      // JS in-memory spojení dat (100% spolehlivost bez DB JOINů)
+      // JS in-memory spojení dat pro spolehlivost bez DB JOINů
       const mapovaneZadosti = reqs?.map(req => {
         const najdiProfil = p?.find(u => u.id === req.user_id);
         const najdiKnihu = b?.find(k => k.id === req.book_id);
@@ -3121,6 +3122,7 @@ const AdminDashboard = () => {
           title: book.title,
           author: book.author,
           fake_likes: fikes,
+          is_auto_assigned: book.is_auto_assigned || false,
           likesCount: realLikes + fikes 
         };
       }) || [];
@@ -3212,15 +3214,16 @@ const AdminDashboard = () => {
       title, 
       author: author || 'Neznámý', 
       content, 
-      fake_likes: parseInt(fakeLikes) || 0 
+      fake_likes: parseInt(fakeLikes) || 0,
+      is_auto_assigned: isAutoAssigned 
     };
 
     if (editingBookId) {
       const { error } = await supabase.from('books').update(payload).eq('id', editingBookId);
       if (!error) {
-        await safeLog('SUCCESS', `Upravena kniha: ${title} (Fake lajky: ${fakeLikes})`);
+        await safeLog('SUCCESS', `Upravena kniha: ${title} (Auto-přiřazení: ${isAutoAssigned ? 'ANO' : 'NE'})`);
         setEditingBookId(null);
-        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
+        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); setIsAutoAssigned(false);
         refreshData();
       } else {
         alert('Chyba při úpravě: ' + error.message);
@@ -3229,8 +3232,8 @@ const AdminDashboard = () => {
       if (!content) { setActionLoading(false); return alert('Doplňte text knihy.'); }
       const { error } = await supabase.from('books').insert([payload]);
       if (!error) {
-        await safeLog('SUCCESS', `Uložená nová kniha: ${title}`);
-        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
+        await safeLog('SUCCESS', `Uložená nová kniha: ${title} (Auto-přiřazení: ${isAutoAssigned ? 'ANO' : 'NE'})`);
+        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); setIsAutoAssigned(false);
         refreshData();
       } else {
         alert('Chyba při ukládání: ' + error.message);
@@ -3240,14 +3243,15 @@ const AdminDashboard = () => {
   };
 
   const startEditBook = async (book) => {
-    const { data, error } = await supabase.from('books').select('content, fake_likes').eq('id', book.id).single();
+    const { data, error } = await supabase.from('books').select('content, fake_likes, is_auto_assigned').eq('id', book.id).single();
     if (!error && data) {
       setEditingBookId(book.id);
       setTitle(book.title);
       setAuthor(book.author);
       setContent(data.content || '');
       setFakeLikes(data.fake_likes || 0);
-      setActiveTab('books'); // Automaticky přepnout na záložku knih pro editaci
+      setIsAutoAssigned(data.is_auto_assigned || false);
+      setActiveTab('books'); 
     } else {
       alert('Nepodařilo se načíst kompletní text knihy k editaci.');
     }
@@ -3256,8 +3260,6 @@ const AdminDashboard = () => {
   const handleSaveFakeXp = async () => {
     if (!activeUser) return;
     let xpNum = parseInt(userFakeXpInput) || 0;
-    
-    // 🔥 ADMIN ZKRATKA PRO LEVEL 100
     if (xpNum >= 1000000) xpNum = 1000000;
     
     setActionLoading(true);
@@ -3289,7 +3291,22 @@ const AdminDashboard = () => {
     }
   };
 
-  // Revokace / kompletní odebrání všech licencí uživatele (Čistý reset)
+  const toggleBookAutoAssign = async (bookId, currentStatus) => {
+    setActionLoading(true);
+    const { error } = await supabase
+      .from('books')
+      .update({ is_auto_assigned: !currentStatus })
+      .eq('id', bookId);
+
+    if (!error) {
+      await safeLog('SUCCESS', `Změněn status automatického přidělení pro Knihu ID: ${bookId}`);
+      refreshData();
+    } else {
+      alert('Chyba při změně auto-assign stavu: ' + error.message);
+    }
+    setActionLoading(false);
+  };
+
   const revokeAllLicenses = async (uId, uEmail) => {
     if (!confirm(`🚨 OPRAVDU CHCETE ODEBRAT VŠECHNY LICENCE uživateli ${uEmail}? Uživatel ztratí přístup ke všem knihám.`)) return;
     setActionLoading(true);
@@ -3304,7 +3321,6 @@ const AdminDashboard = () => {
     setActionLoading(false);
   };
 
-  // Distribuce jedné knihy uživateli
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
     setActionLoading(true);
@@ -3335,7 +3351,6 @@ const AdminDashboard = () => {
     setActionLoading(false);
   };
 
-  // Aktivovat VŠECHNY knihy z DB jednomu uživateli
   const assignAllBooksToUser = async () => {
     if (!activeUser || books.length === 0) return;
     if (!confirm(`Opravdu chcete uživateli ${activeUser.email} okamžitě odemknout ÚPLNĚ VŠECHNY knihy?`)) return;
@@ -3368,7 +3383,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Aktivovat vybranou knihu kompletně VŠEM uživatelům v systému
   const assignSelectedBookToAllUsers = async () => {
     if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
     const selectedBook = books.find(b => b.id === selectedBookId);
@@ -3405,6 +3419,8 @@ const AdminDashboard = () => {
     }
   };
 
+  const currentSelectedBook = books.find(b => b.id === selectedBookId);
+
   return (
     <div style={{ color: 'var(--text-body)' }} className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-200 space-y-6">
       
@@ -3419,14 +3435,14 @@ const AdminDashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          <button 
+          <Button 
             onClick={refreshData} 
             disabled={globalLoading || actionLoading}
-            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+            variant="secondary"
             className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider border rounded-lg hover:opacity-80 transition-all cursor-pointer disabled:opacity-50"
           >
             <RefreshCw size={14} className={globalLoading ? "animate-spin" : ""} /> Sync Data
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -3472,7 +3488,7 @@ const AdminDashboard = () => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setSearchBook(''); }}
             style={{ 
               backgroundColor: activeTab === tab.id ? 'var(--bg-secondary)' : 'transparent',
               borderColor: activeTab === tab.id ? 'var(--border-color)' : 'transparent',
@@ -3495,7 +3511,6 @@ const AdminDashboard = () => {
       {/* 1. ZÁLOŽKA: PŘEHLED A ŽÁDOSTI */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* ČEKAJÍCÍ ŽÁDOSTI O LICENCE */}
           <div className="lg:col-span-8 space-y-6">
             <Card className="p-0 overflow-hidden border-2" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
               <div className="p-4 font-black text-xs uppercase tracking-wider flex justify-between items-center border-b" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
@@ -3535,7 +3550,6 @@ const AdminDashboard = () => {
             </Card>
           </div>
           
-          {/* RYCHLÝ HLEDÁČEK / PŘEHLED LOGŮ */}
           <div className="lg:col-span-4 space-y-4">
             <Card style={{ backgroundColor: 'var(--bg-secondary)' }}>
               <h3 className="text-xs font-black uppercase tracking-wider mb-2">Rychlý přehled stavu</h3>
@@ -3556,7 +3570,6 @@ const AdminDashboard = () => {
       {/* 2. ZÁLOŽKA: SPRÁVA KNIH */}
       {activeTab === 'books' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* FORMULÁŘ KNIHY */}
           <div className="lg:col-span-5">
             <Card>
               <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -3594,6 +3607,19 @@ const AdminDashboard = () => {
                   />
                 </div>
 
+                <div style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-secondary)' }} className="flex items-center gap-3 p-3 border rounded-xl mb-4 shadow-inner">
+                  <input 
+                    type="checkbox" 
+                    id="is_auto_assigned"
+                    checked={isAutoAssigned} 
+                    onChange={(e) => setIsAutoAssigned(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-0 cursor-pointer"
+                  />
+                  <label htmlFor="is_auto_assigned" className="text-[10px] font-black uppercase tracking-wide cursor-pointer select-none flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-yellow-500 fill-current" /> Automatická kniha (Přiřadit všem zdarma)
+                  </label>
+                </div>
+
                 <div className="space-y-1">
                   <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider block pl-1 opacity-70">Obsah a Text knihy</label>
                   <textarea 
@@ -3614,7 +3640,7 @@ const AdminDashboard = () => {
                 {editingBookId && (
                   <button 
                     type="button" 
-                    onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); }}
+                    onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); setIsAutoAssigned(false); }}
                     style={{ color: 'var(--text-muted)' }}
                     className="w-full py-2 text-xs hover:underline uppercase cursor-pointer bg-transparent border-none font-bold tracking-wide"
                   >
@@ -3625,7 +3651,6 @@ const AdminDashboard = () => {
             </Card>
           </div>
 
-          {/* INVENTÁŘ TITULŮ S VYHLEDÁVÁNÍM */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex gap-2 items-center p-2 rounded-xl border border-solid" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
               <Search size={16} className="opacity-60 ml-2 shadow-sm shrink-0" />
@@ -3651,7 +3676,14 @@ const AdminDashboard = () => {
                   filteredBooks.map(b => (
                     <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)' }} className="flex justify-between items-center p-3 rounded-xl text-xs font-bold gap-4 hover:opacity-95 transition-opacity">
                       <span className="truncate flex-1">
-                        <span className="text-sm font-black block truncate">{b.title}</span>
+                        <span className="text-sm font-black block truncate flex items-center gap-1.5">
+                          {b.title}
+                          {b.is_auto_assigned && (
+                            <span className="bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 font-black px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide flex items-center gap-0.5">
+                              <Sparkles size={10} className="fill-current" /> Auto
+                            </span>
+                          )}
+                        </span>
                         <span style={{ color: 'var(--text-muted)' }} className="opacity-70 font-medium">Autor: {b.author}</span>
                       </span>
                       
@@ -3696,7 +3728,6 @@ const AdminDashboard = () => {
       {/* 3. ZÁLOŽKA: UŽIVATELÉ A LICENCE */}
       {activeTab === 'users' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* SEZNAM UŽIVATELŮ + FILTRY */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex-1 flex gap-2 items-center p-2 rounded-xl border border-solid" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
@@ -3764,21 +3795,22 @@ const AdminDashboard = () => {
                           >
                             <Plus size={10}/> Vybrat
                           </Button>
-                          <button 
+                          <Button 
+                            variant="secondary"
                             onClick={() => toggleRole(p.id, p.role)} 
-                            style={{ color: 'var(--text-muted)' }} 
-                            className="p-1.5 border border-solid rounded-lg hover:bg-slate-500/10 transition-colors cursor-pointer" 
+                            className="p-1.5 border border-solid rounded-lg cursor-pointer" 
                             title="Cyklovat roli (Uživatel -> Nakladatel -> Správce)"
                           >
                             <Shield size={13}/>
-                          </button>
-                          <button 
+                          </Button>
+                          <Button 
+                            variant="secondary"
                             onClick={() => revokeAllLicenses(p.id, p.email)} 
-                            className="p-1.5 text-red-400 border border-solid border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer" 
+                            className="p-1.5 text-red-400 border border-solid border-red-500/20 rounded-lg hover:bg-red-500/10 cursor-pointer" 
                             title="Kompletní revokace (Smazat všechny licence uživatele)"
                           >
                             <XCircle size={13}/>
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -3798,16 +3830,55 @@ const AdminDashboard = () => {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-wider block opacity-70">1. Vyberte knihu z registru</label>
+                  
+                  {/* Vyhledávací a filtrovací pole pro rychlé prohledávání registru knih */}
+                  <div className="flex gap-2 items-center p-2 mb-1.5 rounded-lg border border-solid bg-[var(--bg-primary)]" style={{ borderColor: 'var(--border-color)' }}>
+                    <Search size={14} className="opacity-50 ml-1 shrink-0" />
+                    <input 
+                      type="text"
+                      placeholder="Rychlý filtr knih (název / autor)..."
+                      value={searchBook}
+                      onChange={e => setSearchBook(e.target.value)}
+                      className="w-full bg-transparent border-none outline-none text-xs font-bold p-0.5"
+                    />
+                  </div>
+
                   <select 
                     value={selectedBookId} 
                     onChange={e => setSelectedBookId(e.target.value)} 
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
                     className="w-full p-3 border rounded-lg font-bold text-xs outline-none cursor-pointer shadow-sm"
                   >
-                    <option value="" style={{ background: 'var(--bg-secondary)' }}>-- Vyberte titul ze seznamu --</option>
-                    {books.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--bg-secondary)' }}>{b.title} ({b.author})</option>)}
+                    <option value="" style={{ background: 'var(--bg-secondary)' }}>
+                      -- ({filteredBooks.length}) Titulů odpovídá filtru --
+                    </option>
+                    {filteredBooks.map(b => (
+                      <option key={b.id} value={b.id} style={{ background: 'var(--bg-secondary)' }}>
+                        {b.title} ({b.author})
+                      </option>
+                    ))}
                   </select>
                 </div>
+
+                {/* MODUL PRO UKÁZKU A PŘEPÍNÁNÍ AUTO-ASSIGNU VYBRANÉ KNIHY */}
+                {selectedBookId && currentSelectedBook && (
+                  <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-3 rounded-xl border border-solid flex items-center justify-between gap-4 animate-in fade-in duration-150">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider block flex items-center gap-1">
+                        <Sparkles size={11} className="text-yellow-500 fill-current"/> Auto-Assign globální příznak
+                      </span>
+                      <span className="text-[9px] opacity-50 block font-bold">Přidělí se automaticky každému čtenáři</span>
+                    </div>
+                    <Button
+                      variant={currentSelectedBook.is_auto_assigned ? "success" : "secondary"}
+                      onClick={() => toggleBookAutoAssign(currentSelectedBook.id, currentSelectedBook.is_auto_assigned)}
+                      disabled={actionLoading}
+                      className="text-[10px] px-3 py-1.5 font-black uppercase tracking-wider shrink-0"
+                    >
+                      {currentSelectedBook.is_auto_assigned ? "✨ Aktivní" : "Vypnuto"}
+                    </Button>
+                  </div>
+                )}
 
                 <Button 
                   onClick={assignSelectedBookToAllUsers}
@@ -3824,7 +3895,6 @@ const AdminDashboard = () => {
                       <p className="text-xs font-bold text-blue-400 truncate m-0">Target: <span className="font-black text-sm">{activeUser.email}</span></p>
                     </div>
                     
-                    {/* MODUL BONUSOVÝCH XP */}
                     <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-3 rounded-xl space-y-2 border border-solid">
                       <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-80 block">
                         Modifikátor bonusových XP (Úroveň Profilu)
@@ -3850,7 +3920,6 @@ const AdminDashboard = () => {
                       <span className="text-[9px] opacity-40 font-bold block">* Zadejte hodnotu ≥ 1 000 000 pro okamžitý skok na Level 100.</span>
                     </div>
 
-                    {/* AKČNÍ DISTRIBUČNÍ MATICE */}
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button 
                         onClick={assignBookToUser} 
@@ -3878,32 +3947,6 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
-            </Card>
-
-            {/* SYSTÉMOVÉ VYTVOŘENÍ ÚČTU */}
-            <Card>
-              <h3 className="text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2"><Plus size={14}/> Rychlá registrace nového účtu (Auth Bypass)</h3>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const email = e.target.email.value;
-                const password = e.target.password.value;
-                if (!email) return alert('Zadej e-mail');
-                setActionLoading(true);
-                const { error } = await supabase.auth.signUp({ email, password: password || 'DocasneHeslo123!' });
-                if (error) {
-                  alert('Chyba: ' + error.message);
-                } else {
-                  await safeLog('SUCCESS', `Vytvořen nový autentizační účet: ${email}`);
-                  alert('Uživatel úspěšně vytvořen a zaveden!');
-                  e.target.reset();
-                  refreshData();
-                }
-                setActionLoading(false);
-              }} className="space-y-2">
-                <input name="email" type="email" placeholder="E-mail nového čtenáře..." style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="w-full p-2.5 border rounded-lg text-xs font-bold outline-none placeholder:opacity-40" required />
-                <input name="password" type="password" placeholder="Bezpečné heslo (nebo nechte prázdné pro default)..." style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="w-full p-2.5 border rounded-lg text-xs font-bold outline-none placeholder:opacity-40" />
-                <Button type="submit" variant="success" disabled={actionLoading} className="w-full py-2.5 text-xs uppercase tracking-wider font-black">Registrovat a vytvořit profil</Button>
-              </form>
             </Card>
           </div>
         </div>
@@ -3945,7 +3988,7 @@ const AdminDashboard = () => {
                       <span className="text-slate-200">{log.message}</span>
                     </span>
                     <span className="text-[10px] text-slate-500 shrink-0 font-sans sm:font-mono">
-                      {log.created_at ? new Date(log.created_at).toLocaleTimeString() : 'Nyní'}
+                      {log.created_at ? new Date(log.created_at).toLocaleString('cs-CZ') : 'Nyní'}
                     </span>
                   </div>
                 );
