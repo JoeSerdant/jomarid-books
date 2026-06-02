@@ -3057,6 +3057,7 @@ const PublisherDashboard = () => {
         return;
       }
 
+      // 🔥 OPRAVA: Přidán explicitní join profiles!user_id(email) kvůli více relacím v databázi
       const { data: requests, error: requestsError } = await supabase
         .from('user_books')
         .select(`
@@ -3065,7 +3066,7 @@ const PublisherDashboard = () => {
           book_id,
           status,
           created_at,
-          profiles(email),
+          profiles!user_id(email),
           books(title)
         `)
         .eq('status', 'requested')
@@ -3272,6 +3273,7 @@ const PublisherDashboard = () => {
                   </div>
                   <div>
                     <h4 className="font-black text-sm uppercase m-0 tracking-tight">{req.books?.title}</h4>
+                    {/* Vykreslení upravené relace */}
                     <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email}</span></p>
                   </div>
                 </div>
