@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, useRef, useMemo } from 'react'; // ✨ Přidáno useMemo pro bleskové filtry v adminu
+import { useState, useEffect, createContext, useContext, useRef, useMemo } from 'react'; // ✨ Přidáno useMemo
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -12,7 +12,7 @@ const ChevronRight = getIcon('ChevronRight');
 const Loader2 = getIcon('Loader2');
 const LogOut = getIcon('LogOut');
 const Shield = getIcon('Shield');
-const ShieldOff = getIcon('ShieldOff'); // ✨ Nově přidaná ikona pro skrytí v žebříčku
+const ShieldOff = getIcon('ShieldOff'); // ✨ Ikona pro skrytí v žebříčku
 const Heart = getIcon('Heart');
 const BookOpen = getIcon('BookOpen');
 const Lock = getIcon('Lock');
@@ -65,6 +65,7 @@ const RefreshCw = getIcon('RefreshCw');
 const PlusCircle = getIcon('PlusCircle');
 const BarChart3 = getIcon('BarChart3');
 const Mail = getIcon('Mail');
+const FileText = getIcon('FileText'); // ✨ Nově přidaná ikona pro textové soubory / logy
 
 const THEMES = {
   saas: {
