@@ -2546,14 +2546,11 @@ const ReaderPage = () => {
   
   // Uživatelské preference čtení
   const [textSize, setTextSize] = useState('base');
-  const [themeMode, setThemeMode] = useState('sepia'); // light | sepia | dark
-  const [autoScrollSpeed, setAutoScrollSpeed] = useState(0); // 0 = vypnuto, 1-3 rychlosti
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState(0); // 0 = vypnuto, 1-2 rychlosti
   const [readingProgress, setReadingProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [showNavbar, setShowNavbar] = useState(true);
 
   const progressRef = useRef(0);
-  const lastScrollY = useRef(0);
   const autoScrollInterval = useRef(null);
 
   // Bezpečná lokální mapa velikostí písma
@@ -2561,13 +2558,6 @@ const ReaderPage = () => {
     'base': 'text-base md:text-lg leading-relaxed',
     'lg': 'text-lg md:text-xl leading-loose',
     'xl': 'text-xl md:text-2xl leading-loose font-semibold'
-  };
-
-  // Barevné mapy pro čtecí módy
-  const themeMap = {
-    light: { bg: '#ffffff', text: '#111827', card: '#f9fafb', border: '#e5e7eb' },
-    sepia: { bg: '#fbf0e3', text: '#433422', card: '#f4e4d0', border: '#e6d0b3' },
-    dark: { bg: '#0f141c', text: '#e2e8f0', card: '#161f2c', border: '#243247' }
   };
 
   const calculateCurrentProgress = () => {
@@ -2600,7 +2590,7 @@ const ReaderPage = () => {
       .eq('book_id', id);
   };
 
-  // 1. Sledování scrollování + Inteligentní schovávání horní lišty
+  // 1. Sledování scrollování a aktualizace progressu
   useEffect(() => {
     const handleScroll = () => {
       const progress = calculateCurrentProgress();
@@ -2610,15 +2600,6 @@ const ReaderPage = () => {
       if (book?.content) {
         setTimeRemaining(calculateTimeRemaining(book.content, progress));
       }
-
-      // Detekce směru scrollu pro skrývání menu
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
-        setShowNavbar(false); // Roluje dolů -> Skrýt lištu pro nerušené čtení
-      } else {
-        setShowNavbar(true);  // Roluje nahoru -> Ukázat lištu
-      }
-      lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -2658,7 +2639,7 @@ const ReaderPage = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [id, userId]);
 
-  // Korekce skoku na pozici při změně velikosti textu / přenastavení layoutu
+  // Korekce skoku na pozici při změně velikosti textu
   useEffect(() => {
     if (loading) return;
     
@@ -2719,7 +2700,7 @@ const ReaderPage = () => {
 
         setLoading(false);
 
-        // Hladké scrollování na rozesranou pozici
+        // Skočení na uloženou pozici
         if (access.scroll_position && access.scroll_position > 0) {
           progressRef.current = access.scroll_position;
           setReadingProgress(access.scroll_position);
@@ -2743,7 +2724,6 @@ const ReaderPage = () => {
     await supabase.from('user_books').update({ is_read: status }).eq('user_id', userId).eq('book_id', id);
     setIsRead(status);
     if (status) {
-      // Efekt úspěšného dočtení před navigací zpět
       setTimeout(() => navigate('/app'), 400);
     } 
   };
@@ -2770,94 +2750,84 @@ const ReaderPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-[#0f141c] text-slate-300">
-        <Loader2 className="animate-spin text-amber-500 mb-3" size={40} />
-        <p className="text-xs font-black uppercase tracking-widest opacity-60 animate-pulse">Připravuji čtecí plátno...</p>
+      <div style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)' }} className="min-h-screen flex flex-col justify-center items-center">
+        <Loader2 className="animate-spin text-indigo-600" size={40} />
+        <p className="text-xs font-black uppercase tracking-widest opacity-60 mt-3 animate-pulse">Připravuji čtecí plátno...</p>
       </div>
     );
   }
 
   if (err) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center p-6 text-center bg-[#0f141c] text-white">
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-4 border border-amber-500/20">
-          <AlertTriangle size={32} />
-        </div>
+      <div style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)' }} className="min-h-screen flex flex-col justify-center items-center p-6 text-center">
+        <AlertTriangle className="text-amber-500 mb-2" size={40} />
         <h3 className="font-black uppercase text-base tracking-tight m-0">Přístup odepřen</h3>
         <p className="text-sm opacity-70 max-w-sm mt-2">{err}</p>
-        <button onClick={() => navigate('/app')} className="mt-6 px-6 py-3 bg-amber-500 text-black rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-lg active:scale-95 transition-all">Zpět do knihovny</button>
+        <button onClick={() => navigate('/app')} className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-lg active:scale-95 transition-all">Zpět do knihovny</button>
       </div>
     );
   }
 
-  const currentColors = themeMap[themeMode];
-
   return (
     <div 
       style={{ 
-        backgroundColor: currentColors.bg, 
-        color: currentColors.text, 
+        backgroundColor: 'var(--bg-body)', 
+        color: 'var(--text-body)', 
         userSelect: 'none', 
         WebkitUserSelect: 'none', 
         MozUserSelect: 'none', 
-        msUserSelect: 'none',
-        transition: 'background-color 0.4s ease, color 0.4s ease'
+        msUserSelect: 'none'
       }} 
       onContextMenu={e => e.preventDefault()} 
       className="min-h-screen pb-24 relative select-none font-sans"
     >
-      {/* 1. TOP NEVIDITELNÝ PROGRESS BAR (FIXNÍ) */}
+      {/* 1. TOP PROGRESS BAR */}
       <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-xs">
-        <div className="h-full transition-all duration-150 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary, #f59e0b)' }}/>
+        <div className="h-full transition-all duration-150 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}/>
       </div>
 
-      {/* 2. PLOVOUCÍ SMART DASHBOARD LIŠTA */}
+      {/* 2. PEVNÁ HORNÍ LIŠTA NASTAVENÍ (Zůstává nahoře, nebuguje se) */}
       <div 
         style={{ 
-          transform: showNavbar ? 'translateY(0)' : 'translateY(-100px)',
-          opacity: showNavbar ? 1 : 0,
-          backgroundColor: currentColors.card,
-          borderColor: currentColors.border
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-color)'
         }} 
-        className="fixed top-4 left-4 right-4 z-40 border rounded-2xl p-3 shadow-xl backdrop-blur-md flex items-center justify-between transition-all duration-300 max-w-4xl mx-auto"
+        className="fixed top-4 left-4 right-4 z-40 border rounded-2xl p-3 shadow-xl flex items-center justify-between max-w-4xl mx-auto"
       >
         <div className="flex items-center gap-3">
-          <a href="/app" onClick={handleBack} className="w-9 h-9 rounded-xl flex items-center justify-center border no-underline transition-all active:scale-95 hover:bg-black/5" style={{ color: currentColors.text, borderColor: currentColors.border }}>
+          <a href="/app" onClick={handleBack} className="w-9 h-9 rounded-xl flex items-center justify-center border no-underline transition-all active:scale-95 hover:bg-black/5" style={{ color: 'var(--text-body)', borderColor: 'var(--border-color)' }}>
             <ArrowLeft size={16} />
           </a>
-          <div className="hidden sm:block">
-            <h5 className="font-black text-xs uppercase tracking-tight m-0 truncate max-w-[180px]">{book?.title}</h5>
-            <p className="text-[10px] uppercase font-bold opacity-60 m-0">{timeRemaining > 0 ? `Zbývá cca ${timeRemaining} min` : 'Dočteno'}</p>
+          <div>
+            <h5 className="font-black text-xs uppercase tracking-tight m-0 truncate max-w-[140px] sm:max-w-[240px]">{book?.title}</h5>
+            <p style={{ color: 'var(--text-muted)' }} className="text-[10px] uppercase font-bold m-0">{timeRemaining > 0 ? `Zbývá cca ${timeRemaining} min` : 'Dočteno'}</p>
           </div>
         </div>
 
-        {/* LIŠTA NASTAVENÍ ČTENÍ */}
+        {/* OVLÁDÁNÍ ČTENÍ */}
         <div className="flex items-center gap-2">
           
           {/* Hands-free AutoScroll Control */}
           <button 
             onClick={() => setAutoScrollSpeed(prev => prev === 0 ? 1 : prev === 1 ? 2 : 0)}
-            style={{ borderColor: autoScrollSpeed > 0 ? 'var(--bg-primary)' : currentColors.border }}
-            className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 cursor-pointer transition-all ${autoScrollSpeed > 0 ? 'bg-amber-500/10 text-amber-500' : 'opacity-70 hover:bg-black/5'}`}
+            style={{ borderColor: autoScrollSpeed > 0 ? 'var(--bg-primary)' : 'var(--border-color)' }}
+            className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 cursor-pointer transition-all ${autoScrollSpeed > 0 ? 'bg-black/5 text-amber-500' : 'opacity-70 hover:bg-black/5'}`}
           >
             {autoScrollSpeed > 0 ? <Pause size={12} className="animate-pulse" /> : <Play size={12} />}
             <span className="hidden md:inline">{autoScrollSpeed === 0 ? 'Hands-free' : `Rychlost ${autoScrollSpeed}x`}</span>
           </button>
 
-          {/* Přepínač témat (Barev) */}
-          <div className="flex items-center border rounded-xl p-0.5" style={{ borderColor: currentColors.border }}>
-            <button onClick={() => setThemeMode('light')} className={`w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all ${themeMode === 'light' ? 'bg-white text-black shadow-sm' : 'opacity-40'}`}><Sun size={14} /></button>
-            <button onClick={() => setThemeMode('sepia')} className={`w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all ${themeMode === 'sepia' ? 'bg-[#f4e4d0] text-[#433422] shadow-sm' : 'opacity-40'}`}><Coffee size={14} /></button>
-            <button onClick={() => setThemeMode('dark')} className={`w-8 h-8 rounded-lg flex items-center justify-center border-none cursor-pointer transition-all ${themeMode === 'dark' ? 'bg-slate-800 text-white shadow-sm' : 'opacity-40'}`}><Moon size={14} /></button>
-          </div>
-
           {/* Přepínač velikosti písma */}
-          <div className="flex items-center border rounded-xl p-0.5" style={{ borderColor: currentColors.border }}>
+          <div className="flex items-center border rounded-xl p-0.5" style={{ borderColor: 'var(--border-color)' }}>
             {['base', 'lg', 'xl'].map((size) => (
               <button 
                 key={size} 
                 onClick={() => setTextSize(size)} 
-                className={`w-8 h-8 rounded-lg text-xs font-black uppercase transition-all border-none cursor-pointer flex items-center justify-center ${textSize === size ? 'bg-amber-500 text-black font-black' : 'opacity-50'}`}
+                style={{ 
+                  backgroundColor: textSize === size ? 'var(--bg-primary)' : 'transparent', 
+                  color: textSize === size ? 'var(--text-primary)' : 'var(--text-muted)' 
+                }}
+                className={`w-8 h-8 rounded-lg text-xs font-black uppercase transition-all border-none cursor-pointer flex items-center justify-center ${textSize !== size && 'hover:bg-black/5'}`}
               >
                 {size === 'base' ? 'A' : size === 'lg' ? 'A+' : 'A++'}
               </button>
@@ -2867,16 +2837,16 @@ const ReaderPage = () => {
         </div>
       </div>
 
-      {/* 3. HLAVNÍ STRÁNKA / TĚLO KNIHY */}
+      {/* 3. TĚLO KNIHY */}
       <div className="max-w-3xl mx-auto pt-28 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
         
         {/* TITULNÍ BLOK KNIHY */}
-        <div style={{ backgroundColor: currentColors.card, borderColor: currentColors.border }} className="border rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden mb-8 transition-colors">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-1.5 mb-1 opacity-70">
                 <Eye size={12} />
-                <p className="text-[10px] font-black uppercase tracking-widest m-0">{book?.author || 'Neznámý autor'}</p>
+                <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-widest m-0">{book?.author || 'Neznámý autor'}</p>
               </div>
               <h1 className="text-3xl font-black uppercase tracking-tight m-0">{book?.title}</h1>
             </div>
@@ -2885,9 +2855,9 @@ const ReaderPage = () => {
             <button 
               onClick={toggleLike} 
               style={{ 
-                backgroundColor: isLiked ? 'rgba(245, 158, 11, 0.1)' : 'transparent', 
-                borderColor: isLiked ? 'var(--bg-primary, #f59e0b)' : currentColors.border, 
-                color: isLiked ? 'var(--bg-primary, #f59e0b)' : currentColors.text 
+                backgroundColor: isLiked ? 'var(--bg-secondary)' : 'transparent', 
+                borderColor: isLiked ? 'var(--bg-primary)' : 'var(--border-color)', 
+                color: isLiked ? 'var(--bg-primary)' : 'var(--text-muted)' 
               }} 
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase border tracking-wider cursor-pointer transition-all active:scale-90 ${isLiked ? 'shadow-inner' : 'hover:bg-black/5'}`}
             >
@@ -2897,24 +2867,23 @@ const ReaderPage = () => {
           </div>
         </div>
 
-        {/* CHRÁNĚNÝ TEXT KNIHY */}
+        {/* OCHRÁNĚNÝ TEXT KNIHY */}
         <div 
-          style={{ color: currentColors.text }} 
+          style={{ color: 'var(--text-body)', borderColor: 'var(--border-color)' }} 
           onCopy={e => e.preventDefault()}
           onBeforeCopy={e => e.preventDefault()}
           onCut={e => e.preventDefault()}
           onSelectStart={e => e.preventDefault()}
           onDragStart={e => e.preventDefault()}
           className={`max-w-2xl mx-auto whitespace-pre-line text-justify tracking-wide transition-all duration-300 select-none pb-12 font-medium border-b border-dashed ${fontSizeMap[textSize]}`}
-          style={{ borderColor: currentColors.border }}
         >
           {book?.content}
         </div>
 
-        {/* FOOTER STRÁNKY / UKONČENÍ ČTENÍ */}
+        {/* FOOTER ČTEČKY */}
         <div className="mt-12 flex flex-col items-center gap-4 text-center">
-          <div style={{ backgroundColor: currentColors.card, borderColor: currentColors.border }} className="w-12 h-12 rounded-2xl border flex items-center justify-center mb-1 shadow-xs">
-            <BookOpen size={20} className="opacity-60" />
+          <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="w-12 h-12 rounded-2xl border flex items-center justify-center mb-1 shadow-xs">
+            <BookOpen size={20} style={{ color: 'var(--text-muted)' }} className="opacity-60" />
           </div>
           
           <h4 className="font-black uppercase text-xs tracking-wider m-0 opacity-80">Dočetli jste na konec kapitoly</h4>
@@ -2922,11 +2891,10 @@ const ReaderPage = () => {
           <button 
             onClick={() => toggleReadStatus(!isRead)} 
             style={{ 
-              backgroundColor: isRead ? currentColors.card : 'var(--bg-primary, #f59e0b)', 
-              color: isRead ? currentColors.text : '#000000',
-              borderColor: isRead ? currentColors.border : 'transparent'
+              backgroundColor: isRead ? 'var(--bg-secondary)' : 'var(--bg-primary)', 
+              color: isRead ? 'var(--text-body)' : 'var(--text-primary)'
             }} 
-            className="px-12 py-4 border rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer transition-all hover:scale-105 active:scale-98 shadow-md flex items-center gap-2"
+            className="px-12 py-4 border-none rounded-2xl font-black uppercase text-xs tracking-widest cursor-pointer transition-all hover:scale-105 active:scale-98 shadow-md flex items-center gap-2"
           >
             {isRead ? (
               <><RefreshCw size={14} /> Resetovat stav a číst znovu</>
