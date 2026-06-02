@@ -2490,7 +2490,7 @@ const ReaderPage = () => {
 
       if (!access) {
         setErr('Nemáte k této knize aktivní přístupovou licenci.');
-        setLoading(false);
+        loading(false);
         return;
       }
 
@@ -2577,8 +2577,14 @@ const ReaderPage = () => {
     );
   }
 
+  // Funkce, která zabrání jakémukoliv kopírování nebo tahání textu
+  const preventCopy = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
   return (
-    <div style={{ color: 'var(--text-body)', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    <div style={{ color: 'var(--text-body)', userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }} onContextMenu={e => e.preventDefault()} className="max-w-3xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500 relative select-none">
       <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-sm">
         <div className="h-full rounded-r-full transition-all duration-100 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}/>
       </div>
@@ -2612,8 +2618,22 @@ const ReaderPage = () => {
           </button>
         </div>
 
-        {/* FIX PROBĚHL ZDE: Třída se nyní tahá bezpečně z interní fontSizeMap na základě stavu textSize */}
-        <div style={{ color: 'var(--text-body)' }} className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 ${fontSizeMap[textSize] || 'text-base'}`}>
+        {/* OCHRANA TEXTU: select-none, zamezení kopírování, vyjmutí, označení a přetahování textu */}
+        <div 
+          style={{ 
+            color: 'var(--text-body)',
+            userSelect: 'none', 
+            WebkitUserSelect: 'none', 
+            MozUserSelect: 'none', 
+            msUserSelect: 'none' 
+          }} 
+          onCopy={preventCopy}
+          onBeforeCopy={preventCopy}
+          onCut={preventCopy}
+          onSelectStart={preventCopy}
+          onDragStart={preventCopy}
+          className={`max-w-2xl mx-auto whitespace-pre-line text-justify font-medium tracking-wide transition-all duration-200 select-none ${fontSizeMap[textSize] || 'text-base'}`}
+        >
           {book?.content}
         </div>
 
