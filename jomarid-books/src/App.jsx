@@ -3007,56 +3007,76 @@ const PublisherDashboard = () => {
 };
 
 const AdminDashboard = () => {
+  // --- Základní stavy dat ---
   const [books, setBooks] = useState([]);
   const [profiles, setProfiles] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]); // Žádosti o licenci
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [logs, setLogs] = useState([]);
+  
+  // --- Stavy rozhraní (UX) ---
+  const [activeTab, setActiveTab] = useState('overview'); // overview | books | users | logs
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  
+  // --- Filtry & Vyhledávání ---
+  const [searchBook, setSearchBook] = useState('');
+  const [searchUser, setSearchUser] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterLogType, setFilterLogType] = useState('all');
+
+  // --- Formulářové stavy pro Knihy ---
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
   const [fakeLikes, setFakeLikes] = useState(0); 
-  const [activeUser, setActiveUser] = useState(null);
-  const [selectedBookId, setSelectedBookId] = useState('');
   const [editingBookId, setEditingBookId] = useState(null);
   
-  // Nový stav pro editaci bonusových XP v admin panelu
+  // --- Správa konkrétního uživatele ---
+  const [activeUser, setActiveUser] = useState(null);
+  const [selectedBookId, setSelectedBookId] = useState('');
   const [userFakeXpInput, setUserFakeXpInput] = useState(0);
 
-  // Pomocná funkce pro bezpečný zápis do logů (ignoruje 403 chyby z RLS, aby nezasekla aplikaci)
+  // Bezpečný zápis do systémových logů
   const safeLog = async (logType, message) => {
     try {
       await supabase.from('system_logs').insert([{ log_type: logType, message }]);
     } catch (err) {
-      console.warn("Logování do DB selhalo (pravděpodobně RLS/403):", message);
+      console.warn("Logování do DB selhalo (RLS/403):", message);
     }
   };
 
-  // 1. Načítání dat z databáze
+  // Hlavní funkce pro načtení všech dat ze systému
   const refreshData = async () => {
+    setGlobalLoading(true);
     try {
       // 1. Načtení knih
       const { data: b } = await supabase
         .from('books')
         .select('id, title, author, fake_likes, book_likes(count)');
         
-      // 2. Načtení profilů (PŘIDÁN SLOUPEC fake_xp)
-      const { data: p } = await supabase.from('profiles').select('id, email, role, created_at, fake_xp');
+      // 2. Načtení profilů
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('id, email, role, created_at, fake_xp')
+        .order('created_at', { ascending: false });
       
-      // 3. Načtení logů (pokud selže kvůli RLS, vrátí prázdné pole)
-      const { data: l } = await supabase.from('system_logs').select('*').order('created_at', { ascending: false }).limit(15);
+      // 3. Načtení logů (limit zvýšen na 30 pro lepší přehled)
+      const { data: l } = await supabase
+        .from('system_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(30);
       
-      // 4. BEZPEČNÉ NAČTENÍ ŽÁDOSTÍ (Bez nespolehlivého databázového JOINu)
+      // 4. Načtení čekajících žádostí o licenci
       const { data: reqs, error: reqError } = await supabase
         .from('user_books')
         .select('id, user_id, book_id, created_at, status')
         .eq('status', 'requested');
 
-      if (reqError) {
-        console.error("Chyba při načítání user_books:", reqError);
-      }
+      if (reqError) console.error("Chyba při načítání user_books:", reqError);
 
-      // Ruční propojení dat v JavaScriptu (stoprocentní jistota funkčnosti)
-      const mapovanéZadosti = reqs?.map(req => {
+      // JS in-memory spojení dat (100% spolehlivost bez DB JOINů)
+      const mapovaneZadosti = reqs?.map(req => {
         const najdiProfil = p?.find(u => u.id === req.user_id);
         const najdiKnihu = b?.find(k => k.id === req.book_id);
 
@@ -3082,7 +3102,7 @@ const AdminDashboard = () => {
         };
       }) || [];
 
-      // Aktualizace vybraného uživatele, aby se mu hned přepsala data, pokud se změnila v DB
+      // Synchronizace rozpracovaného uživatele po refreshování dat
       if (activeUser) {
         const updatedActiveUser = p?.find(u => u.id === activeUser.id);
         if (updatedActiveUser) {
@@ -3094,99 +3114,106 @@ const AdminDashboard = () => {
       setBooks(booksWithLikes); 
       setProfiles(p || []); 
       setLogs(l || []);
-      setPendingRequests(mapovanéZadosti);
+      setPendingRequests(mapovaneZadosti);
     } catch (err) {
       console.error("Chyba v refreshData:", err);
+    } finally {
+      setGlobalLoading(false);
     }
   };
 
+  // Inicializace a real-time poslech na systémové logy
   useEffect(() => {
     refreshData();
     const sub = supabase.channel('sys_logs')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_logs' }, payload => {
-        setLogs(prev => [payload.new, ...prev]);
+        setLogs(prev => [payload.new, ...prev].slice(0, 50));
       }).subscribe();
     
     return () => { supabase.removeChannel(sub); };
   }, []);
 
-  // Schválení čekající žádosti
-  const approveRequest = async (requestId, userEmail, bookTitle) => {
-    const { error } = await supabase
-      .from('user_books')
-      .update({ status: 'active' })
-      .eq('id', requestId);
+  // --- Klientské vyhledávací a filtrační procesory (useMemo) ---
+  const filteredBooks = useMemo(() => {
+    return books.filter(b => 
+      b.title.toLowerCase().includes(searchBook.toLowerCase()) || 
+      b.author.toLowerCase().includes(searchBook.toLowerCase())
+    );
+  }, [books, searchBook]);
 
+  const filteredProfiles = useMemo(() => {
+    return profiles.filter(p => {
+      const matchesSearch = p.email?.toLowerCase().includes(searchUser.toLowerCase());
+      const matchesRole = filterRole === 'all' || (p.role || 'uživatel') === filterRole;
+      return matchesSearch && matchesRole;
+    });
+  }, [profiles, searchUser, filterRole]);
+
+  const filteredLogs = useMemo(() => {
+    if (filterLogType === 'all') return logs;
+    return logs.filter(l => l.log_type === filterLogType);
+  }, [logs, filterLogType]);
+
+  // --- Handlery akcí ---
+  const approveRequest = async (requestId, userEmail, bookTitle) => {
+    setActionLoading(true);
+    const { error } = await supabase.from('user_books').update({ status: 'active' }).eq('id', requestId);
     if (!error) {
       await safeLog('SUCCESS', `Schválena licence na knihu "${bookTitle}" pro ${userEmail}`);
-      alert('Licence byla úspěšně schválena!');
       refreshData();
     } else {
       alert('Chyba při schvalování: ' + error.message);
     }
+    setActionLoading(false);
   };
 
-  // Zamítnutí / Smazání čekající žádosti
   const rejectRequest = async (requestId, userEmail, bookTitle) => {
     if (!confirm(`Opravdu chcete zamítnout žádost uživatele ${userEmail} o knihu "${bookTitle}"?`)) return;
-    
-    const { error } = await supabase
-      .from('user_books')
-      .delete()
-      .eq('id', requestId);
-
+    setActionLoading(true);
+    const { error } = await supabase.from('user_books').delete().eq('id', requestId);
     if (!error) {
       await safeLog('WARN', `Zamítnuta žádost na knihu "${bookTitle}" od ${userEmail}`);
       refreshData();
     } else {
       alert('Chyba při mazání žádosti: ' + error.message);
     }
+    setActionLoading(false);
   };
 
-  // 2. Uložení / Úprava knihy
   const saveBook = async (e) => {
     e.preventDefault();
     if (!title) return alert('Doplňte název knihy.');
+    setActionLoading(true);
+
+    const payload = { 
+      title, 
+      author: author || 'Neznámý', 
+      content, 
+      fake_likes: parseInt(fakeLikes) || 0 
+    };
 
     if (editingBookId) {
-      const { error } = await supabase
-        .from('books')
-        .update({ 
-          title, 
-          author: author || 'Neznámý', 
-          content, 
-          fake_likes: parseInt(fakeLikes) || 0 
-        })
-        .eq('id', editingBookId);
-        
+      const { error } = await supabase.from('books').update(payload).eq('id', editingBookId);
       if (!error) {
-        await safeLog('SUCCESS', `Upravena kniha: ${title} (Lajky: ${fakeLikes})`);
-        alert('Kniha byla úspěšně aktualizována!');
+        await safeLog('SUCCESS', `Upravena kniha: ${title} (Fake lajky: ${fakeLikes})`);
         setEditingBookId(null);
+        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
+        refreshData();
       } else {
         alert('Chyba při úpravě: ' + error.message);
       }
     } else {
-      if (!content) return alert('Doplňte text knihy.');
-      const { error } = await supabase
-        .from('books')
-        .insert([{ 
-          title, 
-          author: author || 'Neznámý', 
-          content, 
-          fake_likes: parseInt(fakeLikes) || 0 
-        }]);
-        
+      if (!content) { setActionLoading(false); return alert('Doplňte text knihy.'); }
+      const { error } = await supabase.from('books').insert([payload]);
       if (!error) {
-        await safeLog('SUCCESS', `Uložená kniha: ${title} s počtem lajků ${fakeLikes}`);
-        alert('Kniha byla úspěšně uložena do systému!');
+        await safeLog('SUCCESS', `Uložená nová kniha: ${title}`);
+        setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
+        refreshData();
       } else {
         alert('Chyba při ukládání: ' + error.message);
       }
     }
-    
-    setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0);
-    refreshData();
+    setActionLoading(false);
   };
 
   const startEditBook = async (book) => {
@@ -3197,76 +3224,38 @@ const AdminDashboard = () => {
       setAuthor(book.author);
       setContent(data.content || '');
       setFakeLikes(data.fake_likes || 0);
+      setActiveTab('books'); // Automaticky přepnout na záložku knih pro editaci
     } else {
-      alert('Nepodařilo se načíst text knihy k editaci.');
+      alert('Nepodařilo se načíst kompletní text knihy k editaci.');
     }
   };
 
-// Funkce pro uložení Fake XP uživateli
   const handleSaveFakeXp = async () => {
     if (!activeUser) return;
-    
     let xpNum = parseInt(userFakeXpInput) || 0;
     
     // 🔥 ADMIN ZKRATKA PRO LEVEL 100
-    // Pokud jako admin zadáš cokoli nad 999 999 XP, natvrdo tam pošleme 
-    // bezpečné číslo 1000000. Databáze nezkolabuje a v klientské komponentě 
-    // podle toho pak snadno poznáme, že má uživatel dostat Level 100.
-    if (xpNum >= 1000000) {
-      xpNum = 1000000;
-    }
+    if (xpNum >= 1000000) xpNum = 1000000;
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({ fake_xp: xpNum })
-      .eq('id', activeUser.id);
+    setActionLoading(true);
+    const { error } = await supabase.from('profiles').update({ fake_xp: xpNum }).eq('id', activeUser.id);
 
     if (!error) {
       await safeLog('SUCCESS', `Uživateli ${activeUser.email} nastaveno ${xpNum} bonusových XP.`);
-      alert('Bonusové XP byly úspěšně uloženy!');
-      
-      // Aktualizace lokálního stavu
       setActiveUser(prev => prev ? { ...prev, fake_xp: xpNum } : null);
-      setUserFakeXpInput(xpNum); // srovná hodnotu i v políčku
-      
+      setUserFakeXpInput(xpNum);
       refreshData();
     } else {
       alert('Chyba při ukládání XP: ' + error.message);
     }
-  };
-
-  // 3. Správa uživatelů a rolí
-  const createNewUser = async (e) => {
-    e.preventDefault();
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-    
-    if (!email) return alert('Zadej e-mail');
-
-    const { error } = await supabase.auth.signUp({
-      email: email,
-      password: password || 'DocasneHeslo123!',
-    });
-
-    if (error) {
-      alert('Chyba: ' + error.message);
-    } else {
-      alert('Uživatel vytvořen!');
-      e.target.reset();
-      refreshData();
-    }
+    setActionLoading(false);
   };
 
   const toggleRole = async (uId, currentRole) => {
     let nextRole = 'uživatel';
-    
-    if (currentRole === 'uživatel') {
-      nextRole = 'nakladatel';
-    } else if (currentRole === 'nakladatel') {
-      nextRole = 'správce';
-    } else if (currentRole === 'správce') {
-      nextRole = 'uživatel';
-    }
+    if (currentRole === 'uživatel') nextRole = 'nakladatel';
+    else if (currentRole === 'nakladatel') nextRole = 'správce';
+    else if (currentRole === 'správce') nextRole = 'uživatel';
 
     const { error } = await supabase.from('profiles').update({ role: nextRole }).eq('id', uId);
     if (!error) {
@@ -3277,9 +3266,25 @@ const AdminDashboard = () => {
     }
   };
 
-  // 4. DISTRIBUCE LICENCÍ
+  // Revokace / kompletní odebrání všech licencí uživatele (Čistý reset)
+  const revokeAllLicenses = async (uId, uEmail) => {
+    if (!confirm(`🚨 OPRAVDU CHCETE ODEBRAT VŠECHNY LICENCE uživateli ${uEmail}? Uživatel ztratí přístup ke všem knihám.`)) return;
+    setActionLoading(true);
+    const { error } = await supabase.from('user_books').delete().eq('user_id', uId);
+    if (!error) {
+      await safeLog('WARN', `Kompletní revokace licencí pro uživatele: ${uEmail}`);
+      alert('Všechny přístupy byly smazány.');
+      refreshData();
+    } else {
+      alert('Chyba při odebírání: ' + error.message);
+    }
+    setActionLoading(false);
+  };
+
+  // Distribuce jedné knihy uživateli
   const assignBookToUser = async () => {
     if (!activeUser || !selectedBookId) return;
+    setActionLoading(true);
     
     const { data: existing } = await supabase
       .from('user_books')
@@ -3290,15 +3295,10 @@ const AdminDashboard = () => {
 
     let error;
     if (existing) {
-      const { error: updateError } = await supabase
-        .from('user_books')
-        .update({ status: 'active' })
-        .eq('id', existing.id);
+      const { error: updateError } = await supabase.from('user_books').update({ status: 'active' }).eq('id', existing.id);
       error = updateError;
     } else {
-      const { error: insertError } = await supabase
-        .from('user_books')
-        .insert([{ user_id: activeUser.id, book_id: selectedBookId, status: 'active' }]);
+      const { error: insertError } = await supabase.from('user_books').insert([{ user_id: activeUser.id, book_id: selectedBookId, status: 'active' }]);
       error = insertError;
     }
     
@@ -3306,444 +3306,638 @@ const AdminDashboard = () => {
       alert('Chyba při přiřazování licence: ' + error.message);
     } else {
       await safeLog('SUCCESS', `Přiřazena aktivní kniha uživateli ${activeUser.email}`);
-      alert('Přístup úspěšně udělen and aktivován.');
       setSelectedBookId('');
       refreshData();
     }
+    setActionLoading(false);
   };
 
+  // Aktivovat VŠECHNY knihy z DB jednomu uživateli
   const assignAllBooksToUser = async () => {
     if (!activeUser || books.length === 0) return;
-    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} přidělit licenci ke VŠEM knihám jako aktivní?`)) return;
+    if (!confirm(`Opravdu chcete uživateli ${activeUser.email} okamžitě odemknout ÚPLNĚ VŠECHNY knihy?`)) return;
 
+    setActionLoading(true);
     try {
-      const { data: existingUserBooks, error: fetchError } = await supabase
-        .from('user_books')
-        .select('book_id, id, status')
-        .eq('user_id', activeUser.id);
-
+      const { data: existingUserBooks, error: fetchError } = await supabase.from('user_books').select('book_id, id, status').eq('user_id', activeUser.id);
       if (fetchError) throw fetchError;
       
       const existingBookIds = existingUserBooks?.map(ub => ub.book_id) || [];
       const requestedEntries = existingUserBooks?.filter(ub => ub.status === 'requested') || [];
 
       if (requestedEntries.length > 0) {
-        await supabase
-          .from('user_books')
-          .update({ status: 'active' })
-          .in('id', requestedEntries.map(re => re.id));
+        await supabase.from('user_books').update({ status: 'active' }).in('id', requestedEntries.map(re => re.id));
       }
 
       const booksToAssign = books.filter(b => !existingBookIds.includes(b.id));
-
       if (booksToAssign.length > 0) {
-        const insertData = booksToAssign.map(b => ({
-          user_id: activeUser.id,
-          book_id: b.id,
-          status: 'active'
-        }));
+        const insertData = booksToAssign.map(b => ({ user_id: activeUser.id, book_id: b.id, status: 'active' }));
         const { error: insertError } = await supabase.from('user_books').insert(insertData);
         if (insertError) throw insertError;
       }
 
       await safeLog('SUCCESS', `Hromadně aktivovány VŠECHNY knihy pro: ${activeUser.email}`);
-      alert(`Všechny knihy byly uživateli plně aktivovány!`);
       refreshData();
     } catch (err) {
-      alert('Chyba při hromadném přiřazování: ' + err.message);
+      alert('Chyba: ' + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
+  // Aktivovat vybranou knihu kompletně VŠEM uživatelům v systému
   const assignSelectedBookToAllUsers = async () => {
     if (!selectedBookId) return alert('Nejprve zvolte knihu z rozevíracího seznamu.');
     const selectedBook = books.find(b => b.id === selectedBookId);
     if (!selectedBook) return;
-
     if (profiles.length === 0) return alert('V systému nejsou žádní uživatelé.');
-    if (!confirm(`Opravdu chcete knihu "${selectedBook.title}" IHNED aktivovat VŠEM registrovaným uživatelům?`)) return;
+    if (!confirm(`🚨 Opravdu chcete knihu "${selectedBook.title}" IHNED aktivovat VŠEM registrovaným čtenářům?`)) return;
 
+    setActionLoading(true);
     try {
-      const { data: alreadyHasBook, error: fetchError } = await supabase
-        .from('user_books')
-        .select('user_id, id, status')
-        .eq('book_id', selectedBookId);
-
+      const { data: alreadyHasBook, error: fetchError } = await supabase.from('user_books').select('user_id, id, status').eq('book_id', selectedBookId);
       if (fetchError) throw fetchError;
       
       const userIdsWithBook = alreadyHasBook?.map(ub => ub.user_id) || [];
       const requestedEntries = alreadyHasBook?.filter(ub => ub.status === 'requested') || [];
 
       if (requestedEntries.length > 0) {
-        await supabase
-          .from('user_books')
-          .update({ status: 'active' })
-          .in('id', requestedEntries.map(re => re.id));
+        await supabase.from('user_books').update({ status: 'active' }).in('id', requestedEntries.map(re => re.id));
       }
 
       const profilesToAssign = profiles.filter(p => !userIdsWithBook.includes(p.id));
-
       if (profilesToAssign.length > 0) {
-        const insertData = profilesToAssign.map(p => ({
-          user_id: p.id,
-          book_id: selectedBookId,
-          status: 'active'
-        }));
+        const insertData = profilesToAssign.map(p => ({ user_id: p.id, book_id: selectedBookId, status: 'active' }));
         const { error: insertError } = await supabase.from('user_books').insert(insertData);
         if (insertError) throw insertError;
       }
 
-      await safeLog('SUCCESS', `Kniha "${selectedBook.title}" byla aktivována všem registrovaným uživatelům.`);
-      alert(`Kniha byla úspěšně plně zpřístupněna všem uživatelům!`);
+      await safeLog('SUCCESS', `Kniha "${selectedBook.title}" byla globálně aktivována všem uživatelům.`);
       setSelectedBookId('');
       refreshData();
     } catch (err) {
-      alert('Chyba při hromadném sdílení knihy: ' + err.message);
+      alert('Chyba při hromadném sdílení: ' + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleSelectUserFromTable = (p) => {
-    setActiveUser(p);
-    setUserFakeXpInput(p.fake_xp || 0);
-  };
-
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-7xl mx-auto px-4 py-12 animate-in fade-in duration-300 space-y-8">
-      {/* Karty statistik */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="flex items-center gap-4 py-4">
-          <Database style={{ color: 'var(--bg-primary)' }} size={24}/>
+    <div style={{ color: 'var(--text-body)' }} className="max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-200 space-y-6">
+      
+      {/* HEADER DASHBOARDU */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-solid gap-4" style={{ borderColor: 'var(--border-color)' }}>
+        <div>
+          <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+            <Shield size={26} className="text-red-500 animate-pulse" /> Core Admin Panel 2026
+          </h1>
+          <p className="text-xs font-semibold opacity-70" style={{ color: 'var(--text-muted)' }}>
+            Komplexní správa licencí, autorských práv, uživatelských klanů a systémových logů.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-stretch sm:self-auto">
+          <button 
+            onClick={refreshData} 
+            disabled={globalLoading || actionLoading}
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider border rounded-lg hover:opacity-80 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={globalLoading ? "animate-spin" : ""} /> Sync Data
+          </button>
+        </div>
+      </div>
+
+      {/* STATISTICKÉ UKAZATELE */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="flex items-center gap-4 py-4 relative overflow-hidden">
+          <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500"><Database size={22}/></div>
           <div>
-            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Knihovny</h4>
-            <p className="text-lg font-black">{books.length} Titulů v DB</p>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-60">Katalog Titulů</h4>
+            <p className="text-xl font-black">{books.length} Knih v DB</p>
           </div>
         </Card>
         <Card className="flex items-center gap-4 py-4">
-          <Users style={{ color: 'var(--bg-primary)' }} size={24}/>
+          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500"><Users size={22}/></div>
           <div>
-            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Uživatelé</h4>
-            <p className="text-lg font-black">{profiles.length} Registrovaných</p>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-60">Komunita</h4>
+            <p className="text-xl font-black">{profiles.length} Čtenářů</p>
           </div>
         </Card>
-        <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="flex items-center gap-4 py-4 border-2">
-          <UserCheck style={{ color: 'var(--bg-primary)' }} size={24}/>
+        <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: pendingRequests.length > 0 ? '#eab308' : 'var(--border-color)' }} className="flex items-center gap-4 py-4 border-2 transition-all">
+          <div className={`p-3 rounded-xl ${pendingRequests.length > 0 ? "bg-yellow-500/20 text-yellow-500" : "bg-gray-500/10 opacity-50"}`}><UserCheck size={22}/></div>
           <div>
-            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-70">Nové žádosti</h4>
-            <p style={{ color: 'var(--bg-primary)' }} className="text-lg font-black">{pendingRequests.length} Ke schválení</p>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-60">Žádosti o licenci</h4>
+            <p className={`text-xl font-black ${pendingRequests.length > 0 ? "text-yellow-500 font-extrabold" : ""}`}>{pendingRequests.length} Ke schválení</p>
+          </div>
+        </Card>
+        <Card className="flex items-center gap-4 py-4">
+          <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500"><Terminal size={22}/></div>
+          <div>
+            <h4 style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-60">Live Stream Log</h4>
+            <p className="text-xl font-black">{logs.length} Záznamů</p>
           </div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Levý sloupec */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* SPRÁVA DIGITÁLNÍ KNIHY */}
-          <Card>
-            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Plus size={16}/> {editingBookId ? 'Upravit digitální knihu' : 'Nová digitální kniha'}
-            </h3>
-            <form onSubmit={saveBook} className="space-y-3">
-              <input 
-                type="text" 
-                placeholder="Název knihy..." 
-                value={title} 
-                onChange={e => setTitle(e.target.value)} 
-                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
-                required 
-              />
-              <input 
-                type="text" 
-                placeholder="Autor..." 
-                value={author} 
-                onChange={e => setAuthor(e.target.value)} 
-                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
-              />
-              
-              <div className="space-y-1">
-                <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider block pl-1 opacity-70">Uměle přidat lajky (Prestiž)</label>
+      {/* TAB NAVIGACE */}
+      <div className="flex border-b font-black text-xs uppercase tracking-wider space-x-1" style={{ borderColor: 'var(--border-color)' }}>
+        {[
+          { id: 'overview', label: 'Přehled & Žádosti', icon: <FileText size={14} /> },
+          { id: 'books', label: 'Knihovna & Editace', icon: <Database size={14} /> },
+          { id: 'users', label: 'Uživatelé & Licence', icon: <Users size={14} /> },
+          { id: 'logs', label: 'Systémový Syslog', icon: <Terminal size={14} /> }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{ 
+              backgroundColor: activeTab === tab.id ? 'var(--bg-secondary)' : 'transparent',
+              borderColor: activeTab === tab.id ? 'var(--border-color)' : 'transparent',
+              color: activeTab === tab.id ? 'var(--bg-primary)' : 'var(--text-muted)'
+            }}
+            className={`flex items-center gap-2 px-4 py-3 border-t border-x rounded-t-xl transition-all cursor-pointer -mb-[1px]`}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* INDIKÁTOR AKČNÍHO LOADINGU */}
+      {actionLoading && (
+        <div className="w-full bg-yellow-500 text-black text-center text-xs font-black py-1 rounded animate-pulse uppercase tracking-widest">
+          Probíhá zápis do databáze Supabase... Čekejte prosím.
+        </div>
+      )}
+
+      {/* 1. ZÁLOŽKA: PŘEHLED A ŽÁDOSTI */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* ČEKAJÍCÍ ŽÁDOSTI O LICENCE */}
+          <div className="lg:col-span-8 space-y-6">
+            <Card className="p-0 overflow-hidden border-2" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+              <div className="p-4 font-black text-xs uppercase tracking-wider flex justify-between items-center border-b" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
+                <span className="flex items-center gap-2">📥 Čekající žádosti o autorizaci licencí</span>
+                <span className="bg-yellow-500 text-black font-black px-2 py-0.5 rounded text-[10px]">{pendingRequests.length}</span>
+              </div>
+              <div className="divide-y max-h-[450px] overflow-y-auto" style={{ borderColor: 'var(--border-color)' }}>
+                {pendingRequests.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)' }} className="text-center py-12 text-xs font-bold opacity-60 italic">
+                    Všechny žádosti byly vyřízeny. Systém je stabilní.
+                  </p>
+                ) : (
+                  pendingRequests.map(req => {
+                    const userEmail = req.profiles?.email || `Uživatel (ID: ${req.user_id?.substring(0, 5)}...)`;
+                    const bookTitle = req.books?.title || `Kniha (ID: ${req.book_id?.substring(0, 5)}...)`;
+                    return (
+                      <div key={req.id} className="p-4 flex items-center justify-between text-xs font-bold hover:bg-[var(--bg-primary)]/40 transition-colors gap-4" style={{ borderColor: 'var(--border-color)' }}>
+                        <div className="truncate flex-1">
+                          <p className="truncate text-sm font-black">{userEmail}</p>
+                          <p style={{ color: 'var(--bg-primary)' }} className="text-[11px] truncate mt-0.5">
+                            Vyžaduje přístup k titulu: <span className="font-black uppercase underline">{bookTitle}</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button variant="success" disabled={actionLoading} onClick={() => approveRequest(req.id, userEmail, bookTitle)} className="px-3 py-2 text-[10px] font-black uppercase rounded-lg">
+                            Schválit Přístup
+                          </Button>
+                          <Button variant="danger" disabled={actionLoading} onClick={() => rejectRequest(req.id, userEmail, bookTitle)} className="px-3 py-2 text-[10px] font-black uppercase rounded-lg">
+                            Zamítnout
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
+          </div>
+          
+          {/* RYCHLÝ HLEDÁČEK / PŘEHLED LOGŮ */}
+          <div className="lg:col-span-4 space-y-4">
+            <Card style={{ backgroundColor: 'var(--bg-secondary)' }}>
+              <h3 className="text-xs font-black uppercase tracking-wider mb-2">Rychlý přehled stavu</h3>
+              <div className="text-xs space-y-2 font-bold opacity-80">
+                <div className="flex justify-between"><span>Verze UI Core:</span><span className="font-mono">4.12.0-stable</span></div>
+                <div className="flex justify-between"><span>Průměrný věk relací:</span><span>Reálný čas</span></div>
+                <div className="flex justify-between"><span>RLS bypass logování:</span><span className="text-emerald-500">Aktivní (safeLog)</span></div>
+              </div>
+            </Card>
+            <div className="text-[11px] font-mono p-3 rounded-xl bg-slate-950 text-slate-400 border border-slate-900 shadow-inner">
+              <span className="text-yellow-500 font-bold block mb-1">💡 Tip Admina:</span>
+              Kliknutím na tlačítko s ikonou štítu <Shield size={10} className="inline"/> u jakéhokoliv uživatele v záložce Uživatelé můžete okamžitě přepínat jeho oprávnění.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. ZÁLOŽKA: SPRÁVA KNIH */}
+      {activeTab === 'books' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* FORMULÁŘ KNIHY */}
+          <div className="lg:col-span-5">
+            <Card>
+              <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2">
+                {editingBookId ? <ShieldAlert size={16} className="text-yellow-500"/> : <Plus size={16}/>}
+                {editingBookId ? 'Upravit digitální titul' : 'Registrovat nový digitální titul'}
+              </h3>
+              <form onSubmit={saveBook} className="space-y-3">
                 <input 
-                  type="number" 
-                  placeholder="Počet lajků..." 
-                  value={fakeLikes} 
-                  onChange={e => setFakeLikes(Math.max(0, parseInt(e.target.value) || 0))} 
+                  type="text" 
+                  placeholder="Přesný název knihy..." 
+                  value={title} 
+                  onChange={e => setTitle(e.target.value)} 
                   style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                  className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
+                  className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-40" 
+                  required 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Autor / Vydavatel..." 
+                  value={author} 
+                  onChange={e => setAuthor(e.target.value)} 
+                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                  className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-40" 
+                />
+                
+                <div className="space-y-1">
+                  <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider block pl-1 opacity-70">Umělá Prestiž (Počet Fake Lajků)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Počet lajků..." 
+                    value={fakeLikes} 
+                    onChange={e => setFakeLikes(Math.max(0, parseInt(e.target.value) || 0))} 
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                    className="w-full p-3 border rounded-lg text-sm font-bold outline-none" 
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider block pl-1 opacity-70">Obsah a Text knihy</label>
+                  <textarea 
+                    placeholder="Sem vložte čistý text knihy, kapitoly nebo markdown..." 
+                    value={content} 
+                    onChange={e => setContent(e.target.value)} 
+                    rows={8} 
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                    className="w-full p-3 border rounded-lg text-sm font-medium outline-none resize-none font-mono placeholder:opacity-40" 
+                    required 
+                  />
+                </div>
+                
+                <Button type="submit" disabled={actionLoading} className="w-full py-3 uppercase tracking-wider font-black">
+                  {editingBookId ? '💾 Aktualizovat data v DB' : '🚀 Vydat knihu do oběhu'}
+                </Button>
+
+                {editingBookId && (
+                  <button 
+                    type="button" 
+                    onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); }}
+                    style={{ color: 'var(--text-muted)' }}
+                    className="w-full py-2 text-xs hover:underline uppercase cursor-pointer bg-transparent border-none font-bold tracking-wide"
+                  >
+                    Stornovat úpravy
+                  </button>
+                )}
+              </form>
+            </Card>
+          </div>
+
+          {/* INVENTÁŘ TITULŮ S VYHLEDÁVÁNÍM */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="flex gap-2 items-center p-2 rounded-xl border border-solid" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+              <Search size={16} className="opacity-60 ml-2 shadow-sm shrink-0" />
+              <input 
+                type="text"
+                placeholder="Filtrovat knihy podle názvu či autora..."
+                value={searchBook}
+                onChange={e => setSearchBook(e.target.value)}
+                className="w-full bg-transparent border-none outline-none font-bold text-xs p-1"
+              />
+              {searchBook && <button onClick={() => setSearchBook('')} className="text-xs px-2 opacity-50 hover:opacity-100 font-bold">X</button>}
+            </div>
+
+            <Card className="p-0 overflow-hidden">
+              <div className="p-4 border-b font-black text-xs uppercase tracking-wider flex justify-between items-center" style={{ borderColor: 'var(--border-color)' }}>
+                <span>Inventář titulů (Katalog aplikací)</span>
+                <span className="opacity-60">{filteredBooks.length} nalezeno</span>
+              </div>
+              <div className="p-2 max-h-[500px] overflow-y-auto space-y-1.5">
+                {filteredBooks.length === 0 ? (
+                  <p className="text-xs font-bold text-center py-8 italic opacity-50">Žádné knihy neodpovídají vyhledávacímu dotazu.</p>
+                ) : (
+                  filteredBooks.map(b => (
+                    <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)' }} className="flex justify-between items-center p-3 rounded-xl text-xs font-bold gap-4 hover:opacity-95 transition-opacity">
+                      <span className="truncate flex-1">
+                        <span className="text-sm font-black block truncate">{b.title}</span>
+                        <span style={{ color: 'var(--text-muted)' }} className="opacity-70 font-medium">Autor: {b.author}</span>
+                      </span>
+                      
+                      <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--bg-secondary)' }} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] shrink-0 font-black shadow-sm">
+                        <Heart size={10} className="fill-current" />
+                        <span>{b.likesCount}</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button 
+                          onClick={() => startEditBook(b)}
+                          style={{ color: 'var(--bg-primary)' }}
+                          className="bg-transparent border-none cursor-pointer hover:scale-110 transition-transform font-bold text-base"
+                          title="Editovat parametry a text"
+                        >
+                          ✎
+                        </button>
+                        <button 
+                          onClick={async () => { 
+                            if(confirm(`Smazat knihu "${b.title}" natvrdo z DB? Tato akce smaže i existující uživatelské licence!`)) { 
+                              await supabase.from('books').delete().eq('id', b.id); 
+                              await safeLog('DANGER', `Smazána kniha z databáze: ${b.title}`);
+                              refreshData(); 
+                            } 
+                          }} 
+                          style={{ color: 'var(--text-muted)' }}
+                          className="bg-transparent border-none cursor-pointer hover:text-red-500 hover:scale-110 transition-all flex items-center"
+                          title="Smazat titul z DB"
+                        >
+                          <Trash size={14}/>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* 3. ZÁLOŽKA: UŽIVATELÉ A LICENCE */}
+      {activeTab === 'users' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* SEZNAM UŽIVATELŮ + FILTRY */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 flex gap-2 items-center p-2 rounded-xl border border-solid" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+                <Search size={16} className="opacity-60 ml-2 shrink-0" />
+                <input 
+                  type="text"
+                  placeholder="Hledat uživatele podle e-mailu..."
+                  value={searchUser}
+                  onChange={e => setSearchUser(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none font-bold text-xs p-1"
                 />
               </div>
-
-              <textarea 
-                placeholder="Sem vložte čistý text knihy..." 
-                value={content} 
-                onChange={e => setContent(e.target.value)} 
-                rows={6} 
-                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-3 border rounded-lg text-sm font-medium outline-none resize-none placeholder:opacity-50" 
-                required 
-              />
-              
-              <Button type="submit" className="w-full py-3 uppercase tracking-wider">
-                {editingBookId ? 'Uložit změny v knize' : 'Uložit knihu do systému'}
-              </Button>
-
-              {editingBookId && (
-                <button 
-                  type="button" 
-                  onClick={() => { setEditingBookId(null); setTitle(''); setAuthor(''); setContent(''); setFakeLikes(0); }}
-                  style={{ color: 'var(--text-muted)' }}
-                  className="w-full py-2 text-xs hover:underline uppercase cursor-pointer bg-transparent border-none font-bold tracking-wide"
+              <div className="flex gap-2 items-center p-2 rounded-xl border border-solid shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
+                <Filter size={14} className="opacity-60 ml-1" />
+                <select 
+                  value={filterRole} 
+                  onChange={e => setFilterRole(e.target.value)}
+                  className="bg-transparent border-none outline-none text-xs font-bold font-sans cursor-pointer"
                 >
-                  Zrušit editaci
-                </button>
-              )}
-            </form>
-          </Card>
-
-          {/* VYTVOŘIT NOVÝ ÚČET */}
-          <Card>
-            <h3 className="text-sm font-black uppercase tracking-wider mb-4 flex items-center gap-2"><Users size={16}/> Vytvořit nový účet</h3>
-            <form onSubmit={createNewUser} className="space-y-3">
-              <input 
-                name="email" 
-                type="email" 
-                placeholder="E-mail nového uživatele..." 
-                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
-                required 
-              />
-              <input 
-                name="password" 
-                type="password" 
-                placeholder="Počáteční heslo..." 
-                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-3 border rounded-lg text-sm font-bold outline-none placeholder:opacity-50" 
-                required 
-              />
-              <Button type="submit" variant="success" className="w-full py-3 uppercase tracking-wider">
-                Vytvořit účet
-              </Button>
-            </form>
-          </Card>
-
-          {/* DISTRIBUCE + FAKE XP FORMULÁŘ */}
-          <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="border-2">
-            <h3 style={{ color: 'var(--bg-primary)' }} className="text-sm font-black uppercase tracking-wider mb-2 flex items-center gap-2">
-              <UserCheck size={16}/> Distribuce a správa účtu
-            </h3>
-            
-            <div className="space-y-3">
-              <select 
-                value={selectedBookId} 
-                onChange={e => setSelectedBookId(e.target.value)} 
-                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                className="w-full p-2.5 border rounded-lg font-bold text-xs outline-none"
-              >
-                <option value="" style={{ background: 'var(--bg-secondary)' }}>-- Zvolte knihu pro distribuci --</option>
-                {books.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--bg-secondary)' }}>{b.title}</option>)}
-              </select>
-
-              <Button 
-                onClick={assignSelectedBookToAllUsers}
-                variant="success"
-                className="w-full text-xs py-2.5 uppercase tracking-wider font-black"
-              >
-                📢 Aktivovat tuto knihu VŠEM uživatelům
-              </Button>
-              
-              {activeUser && (
-                <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-4 border-t space-y-3">
-                  <p style={{ color: 'var(--bg-primary)' }} className="text-xs font-bold truncate m-0">Vybraný uživatel: {activeUser.email}</p>
-                  
-                  {/* FORMULÁŘ NA PRIDÁNÍ FAKE XP */}
-                  <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-3 rounded-xl space-y-2 border">
-                    <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-80 block">Bonusové XP pro účet</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="number" 
-                        value={userFakeXpInput} 
-                        onChange={e => setUserFakeXpInput(parseInt(e.target.value) || 0)}
-                        style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
-                        className="w-full p-2 border rounded-lg text-xs font-bold outline-none placeholder:opacity-50" 
-                        placeholder="Napiš hodnotu..."
-                      />
-                      <button 
-                        onClick={handleSaveFakeXp}
-                        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
-                        className="px-3 font-black text-[10px] uppercase rounded-lg border border-solid cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                      >
-                        Uložit XP
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={assignBookToUser} 
-                      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)' }}
-                      className="flex-1 text-xs py-2 uppercase font-bold rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
-                    >
-                      Aktivovat vybranou
-                    </button>
-                    <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2">Zrušit výběr</Button>
-                  </div>
-                  <Button 
-                    onClick={assignAllBooksToUser}
-                    variant="purple"
-                    className="w-full text-xs py-2 uppercase tracking-wider"
-                  >
-                    ✨ Aktivovat mu VŠECHNY knihy z DB
-                  </Button>
-                </div>
-              )}
+                  <option value="all">Všechny role</option>
+                  <option value="uživatel">Uživatelé</option>
+                  <option value="nakladatel">Nakladatelé</option>
+                  <option value="správce">Správci</option>
+                </select>
+              </div>
             </div>
-          </Card>
-        </div>
 
-        {/* Pravý sloupec */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* ČEKAJÍCÍ ŽÁDOSTI O LICENCE KE SCHVÁLENÍ */}
-          <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="border-2 p-0 overflow-hidden">
-            <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider flex justify-between items-center">
-              <span>📥 Čekající žádosti o licenci ke schválení</span>
-              <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)' }} className="font-black px-2 py-0.5 rounded text-[10px]">{pendingRequests.length}</span>
-            </div>
-            <div style={{ borderColor: 'var(--border-color)' }} className="max-h-52 overflow-y-auto divide-y">
-              {pendingRequests.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)' }} className="text-center py-6 text-xs font-bold opacity-60 italic">Žádné nové žádosti o licenci nejsou hlášeny.</p>
-              ) : (
-                pendingRequests.map(req => {
-                  const userEmail = req.profiles?.email || `Uživatel (ID: ${req.user_id?.substring(0, 5)}...)`;
-                  const bookTitle = req.books?.title || `Kniha (ID: ${req.book_id?.substring(0, 5)}...)`;
-
-                  return (
-                    <div key={req.id} style={{ borderColor: 'var(--border-color)' }} className="p-3 flex items-center justify-between text-xs font-bold hover:opacity-90 transition-opacity gap-4">
-                      <div className="truncate flex-1">
-                        <p className="truncate">{userEmail}</p>
-                        <p style={{ color: 'var(--bg-primary)' }} className="text-[10px] truncate mt-0.5">žádá o knihu: <span className="font-black uppercase">{bookTitle}</span></p>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <Button 
-                          variant="success"
-                          onClick={() => approveRequest(req.id, userEmail, bookTitle)}
-                          className="px-3 py-1.5 text-[10px] uppercase rounded"
-                        >
-                          Schválit
-                        </Button>
-                        <Button 
-                          variant="danger"
-                          onClick={() => rejectRequest(req.id, userEmail, bookTitle)}
-                          className="px-2 py-1.5 text-[10px] uppercase rounded"
-                        >
-                          Odmítnout
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-
-          {/* SPRÁVA ČTENÁŘSKÝCH LICENCÍ A ÚČTŮ */}
-          <Card className="overflow-hidden p-0">
-            <div style={{ borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider">Správa čtenářských licencí a účtů</div>
-            <div className="max-h-60 overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }} className="font-black uppercase border-b opacity-80">
-                    <th className="p-3">Uživatel</th>
-                    <th className="p-3">Role</th>
-                    <th className="p-3 text-right">Akce</th>
-                  </tr>
-                </thead>
-                <tbody style={{ borderColor: 'var(--border-color)' }} className="divide-y">
-                  {profiles.map(p => (
-                    <tr key={p.id} style={{ borderColor: 'var(--border-color)' }} className="hover:bg-[var(--bg-secondary)] transition-colors font-bold">
-                      <td className="p-3 truncate max-w-[180px]">
-                        <div className="truncate">{p.email}</div>
-                        {p.fake_xp > 0 && <div style={{ color: 'var(--bg-primary)' }} className="text-[9px] font-black">⭐ +{p.fake_xp} Admin XP</div>}
-                      </td>
-                      <td className="p-3">
-                        <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }} className="text-[9px] px-2 py-0.5 rounded-full uppercase border border-solid font-black">
-                          {p.role || 'uživatel'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right flex justify-end items-center gap-2">
-                        <Button variant="secondary" onClick={() => handleSelectUserFromTable(p)} className="text-[9px] px-2 py-1 uppercase flex items-center gap-1"><Plus size={10}/> Vybrat</Button>
-                        <button onClick={() => toggleRole(p.id, p.role)} style={{ color: 'var(--text-muted)' }} className="p-1 border-none bg-transparent cursor-pointer hover:opacity-70 transition-opacity" title="Změnit roli (Cyklus: Uživatel -> Nakladatel -> Správce)"><Shield size={12}/></button>
-                      </td>
+            <Card className="overflow-hidden p-0">
+              <div style={{ borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider">
+                Databáze čtenářských účtů a oprávnění
+              </div>
+              <div className="max-h-[450px] overflow-y-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }} className="font-black uppercase border-b opacity-80 sticky top-0 z-10">
+                      <th className="p-3">Uživatel</th>
+                      <th className="p-3">Role systému</th>
+                      <th className="p-3 text-right">Řízení</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                  </thead>
+                  <tbody style={{ borderColor: 'var(--border-color)' }} className="divide-y">
+                    {filteredProfiles.map(p => (
+                      <tr key={p.id} style={{ borderColor: 'var(--border-color)' }} className={`hover:bg-[var(--bg-secondary)] transition-colors font-bold ${activeUser?.id === p.id ? "bg-[var(--bg-secondary)] ring-1 ring-inset ring-blue-500/30" : ""}`}>
+                        <td className="p-3 truncate max-w-[200px]">
+                          <div className="truncate text-sm font-black">{p.email}</div>
+                          {p.fake_xp > 0 && (
+                            <div className="text-[10px] font-black flex items-center gap-1 mt-0.5" style={{ color: 'var(--bg-primary)' }}>
+                              <Award size={10}/> {p.fake_xp >= 1000000 ? "Level 100 (Max)" : `+${p.fake_xp} Admin XP`}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 align-middle">
+                          <span 
+                            style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }} 
+                            className={`text-[9px] px-2.5 py-0.5 rounded-full uppercase border border-solid font-black shadow-sm tracking-wider`}
+                          >
+                            {p.role || 'uživatel'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right flex justify-end items-center gap-2">
+                          <Button 
+                            variant={activeUser?.id === p.id ? "success" : "secondary"} 
+                            onClick={() => { setActiveUser(p); setUserFakeXpInput(p.fake_xp || 0); }} 
+                            className="text-[10px] px-2.5 py-1 uppercase flex items-center gap-1 font-black"
+                          >
+                            <Plus size={10}/> Vybrat
+                          </Button>
+                          <button 
+                            onClick={() => toggleRole(p.id, p.role)} 
+                            style={{ color: 'var(--text-muted)' }} 
+                            className="p-1.5 border border-solid rounded-lg hover:bg-slate-500/10 transition-colors cursor-pointer" 
+                            title="Cyklovat roli (Uživatel -> Nakladatel -> Správce)"
+                          >
+                            <Shield size={13}/>
+                          </button>
+                          <button 
+                            onClick={() => revokeAllLicenses(p.id, p.email)} 
+                            className="p-1.5 text-red-400 border border-solid border-red-500/20 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer" 
+                            title="Kompletní revokace (Smazat všechny licence uživatele)"
+                          >
+                            <XCircle size={13}/>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
 
-          {/* INVENTÁŘ TITULŮ */}
-          <Card className="overflow-hidden p-0">
-            <div style={{ borderColor: 'var(--border-color)' }} className="p-4 border-b font-black text-xs uppercase tracking-wider">Inventář titulů (Katalog)</div>
-            <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
-              {books.map(b => (
-                <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)' }} className="flex justify-between items-center p-2 rounded text-xs font-bold gap-4">
-                  <span className="truncate flex-1">
-                    {b.title} <span style={{ color: 'var(--text-muted)' }} className="opacity-60 font-normal">({b.author})</span>
-                  </span>
-                  
-                  <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--bg-secondary)' }} className="flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] shrink-0 font-black">
-                    <Heart size={10} className="fill-current text-current" />
-                    <span>{b.likesCount}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button 
-                      onClick={() => startEditBook(b)}
-                      style={{ color: 'var(--bg-primary)' }}
-                      className="bg-transparent border-none cursor-pointer hover:opacity-70 font-bold text-sm"
-                      title="Upravit knihu"
-                    >
-                      ✎
-                    </button>
-                    <button 
-                      onClick={async () => { if(confirm('Odstranit knihu z databáze?')) { await supabase.from('books').delete().eq('id', b.id); refreshData(); } }} 
-                      style={{ color: 'var(--text-muted)' }}
-                      className="bg-transparent border-none cursor-pointer hover:opacity-70 flex items-center"
-                      title="Smazat knihu"
-                    >
-                      <Trash size={12}/>
-                    </button>
-                  </div>
+          {/* DISTRIBUČNÍ PANEL VYBRANÉHO UŽIVATELE */}
+          <div className="lg:col-span-5 space-y-4">
+            <Card style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="border-2">
+              <h3 style={{ color: 'var(--bg-primary)' }} className="text-sm font-black uppercase tracking-wider mb-3 flex items-center gap-2">
+                <UserCheck size={18}/> Správce distribuce a oprávnění
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-wider block opacity-70">1. Vyberte knihu z registru</label>
+                  <select 
+                    value={selectedBookId} 
+                    onChange={e => setSelectedBookId(e.target.value)} 
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                    className="w-full p-3 border rounded-lg font-bold text-xs outline-none cursor-pointer shadow-sm"
+                  >
+                    <option value="" style={{ background: 'var(--bg-secondary)' }}>-- Vyberte titul ze seznamu --</option>
+                    {books.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--bg-secondary)' }}>{b.title} ({b.author})</option>)}
+                  </select>
                 </div>
-              ))}
-            </div>
-          </Card>
 
-          {/* CORE SYSLOG */}
-          <Card className="bg-slate-950 text-emerald-400 font-mono p-4 border border-slate-900 shadow-2xl rounded-xl">
-            <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase text-slate-400 tracking-widest pb-2 border-b border-slate-900">
-              <span className="flex items-center gap-1"><Terminal size={12} /> Postgres Live Core Syslog</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            </div>
-            <div className="space-y-1 text-[11px] max-h-36 overflow-y-auto">
-              {logs.length === 0 ? (
-                <div className="text-slate-600 italic text-xs">Syslog je prázdný nebo jsou zakázána práva pro čtení.</div>
-              ) : (
-                logs.map(log => (
-                  <div key={log.id}>
-                    <span className="text-slate-500">[{log.created_at ? new Date(log.created_at).toLocaleTimeString() : '--:--:--'}]</span>{' '}
-                    <span className={log.log_type === 'ERROR' ? 'text-red-500 font-bold' : log.log_type === 'WARN' ? 'text-amber-500 font-bold' : 'text-emerald-400'}>{log.log_type}</span>: {log.message}
+                <Button 
+                  onClick={assignSelectedBookToAllUsers}
+                  variant="purple"
+                  disabled={actionLoading || !selectedBookId}
+                  className="w-full text-xs py-2.5 uppercase tracking-wider font-black shadow-md flex items-center justify-center gap-1"
+                >
+                  📢 Globální odemčení této knihy VŠEM čtenářům
+                </Button>
+                
+                {activeUser ? (
+                  <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-4 border-t border-solid space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                      <p className="text-xs font-bold text-blue-400 truncate m-0">Target: <span className="font-black text-sm">{activeUser.email}</span></p>
+                    </div>
+                    
+                    {/* MODUL BONUSOVÝCH XP */}
+                    <div style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} className="p-3 rounded-xl space-y-2 border border-solid">
+                      <label style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider opacity-80 block">
+                        Modifikátor bonusových XP (Úroveň Profilu)
+                      </label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="number" 
+                          value={userFakeXpInput} 
+                          onChange={e => setUserFakeXpInput(parseInt(e.target.value) || 0)}
+                          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                          className="w-full p-2 border rounded-lg text-xs font-bold outline-none font-mono" 
+                          placeholder="Množství XP..."
+                        />
+                        <button 
+                          onClick={handleSaveFakeXp}
+                          disabled={actionLoading}
+                          style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+                          className="px-3 font-black text-[10px] uppercase rounded-lg border border-solid cursor-pointer hover:opacity-80 transition-opacity shrink-0 active:scale-95 duration-100"
+                        >
+                          Uložit XP
+                        </button>
+                      </div>
+                      <span className="text-[9px] opacity-40 font-bold block">* Zadejte hodnotu ≥ 1 000 000 pro okamžitý skok na Level 100.</span>
+                    </div>
+
+                    {/* AKČNÍ DISTRIBUČNÍ MATICE */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button 
+                        onClick={assignBookToUser} 
+                        disabled={actionLoading || !selectedBookId}
+                        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-body)' }}
+                        className="flex-1 text-xs py-2.5 uppercase font-black rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40"
+                      >
+                        Aktivovat zvolenou knihu
+                      </button>
+                      <Button variant="secondary" onClick={() => setActiveUser(null)} className="text-xs py-2.5 font-bold">Zrušit výběr</Button>
+                    </div>
+                    
+                    <Button 
+                      onClick={assignAllBooksToUser}
+                      disabled={actionLoading}
+                      variant="success"
+                      className="w-full text-xs py-2.5 uppercase tracking-wider font-black shadow-sm"
+                    >
+                      ✨ Full Unlock: Aktivovat mu VŠECHNY knihy z databáze
+                    </Button>
                   </div>
-                ))
-              )}
-            </div>
-          </Card>
+                ) : (
+                  <div className="text-center py-6 text-xs font-bold opacity-50 italic border border-dashed rounded-xl p-4" style={{ borderColor: 'var(--border-color)' }}>
+                    Pro individuální přidělení licencí nebo zápis XP vyberte uživatele ze sousední tabulky.
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* SYSTÉMOVÉ VYTVOŘENÍ ÚČTU */}
+            <Card>
+              <h3 className="text-xs font-black uppercase tracking-wider mb-3 flex items-center gap-2"><Plus size={14}/> Rychlá registrace nového účtu (Auth Bypass)</h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const email = e.target.email.value;
+                const password = e.target.password.value;
+                if (!email) return alert('Zadej e-mail');
+                setActionLoading(true);
+                const { error } = await supabase.auth.signUp({ email, password: password || 'DocasneHeslo123!' });
+                if (error) {
+                  alert('Chyba: ' + error.message);
+                } else {
+                  await safeLog('SUCCESS', `Vytvořen nový autentizační účet: ${email}`);
+                  alert('Uživatel úspěšně vytvořen a zaveden!');
+                  e.target.reset();
+                  refreshData();
+                }
+                setActionLoading(false);
+              }} className="space-y-2">
+                <input name="email" type="email" placeholder="E-mail nového čtenáře..." style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="w-full p-2.5 border rounded-lg text-xs font-bold outline-none placeholder:opacity-40" required />
+                <input name="password" type="password" placeholder="Bezpečné heslo (nebo nechte prázdné pro default)..." style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="w-full p-2.5 border rounded-lg text-xs font-bold outline-none placeholder:opacity-40" />
+                <Button type="submit" variant="success" disabled={actionLoading} className="w-full py-2.5 text-xs uppercase tracking-wider font-black">Registrovat a vytvořit profil</Button>
+              </form>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 4. ZÁLOŽKA: SYSTÉMOVÉ LOGY (FULL CORE SYSLOG) */}
+      {activeTab === 'logs' && (
+        <Card className="bg-slate-950 text-emerald-400 font-mono p-5 border border-slate-900 shadow-2xl rounded-2xl space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs font-black uppercase tracking-widest pb-3 border-b border-solid border-slate-900 gap-2">
+            <span className="flex items-center gap-1.5 text-slate-400"><Terminal size={14} /> Postgres Live Core Syslog</span>
+            <div className="flex gap-2 items-center bg-slate-900 p-1.5 rounded-xl border border-slate-800 self-stretch sm:self-auto">
+              <span className="text-slate-500 pl-1 text-[10px]">Filtr eventu:</span>
+              <select 
+                value={filterLogType} 
+                onChange={e => setFilterLogType(e.target.value)}
+                className="bg-transparent border-none text-emerald-400 font-mono outline-none text-xs cursor-pointer"
+              >
+                <option value="all">VŠECHNY LOGY</option>
+                <option value="SUCCESS">SUCCESS</option>
+                <option value="WARN">WARN</option>
+                <option value="DANGER">DANGER</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="max-h-[500px] overflow-y-auto space-y-1.5 pr-2 font-mono text-xs scrollbar-thin scrollbar-thumb-slate-800">
+            {filteredLogs.length === 0 ? (
+              <p className="text-slate-500 italic text-center py-12">Žádné systémové logy v zadané konfiguraci nebyly zachyceny.</p>
+            ) : (
+              filteredLogs.map((log, index) => {
+                let badgeColor = "text-emerald-400";
+                if (log.log_type === 'WARN') badgeColor = "text-yellow-400";
+                if (log.log_type === 'DANGER' || log.log_type === 'ERROR') badgeColor = "text-red-500 font-extrabold";
+                
+                return (
+                  <div key={log.id || index} className="py-1.5 border-b border-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-1 hover:bg-slate-900/30 px-1 rounded transition-colors">
+                    <span className="break-all">
+                      <span className={`inline-block w-20 uppercase font-black ${badgeColor}`}>[{log.log_type || 'INFO'}]</span>
+                      <span className="text-slate-200">{log.message}</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 shrink-0 font-sans sm:font-mono">
+                      {log.created_at ? new Date(log.created_at).toLocaleTimeString() : 'Nyní'}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="text-[10px] text-slate-500 pt-2 border-t border-slate-900 text-right">
+            Kanál Real-time Event Stream přes WebSockets [Aktivní]
+          </div>
+        </Card>
+      )}
+
     </div>
   );
 };
-
-
 
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
