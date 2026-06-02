@@ -2989,9 +2989,10 @@ const ReaderPage = () => {
   );
 };
 
+
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
-  const [profiles, setProfiles] = useState([]);
+  const [readerProfiles, setReaderProfiles] = useState([]); // Opraveno: změna názvu z profiles
   const [pendingRequests, setPendingRequests] = useState([]); 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -3057,7 +3058,7 @@ const PublisherDashboard = () => {
         return;
       }
 
-      // 🔥 OPRAVA: Přidán explicitní join profiles!user_id(email) kvůli více relacím v databázi
+      // Explicitní join profiles!user_id(email) kvůli více relacím v databázi
       const { data: requests, error: requestsError } = await supabase
         .from('user_books')
         .select(`
@@ -3093,7 +3094,7 @@ const PublisherDashboard = () => {
         fetchPendingRequests(username),
         (async () => {
           const { data, error } = await supabase.from('profiles').select('id, email');
-          if (!error) setProfiles(data || []);
+          if (!error) setReaderProfiles(data || []); // Opraveno na setReaderProfiles
         })()
       ]);
     } catch (err) {
@@ -3127,7 +3128,7 @@ const PublisherDashboard = () => {
 
       if (bookError) throw bookError;
 
-      // 2. 🔥 AUTO-ASSIGN: Automatické přiřazení aktivní licence pro samotného nakladatele
+      // 2. AUTO-ASSIGN: Automatické přiřazení aktivní licence pro samotného nakladatele
       if (insertedBook?.id && user?.id) {
         const { error: assignError } = await supabase
           .from('user_books')
@@ -3261,7 +3262,7 @@ const PublisherDashboard = () => {
           </div>
         ) : pendingRequests.length === 0 ? (
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="text-center py-6 rounded-xl border border-dashed border-neutral-300/30">
-            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Všechny licence jsou vyřízeny. Žádný čtenář nečeká.</p>
+            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Všechny licence sono vyřízeny. Žádný čtenář nečeká.</p>
           </div>
         ) : (
           <div style={{ borderColor: 'var(--border-color)' }} className="divide-y border rounded-xl overflow-hidden shadow-sm">
@@ -3273,8 +3274,7 @@ const PublisherDashboard = () => {
                   </div>
                   <div>
                     <h4 className="font-black text-sm uppercase m-0 tracking-tight">{req.books?.title}</h4>
-                    {/* Vykreslení upravené relace */}
-                    <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email}</span></p>
+                    <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles!user_id?.email || req.profiles?.email}</span></p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -3365,7 +3365,7 @@ const PublisherDashboard = () => {
                 value={selectedUserId}
               >
                 <option value="">-- Vyberte čtenáře podle e-mailu --</option>
-                {profiles.map(p => (
+                {readerProfiles.map(p => ( // Opraveno na readerProfiles
                   <option key={p.id} value={p.id}>{p.email}</option>
                 ))}
               </select>
@@ -3412,6 +3412,7 @@ const PublisherDashboard = () => {
     </div>
   );
 };
+
 
 const AdminDashboard = () => {
   // --- Základní stavy dat ---
