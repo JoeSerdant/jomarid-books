@@ -66,6 +66,8 @@ const ChartBar = getIcon('ChartBar');
 const TrendingUp = getIcon('TrendingUp');
 const Gauge = getIcon('Gauge');
 const Calendar = getIcon('Calendar');
+const ScrollIcon = getIcon('Scroll'); // Tohle už tam máš
+const Scroll = ScrollIcon;            // ✨ PŘIDEJ TENTO ŘÁDEK HNED POD TO
 
 // ====================================================
 // ⚙️ UKAZATELE, SYSTÉM & INTERAKCE
