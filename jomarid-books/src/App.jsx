@@ -56,7 +56,7 @@ const Target = getIcon('Target');
 const Star = getIcon('Star');
 const Gem = getIcon('Gem');
 const Sparkles = getIcon('Sparkles');
-const Scroll = getIcon('Scroll');
+const ScrollIcon = getIcon('Scroll'); // ✨ Změněno na bezpečný ScrollIcon
 const Feather = getIcon('Feather');
 const Footprints = getIcon('Footprints') || getIcon('Map');
 const InfinityIcon = getIcon('Infinity');
@@ -78,17 +78,16 @@ const Clock = getIcon('Clock');
 const Loader2 = getIcon('Loader2');
 const AlertTriangle = getIcon('AlertTriangle');
 const HelpCircle = getIcon('HelpCircle');
-const PhoneIcon = getIcon('Phone');
-const Phone = PhoneIcon;
+const PhoneIcon = getIcon('Phone'); // ✨ Ponechán pouze PhoneIcon (smazán kolidující export "Phone")
 const Mail = getIcon('Mail');
 
 // ====================================================
 // 👀 PRÉMIOVÁ ČTEČKA (AUTO-SCROLL, CONFIG & MÓDY)
 // ====================================================
-const Type = getIcon('Type');
-const Eye = getIcon('Eye');
-const Play = getIcon('Play');
-const Pause = getIcon('Pause');
+const TypeIcon = getIcon('Type'); // ✨ Změněno na bezpečný TypeIcon
+const EyeIcon = getIcon('Eye');   // ✨ Změněno na bezpečný EyeIcon kvůli budoucím konfliktům
+const PlayIcon = getIcon('Play'); // ✨ Změněno na bezpečný PlayIcon
+const PauseIcon = getIcon('Pause'); // ✨ Změněno na bezpečný PauseIcon
 const Sun = getIcon('Sun');
 const Moon = getIcon('Moon');
 const Coffee = getIcon('Coffee');
