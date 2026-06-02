@@ -2590,6 +2590,23 @@ const ReaderPage = () => {
       .eq('book_id', id);
   };
 
+  // Pomocná funkce pro bezpečný skok na uloženou pozici po vykreslení DOMu
+  const scrollToSavedPosition = (pct) => {
+    if (pct <= 0) return;
+    
+    // Zkusíme ihned, ale s malou pojistkou v intervalu, pokud by se DOM ještě překresloval
+    let attempts = 0;
+    const scrollInterval = setInterval(() => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 100 || attempts > 5) {
+        const pixelPosition = (pct * totalHeight) / 100;
+        window.scrollTo({ top: pixelPosition, behavior: 'smooth' });
+        clearInterval(scrollInterval);
+      }
+      attempts++;
+    }, 100);
+  };
+
   // 1. Sledování scrollování a aktualizace progressu
   useEffect(() => {
     const handleScroll = () => {
@@ -2700,16 +2717,11 @@ const ReaderPage = () => {
 
         setLoading(false);
 
-        // Skočení na uloženou pozici
+        // Volání bezpečné funkce pro znovunastavení pozice scrollu
         if (access.scroll_position && access.scroll_position > 0) {
           progressRef.current = access.scroll_position;
           setReadingProgress(access.scroll_position);
-          
-          setTimeout(() => {
-            const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const pixelPosition = (access.scroll_position * totalHeight) / 100;
-            window.scrollTo({ top: pixelPosition, behavior: 'smooth' });
-          }, 300);
+          scrollToSavedPosition(access.scroll_position);
         }
       } catch (e) {
         setErr('Chyba při otevírání knihy.');
@@ -2782,17 +2794,18 @@ const ReaderPage = () => {
       className="min-h-screen pb-24 relative select-none font-sans"
     >
       {/* 1. TOP PROGRESS BAR */}
-      <div className="fixed top-0 left-0 w-full h-1.5 z-50 bg-black/5 backdrop-blur-xs">
+      <div className="fixed top-0 left-0 w-full h-1.5 z-[110] bg-black/5 backdrop-blur-xs">
         <div className="h-full transition-all duration-150 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}/>
       </div>
 
-      {/* 2. PEVNÁ HORNÍ LIŠTA NASTAVENÍ (Zůstává nahoře, nebuguje se) */}
+      {/* 2. PEVNÁ HORNÍ LIŠTA NASTAVENÍ (Absolutní fixace bez vytlačování) */}
       <div 
         style={{ 
           backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-color)'
+          borderColor: 'var(--border-color)',
+          boxSizing: 'border-box'
         }} 
-        className="fixed top-4 left-4 right-4 z-40 border rounded-2xl p-3 shadow-xl flex items-center justify-between max-w-4xl mx-auto"
+        className="fixed top-4 left-4 right-4 z-[100] border rounded-2xl p-3 shadow-xl flex items-center justify-between max-w-4xl mx-auto"
       >
         <div className="flex items-center gap-3">
           <a href="/app" onClick={handleBack} className="w-9 h-9 rounded-xl flex items-center justify-center border no-underline transition-all active:scale-95 hover:bg-black/5" style={{ color: 'var(--text-body)', borderColor: 'var(--border-color)' }}>
@@ -2837,8 +2850,8 @@ const ReaderPage = () => {
         </div>
       </div>
 
-      {/* 3. TĚLO KNIHY */}
-      <div className="max-w-3xl mx-auto pt-28 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      {/* 3. TĚLO KNIHY (Zvětšený vrchní padding pt-36 zamezí překrývání lištou) */}
+      <div className="max-w-3xl mx-auto pt-36 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
         
         {/* TITULNÍ BLOK KNIHY */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden mb-8">
