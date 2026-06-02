@@ -2552,6 +2552,7 @@ const ReaderPage = () => {
 
   const progressRef = useRef(0);
   const autoScrollInterval = useRef(null);
+  const isInitialScrollSet = useRef(false); // Pojistka proti házení na konec
 
   // Bezpečná lokální mapa velikostí písma
   const fontSizeMap = {
@@ -2560,10 +2561,22 @@ const ReaderPage = () => {
     'xl': 'text-xl md:text-2xl leading-loose font-semibold'
   };
 
+  // Univerzální výpočet výšky a pozice pro všechny typy prohlížečů
+  const getScrollMetrics = () => {
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    const scrollHeight = Math.max(
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight
+    );
+    const clientHeight = document.documentElement.clientHeight || window.innerHeight;
+    const totalHeight = scrollHeight - clientHeight;
+    return { scrollY, totalHeight };
+  };
+
   const calculateCurrentProgress = () => {
-    const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const { scrollY, totalHeight } = getScrollMetrics();
     if (totalHeight <= 0) return 0;
-    return (window.scrollY / totalHeight) * 100;
+    return (scrollY / totalHeight) * 100;
   };
 
   // Výpočet zbývajícího času do konce na základě průměrné rychlosti (200 slov / min)
@@ -2578,6 +2591,9 @@ const ReaderPage = () => {
     const currentUserId = userId || (await supabase.auth.getSession()).data.session?.user?.id;
     if (!currentUserId || !id) return;
 
+    // Ukládáme progress pouze tehdy, pokud byl korektně načten a uživatel už začal číst
+    if (!isInitialScrollSet.current) return;
+
     const progressToSave = Math.min(100, Math.max(0, Math.round(progressRef.current * 10) / 10));
 
     await supabase
@@ -2590,26 +2606,12 @@ const ReaderPage = () => {
       .eq('book_id', id);
   };
 
-  // Pomocná funkce pro bezpečný skok na uloženou pozici po vykreslení DOMu
-  const scrollToSavedPosition = (pct) => {
-    if (pct <= 0) return;
-    
-    // Zkusíme ihned, ale s malou pojistkou v intervalu, pokud by se DOM ještě překresloval
-    let attempts = 0;
-    const scrollInterval = setInterval(() => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalHeight > 100 || attempts > 5) {
-        const pixelPosition = (pct * totalHeight) / 100;
-        window.scrollTo({ top: pixelPosition, behavior: 'smooth' });
-        clearInterval(scrollInterval);
-      }
-      attempts++;
-    }, 100);
-  };
-
   // 1. Sledování scrollování a aktualizace progressu
   useEffect(() => {
     const handleScroll = () => {
+      // Ignorujeme aktualizace progressu, dokud neskočíme na původní pozici
+      if (!isInitialScrollSet.current && progressRef.current > 0) return;
+
       const progress = calculateCurrentProgress();
       setReadingProgress(progress);
       progressRef.current = progress;
@@ -2623,12 +2625,13 @@ const ReaderPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, book, calculateTimeRemaining]);
 
-  // 2. Logika pro Auto-Scroll (Hands-free čtení)
+  // 2. Opravená a neprůstřelná logika pro Auto-Scroll (Změna na instant posun)
   useEffect(() => {
     if (autoScrollSpeed > 0) {
+      // Vyšší frekvence (každých 30ms) a posun bez animace zaručí hladký pohyb na mobilu i PC
       autoScrollInterval.current = setInterval(() => {
-        window.scrollBy({ top: autoScrollSpeed, behavior: 'linear' });
-      }, 40);
+        window.scrollBy(0, autoScrollSpeed === 1 ? 1 : 2);
+      }, 30);
     } else {
       if (autoScrollInterval.current) clearInterval(autoScrollInterval.current);
     }
@@ -2656,15 +2659,15 @@ const ReaderPage = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [id, userId]);
 
-  // Korekce skoku na pozici při změně velikosti textu
+  // Korekce skoku na pozici při změně velikosti textu (pouze pokud už byla nastavena výchozí)
   useEffect(() => {
-    if (loading) return;
+    if (loading || !isInitialScrollSet.current) return;
     
     const currentPct = progressRef.current;
     const timer = setTimeout(() => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const { totalHeight } = getScrollMetrics();
       const targetScroll = (currentPct * totalHeight) / 100;
-      window.scrollTo({ top: targetScroll, behavior: 'instant' });
+      window.scrollTo(0, targetScroll);
     }, 60);
 
     return () => clearTimeout(timer);
@@ -2715,14 +2718,37 @@ const ReaderPage = () => {
           if (like) setIsLiked(true);
         }
 
+        // Vypnutí loading stavu
         setLoading(false);
 
-        // Volání bezpečné funkce pro znovunastavení pozice scrollu
+        // BEZPEČNÝ SKOK NA POZICI: Počkáme na vykreslení layoutu v DOMu
         if (access.scroll_position && access.scroll_position > 0) {
           progressRef.current = access.scroll_position;
           setReadingProgress(access.scroll_position);
-          scrollToSavedPosition(access.scroll_position);
+          
+          let attempts = 0;
+          const checkAndScroll = setInterval(() => {
+            const { totalHeight } = getScrollMetrics();
+            attempts++;
+            
+            // Jakmile má dokument reálnou výšku, skočíme tam a uvolníme zámek
+            if (totalHeight > 200 || attempts > 10) {
+              const pixelPosition = (access.scroll_position * totalHeight) / 100;
+              window.scrollTo(0, pixelPosition);
+              
+              // Malá pojistka pro pomalejší telefony
+              setTimeout(() => {
+                isInitialScrollSet.current = true;
+              }, 100);
+              
+              clearInterval(checkAndScroll);
+            }
+          }, 50);
+        } else {
+          // Pokud začíná od nuly, odemkneme ihned
+          isInitialScrollSet.current = true;
         }
+
       } catch (e) {
         setErr('Chyba při otevírání knihy.');
         setLoading(false);
@@ -2798,7 +2824,7 @@ const ReaderPage = () => {
         <div className="h-full transition-all duration-150 ease-out" style={{ width: `${readingProgress}%`, backgroundColor: 'var(--bg-primary)' }}/>
       </div>
 
-      {/* 2. PEVNÁ HORNÍ LIŠTA NASTAVENÍ (Absolutní fixace bez vytlačování) */}
+      {/* 2. PEVNÁ HORNÍ LIŠTA NASTAVENÍ */}
       <div 
         style={{ 
           backgroundColor: 'var(--bg-card)',
@@ -2850,7 +2876,7 @@ const ReaderPage = () => {
         </div>
       </div>
 
-      {/* 3. TĚLO KNIHY (Zvětšený vrchní padding pt-36 zamezí překrývání lištou) */}
+      {/* 3. TĚLO KNIHY */}
       <div className="max-w-3xl mx-auto pt-36 px-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
         
         {/* TITULNÍ BLOK KNIHY */}
