@@ -2663,9 +2663,10 @@ const PublisherDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const getUsername = (email) => {
+  // Pomocná funkce pro získání username z e-mailu
+  const getUsername = useCallback((email) => {
     return email ? email.split('@')[0] : '';
-  };
+  }, []);
 
   // Výpočet celkového počtu lajků nakladatele pro statistickou kartu
   const getTotalLikes = () => {
@@ -2673,35 +2674,43 @@ const PublisherDashboard = () => {
   };
 
   const fetchPublisherBooks = async (username) => {
-    const { data, error } = await supabase
-      .from('books')
-      .select(`
-        id, 
-        title, 
-        author, 
-        fake_likes,
-        book_likes(count)
-      `)
-      .eq('author', username);
+    try {
+      const { data, error } = await supabase
+        .from('books')
+        .select(`
+          id, 
+          title, 
+          author, 
+          fake_likes,
+          book_likes(count)
+        `)
+        .eq('author', username);
 
-    if (!error && data) {
-      const booksWithLikes = data.map(book => ({
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        likesCount: (book.book_likes?.[0]?.count || 0) + (book.fake_likes || 0) 
-      }));
-      setMyBooks(booksWithLikes);
+      if (error) throw error;
+
+      if (data) {
+        const booksWithLikes = data.map(book => ({
+          id: book.id,
+          title: book.title,
+          author: book.author,
+          likesCount: (book.book_likes?.[0]?.count || 0) + (book.fake_likes || 0) 
+        }));
+        setMyBooks(booksWithLikes);
+      }
+    } catch (err) {
+      console.error("Chyba při načítání knih nakladatele:", err.message);
     }
   };
 
   const fetchPendingRequests = async (username) => {
     setLoadingRequests(true);
     try {
-      const { data: publisherBooks } = await supabase
+      const { data: publisherBooks, error: booksError } = await supabase
         .from('books')
         .select('id')
         .eq('author', username);
+
+      if (booksError) throw booksError;
 
       const bookIds = publisherBooks?.map(b => b.id) || [];
 
@@ -2710,7 +2719,7 @@ const PublisherDashboard = () => {
         return;
       }
 
-      const { data: requests, error } = await supabase
+      const { data: requests, error: requestsError } = await supabase
         .from('user_books')
         .select(`
           id,
@@ -2724,30 +2733,38 @@ const PublisherDashboard = () => {
         .eq('status', 'requested')
         .in('book_id', bookIds);
 
-      if (!error && requests) {
-        setPendingRequests(requests);
-      }
+      if (requestsError) throw requestsError;
+      if (requests) setPendingRequests(requests);
+
     } catch (err) {
-      console.error("Chyba při načítání žádostí:", err);
+      console.error("Chyba při načítání žádostí:", err.message);
     } finally {
       setLoadingRequests(false);
     }
   };
 
-  const loadAllData = () => {
+  const loadAllData = useCallback(async () => {
     if (!user) return;
     const username = getUsername(user.email);
-    fetchPublisherBooks(username);
-    fetchPendingRequests(username);
 
-    supabase.from('profiles').select('id, email').then(({ data }) => {
-      setProfiles(data || []);
-    });
-  };
+    try {
+      // Paralelní načítání všech dat pro lepší performance
+      await Promise.all([
+        fetchPublisherBooks(username),
+        fetchPendingRequests(username),
+        (async () => {
+          const { data, error } = await supabase.from('profiles').select('id, email');
+          if (!error) setProfiles(data || []);
+        })()
+      ]);
+    } catch (err) {
+      console.error("Chyba při inicializaci dat dashboardu:", err.message);
+    }
+  }, [user, getUsername]);
 
   useEffect(() => {
     loadAllData();
-  }, [user]);
+  }, [loadAllData]);
 
   const createBook = async (e) => {
     e.preventDefault();
@@ -2756,21 +2773,47 @@ const PublisherDashboard = () => {
     setIsSubmitting(true);
     const username = getUsername(user.email);
 
-    const { error } = await supabase.from('books').insert([{ 
-      title, 
-      content, 
-      author: username,
-      fake_likes: 0
-    }]);
+    try {
+      // 1. Vložení nové knihy (vrací vložený řádek pro získání nového ID)
+      const { data: insertedBook, error: bookError } = await supabase
+        .from('books')
+        .insert([{ 
+          title, 
+          content, 
+          author: username,
+          fake_likes: 0
+        }])
+        .select('id')
+        .single();
 
-    setIsSubmitting(false);
+      if (bookError) throw bookError;
 
-    if (!error) {
+      // 2. 🔥 AUTO-ASSIGN: Automatické přiřazení aktivní licence pro samotného nakladatele
+      if (insertedBook?.id && user?.id) {
+        const { error: assignError } = await supabase
+          .from('user_books')
+          .insert([{ 
+            user_id: user.id, 
+            book_id: insertedBook.id,
+            status: 'active',
+            is_read: false
+          }]);
+        
+        if (assignError) {
+          console.warn("Kniha byla vytvořena, ale auto-assign selhal:", assignError.message);
+        }
+      }
+
+      // Reset formuláře a refresh seznamu
       setTitle(''); 
       setContent('');
-      fetchPublisherBooks(username);
-    } else {
+      await fetchPublisherBooks(username);
+      alert('Kniha byla úspěšně publikována a hned přiřazena do Vaší knihovny!');
+
+    } catch (error) {
       alert('Chyba při publikování: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -2784,8 +2827,9 @@ const PublisherDashboard = () => {
       is_read: false
     }]);
     
-    if (error) alert('Chyba nebo uživatel již tuto knihu má: ' + error.message);
-    else {
+    if (error) {
+      alert('Chyba nebo uživatel již tuto knihu má: ' + error.message);
+    } else {
       alert('Kniha byla úspěšně přiřazena uživateli!');
       setSelectedBookId('');
       setSelectedUserId('');
@@ -2833,9 +2877,9 @@ const PublisherDashboard = () => {
         </span>
       </div>
 
-      {/* 🔥 NOVÉ: MINI STATISTICKÝ PŘEHLED (DASHBOARD) */}
+      {/* MINI STATISTICKÝ PŘEHLED (DASHBOARD) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm border rounded-2xl">
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-current">
             <BookOpen size={20} className="opacity-80" />
           </div>
@@ -2843,9 +2887,9 @@ const PublisherDashboard = () => {
             <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Vydané svazky</p>
             <h3 className="text-xl font-black m-0">{myBooks.length}</h3>
           </div>
-        </Card>
+        </div>
 
-        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm border rounded-2xl">
           <div style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--bg-primary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center">
             <Heart size={20} className="fill-current" />
           </div>
@@ -2853,9 +2897,9 @@ const PublisherDashboard = () => {
             <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Ohlasy celkem</p>
             <h3 className="text-xl font-black m-0">{getTotalLikes()} lajků</h3>
           </div>
-        </Card>
+        </div>
 
-        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className={`p-4 flex items-center gap-4 shadow-sm transition-all ${pendingRequests.length > 0 ? 'border-amber-500/30' : ''}`}>
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className={`p-4 flex items-center gap-4 shadow-sm border rounded-2xl transition-all ${pendingRequests.length > 0 ? 'border-amber-500/30' : ''}`}>
           <div style={{ backgroundColor: pendingRequests.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-secondary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center">
             <Clock size={20} className={pendingRequests.length > 0 ? "text-amber-500 animate-pulse" : "opacity-80"} />
           </div>
@@ -2863,11 +2907,11 @@ const PublisherDashboard = () => {
             <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-black uppercase tracking-wider m-0 opacity-60">Čekající žádosti</p>
             <h3 className={`text-xl font-black m-0 ${pendingRequests.length > 0 ? 'text-amber-500' : ''}`}>{pendingRequests.length}</h3>
           </div>
-        </Card>
+        </div>
       </div>
       
       {/* SEKCE 1: ČEKAJÍCÍ ŽÁDOSTI O LICENCE */}
-      <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl border">
         <h3 style={{ color: 'var(--bg-primary)' }} className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
           <Clock size={18} className={pendingRequests.length > 0 ? "animate-spin duration-1000" : ""} /> Žádosti o schválení licencí k Vašim knihám
         </h3>
@@ -2913,13 +2957,13 @@ const PublisherDashboard = () => {
             ))}
           </div>
         )}
-      </Card>
+      </div>
 
       {/* DVOUSLOUPCOVÝ EDITAČNÍ BLOK */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
         {/* FORMULÁŘ PRO NOVOU KNIHU */}
-        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl border">
           <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
             <PlusCircle size={18} style={{ color: 'var(--bg-primary)' }} /> Vložit novou knihu do katalogu
           </h3>
@@ -2934,7 +2978,7 @@ const PublisherDashboard = () => {
               required 
             />
             <textarea 
-              placeholder="Sem vložte kompletní text knihy nebo kapitoly..." 
+              placeholder="Sem vložte kompletní text knihy..." 
               value={content} 
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
               className="w-full p-3.5 border rounded-xl font-bold outline-none resize-none text-sm placeholder:opacity-40 transition-all focus:border-[var(--bg-primary)]" 
@@ -2951,10 +2995,10 @@ const PublisherDashboard = () => {
               {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <><BookOpen size={14}/> Publikovat svazek</>}
             </button>
           </form>
-        </Card>
+        </div>
         
         {/* RUČNÍ PŘIŘAZENÍ LICENCE */}
-        <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl flex flex-col justify-between">
+        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl border flex flex-col justify-between">
           <div>
             <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-1.5">
               <UserPlus size={18} style={{ color: 'var(--bg-primary)' }} /> Přímé přiřazení licence čtenáři
@@ -2995,11 +3039,11 @@ const PublisherDashboard = () => {
           >
             <UserPlus size={14} /> Aktivovat licenci natvrdo
           </button>
-        </Card>
+        </div>
       </div>
 
       {/* STATISTIKY VYDANÝCH KNIH */}
-      <Card style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl">
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-6 shadow-md rounded-2xl border">
         <h3 className="font-black mb-4 text-base uppercase tracking-tight flex items-center gap-2">
           <BarChart3 size={18} style={{ color: 'var(--bg-primary)' }} /> Katalog Vašich děl a čtenářské ohlasy
         </h3>
@@ -3024,7 +3068,7 @@ const PublisherDashboard = () => {
             ))}
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 };
