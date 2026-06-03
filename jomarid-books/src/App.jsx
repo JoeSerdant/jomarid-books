@@ -2324,21 +2324,20 @@ const UserLibrary = () => {
 
       const currentUsername = getUsername(user.email);
 
-      // Sloučení a procesování dat s integrovaným auto-assignem
-      const processedBooks = (booksRes.data || []).map(b => {
-        const userBookEntry = userBooksRes.data?.find(ub => ub.book_id === b.id);
-        const totalLikesCount = (allLikesRes.data?.filter(l => l.book_id === b.id).length || 0) + (b.fake_likes || 0);
+      // 🔥 OPRAVENO: Přejmenováno z "b" na "singleBook", aby nedocházelo k chybě Illegal constructor
+      const processedBooks = (booksRes.data || []).map(singleBook => {
+        const userBookEntry = userBooksRes.data?.find(ub => ub.book_id === singleBook.id);
+        const totalLikesCount = (allLikesRes.data?.filter(l => l.book_id === singleBook.id).length || 0) + (singleBook.fake_likes || 0);
 
         // 🌟 AUTOMATICKÝ PŘÍSTUP (Auto-assign logika na FE)
-        // Pokud knihu vydal sám přihlášený uživatel (autor === username), má k ní přístup automaticky
-        const isOwner = b.author === currentUsername;
+        const isOwner = singleBook.author === currentUsername;
         const hasAccess = isOwner || userBookEntry?.status === 'active';
         const isPending = !isOwner && userBookEntry?.status === 'requested';
 
         return {
-          id: b.id,
-          title: b.title,
-          author: b.author,
+          id: singleBook.id,
+          title: singleBook.title,
+          author: singleBook.author,
           likesCount: totalLikesCount,
           hasAccess,
           isPending,
@@ -2386,7 +2385,7 @@ const UserLibrary = () => {
 
       if (error) throw error;
 
-      setBooks(prev => prev.map(b => b.id === bookId ? { ...b, isPending: true } : b));
+      setBooks(prev => prev.map(singleBook => singleBook.id === bookId ? { ...singleBook, isPending: true } : singleBook));
     } catch (err) {
       alert("Nepodařilo se odeslat žádost: " + err.message);
     } finally { 
@@ -2396,9 +2395,9 @@ const UserLibrary = () => {
 
   // Filtrování knih na základě vybrané záložky
   const filteredBooks = useMemo(() => {
-    return books.filter(b => {
-      if (activeFilter === 'owned') return b.hasAccess;
-      if (activeFilter === 'pending') return b.isPending;
+    return books.filter(singleBook => {
+      if (activeFilter === 'owned') return singleBook.hasAccess;
+      if (activeFilter === 'pending') return singleBook.isPending;
       return true; // 'all'
     });
   }, [books, activeFilter]);
@@ -2474,29 +2473,27 @@ const UserLibrary = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {filteredBooks.map(b => {
-            const isUserLiked = likedBookIds.includes(b.id);
+          {filteredBooks.map(singleBook => {
+            const isUserLiked = likedBookIds.includes(singleBook.id);
             
             return (
               <div 
-                key={b.id} 
+                key={singleBook.id} 
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} 
                 className="border p-4 rounded-2xl flex flex-col justify-between group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[var(--bg-primary)]/30 relative"
               >
                 <div>
                   {/* OBÁLKA KNIHY */}
                   <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-xl mb-4 flex flex-col items-center justify-center relative overflow-hidden group-hover:brightness-105 transition-all shadow-inner">
-                    {/* Efektní pozadí pro zamčené vs odemčené */}
-                    <div className={`absolute inset-0 opacity-5 bg-gradient-to-t ${b.hasAccess ? 'from-emerald-500 to-transparent' : 'from-neutral-500 to-transparent'}`} />
+                    <div className={`absolute inset-0 opacity-5 bg-gradient-to-t ${singleBook.hasAccess ? 'from-emerald-500 to-transparent' : 'from-neutral-500 to-transparent'}`} />
                     
-                    {b.hasAccess ? (
+                    {singleBook.hasAccess ? (
                       <BookOpen size={36} className="opacity-40 text-[var(--bg-primary)] transition-transform duration-300 group-hover:scale-110" />
                     ) : (
                       <Lock size={36} className="opacity-20 transition-transform duration-300 group-hover:rotate-12" />
                     )}
                     
-                    {/* Badge typu auto-assign / autorství */}
-                    {b.isOwner && (
+                    {singleBook.isOwner && (
                       <span className="absolute bottom-2 left-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm">
                         <Shield size={10} /> Vlastní dílo
                       </span>
@@ -2505,27 +2502,26 @@ const UserLibrary = () => {
                     {/* Likes Badge */}
                     <div className="absolute top-2 right-2 border px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] font-black bg-[var(--bg-card)] shadow-sm transition-transform group-hover:scale-105" style={{ borderColor: 'var(--border-color)' }}>
                       <Heart size={11} className={`${isUserLiked ? "fill-red-500 text-red-500" : "opacity-30"}`} />
-                      <span>{b.likesCount}</span>
+                      <span>{singleBook.likesCount}</span>
                     </div>
                   </div>
 
                   {/* INFO O KNIZE */}
-                  <h4 className="font-black uppercase text-sm tracking-tight line-clamp-2 m-0 group-hover:text-[var(--bg-primary)] transition-colors">{b.title}</h4>
-                  <p className="text-xs uppercase font-bold mt-1 opacity-60 m-0" style={{ color: 'var(--text-muted)' }}>{b.author}</p>
+                  <h4 className="font-black uppercase text-sm tracking-tight line-clamp-2 m-0 group-hover:text-[var(--bg-primary)] transition-colors">{singleBook.title}</h4>
+                  <p className="text-xs uppercase font-bold mt-1 opacity-60 m-0" style={{ color: 'var(--text-muted)' }}>{singleBook.author}</p>
                   
-                  {/* PROGRESS BAR */}
-                  {b.hasAccess && (
+                  {singleBook.hasAccess && (
                     <div className="mt-4 space-y-1 bg-[var(--bg-secondary)] p-2 rounded-xl border border-dashed" style={{ borderColor: 'var(--border-color)' }}>
                       <div className="flex justify-between text-[9px] font-black uppercase tracking-wider opacity-60">
-                        <span>{b.isRead ? 'Dokončeno' : 'Rozečteno'}</span>
-                        <span>{Math.round(b.scrollPosition)}%</span>
+                        <span>{singleBook.isRead ? 'Dokončeno' : 'Rozečteno'}</span>
+                        <span>{Math.round(singleBook.scrollPosition)}%</span>
                       </div>
                       <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
                         <div 
                           className="h-full transition-all duration-700 rounded-full" 
                           style={{ 
-                            width: `${b.isRead ? 100 : b.scrollPosition}%`, 
-                            backgroundColor: b.isRead ? 'var(--text-body)' : 'var(--bg-primary)' 
+                            width: `${singleBook.isRead ? 100 : singleBook.scrollPosition}%`, 
+                            backgroundColor: singleBook.isRead ? 'var(--text-body)' : 'var(--bg-primary)' 
                           }} 
                         />
                       </div>
@@ -2535,16 +2531,16 @@ const UserLibrary = () => {
 
                 {/* AKČNÍ TLAČÍTKA */}
                 <div className="mt-4">
-                  {b.hasAccess ? (
-                    <Link to={`/read/${b.id}`} className="no-underline block">
+                  {singleBook.hasAccess ? (
+                    <Link to={`/read/${singleBook.id}`} className="no-underline block">
                       <button 
                         style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} 
                         className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider border-none cursor-pointer flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 hover:opacity-90"
                       >
-                        <BookOpen size={13} /> {b.isRead ? 'Číst znovu' : 'Pokračovat v čtení'}
+                        <BookOpen size={13} /> {singleBook.isRead ? 'Číst znovu' : 'Pokračovat v čtení'}
                       </button>
                     </Link>
-                  ) : b.isPending ? (
+                  ) : singleBook.isPending ? (
                     <div 
                       style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
                       className="py-3 text-center rounded-xl border text-[10px] font-black uppercase tracking-wider opacity-60 cursor-default animate-pulse"
@@ -2553,12 +2549,12 @@ const UserLibrary = () => {
                     </div>
                   ) : (
                     <button 
-                      onClick={() => handleRequestLicense(b.id)} 
-                      disabled={submittingId === b.id}
+                      onClick={() => handleRequestLicense(singleBook.id)} 
+                      disabled={submittingId === singleBook.id}
                       style={{ backgroundColor: 'var(--bg-primary)', color: 'white' }} 
                       className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none shadow-md transition-all active:scale-98 disabled:opacity-50 flex items-center justify-center gap-1.5 hover:brightness-110"
                     >
-                      {submittingId === b.id ? (
+                      {submittingId === singleBook.id ? (
                         <Loader2 size={12} className="animate-spin" />
                       ) : (
                         <>Zažádat o licenci</>
