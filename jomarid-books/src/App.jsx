@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext, useRef, useMemo, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
-
+ 
 // 🔥 BEZPEČNÝ A EXPLICITNÍ IMPORT IKON (Zamezí kolizím v minifikátoru)
 import {
   Book,
