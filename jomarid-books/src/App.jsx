@@ -2868,7 +2868,7 @@ const PublisherDashboard = () => {
   const [readerProfiles, setReaderProfiles] = useState([]); 
   const [pendingRequests, setPendingRequests] = useState([]); 
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [bookContent, setBookContent] = useState(''); // 🔥 OPRAVENO: Přejmenováno z 'content' kvůli kolizi
   const [selectedBookId, setSelectedBookId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [loadingRequests, setLoadingRequests] = useState(false);
@@ -2931,7 +2931,6 @@ const PublisherDashboard = () => {
         return;
       }
 
-      // Explicitní join profiles!user_id(email)
       const { data: requests, error: requestsError } = await supabase
         .from('user_books')
         .select(`
@@ -2980,7 +2979,7 @@ const PublisherDashboard = () => {
 
   const createBook = async (e) => {
     e.preventDefault();
-    if (!title || !content) return alert('Doplňte název a text knihy.');
+    if (!title || !bookContent) return alert('Doplňte název a text knihy.'); // 🔥 OPRAVENO
 
     setIsSubmitting(true);
     const username = getUsername(user.email);
@@ -2990,7 +2989,7 @@ const PublisherDashboard = () => {
         .from('books')
         .insert([{ 
           title, 
-          content, 
+          content: bookContent, // 🔥 OPRAVENO: Do DB sloupce 'content' vkládáme stav 'bookContent'
           author: username,
           fake_likes: 0
         }])
@@ -3015,7 +3014,7 @@ const PublisherDashboard = () => {
       }
 
       setTitle(''); 
-      setContent('');
+      setBookContent(''); // 🔥 OPRAVENO
       await fetchPublisherBooks(username);
       alert('Kniha byla úspěšně publikována a hned přiřazena do Vaší knihovny!');
 
@@ -3042,7 +3041,6 @@ const PublisherDashboard = () => {
       alert('Kniha byla úspěšně přiřazena uživateli!');
       setSelectedBookId('');
       setSelectedUserId('');
-      // Refresh dat pro synchronizaci změn v UI
       if (user) loadAllData();
     }
   };
@@ -3056,7 +3054,7 @@ const PublisherDashboard = () => {
     if (!error) {
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
     } else {
-      alert('Ž難ost se nepodařilo schválit: ' + error.message);
+      alert('Žádost se nepodařilo schválit: ' + error.message);
     }
   };
 
@@ -3145,7 +3143,6 @@ const PublisherDashboard = () => {
                   </div>
                   <div>
                     <h4 className="font-black text-sm uppercase m-0 tracking-tight">{req.books?.title}</h4>
-                    {/* Zde byla opravena neplatná syntaxe !user_id */}
                     <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email || 'Neznámý uživatel'}</span></p>
                   </div>
                 </div>
@@ -3189,13 +3186,14 @@ const PublisherDashboard = () => {
               onChange={e => setTitle(e.target.value)} 
               required 
             />
+            {/* 🔥 OPRAVENO: Níže upraven state bind na bookContent */}
             <textarea 
               placeholder="Sem vložte kompletní text knihy..." 
-              value={content} 
+              value={bookContent} 
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
               className="w-full p-3.5 border rounded-xl font-bold outline-none resize-none text-sm placeholder:opacity-40 transition-all focus:border-[var(--bg-primary)]" 
               rows={7} 
-              onChange={e => setContent(e.target.value)} 
+              onChange={e => setBookContent(e.target.value)} 
               required 
             />
             <button 
@@ -3284,7 +3282,6 @@ const PublisherDashboard = () => {
     </div>
   );
 };
-
 
 const AdminDashboard = () => {
   // --- Základní stavy dat ---
