@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // 🔥 TENTO BLOK ZACHRÁNÍ PRODUKČNÍ BUILD PŘED "Illegal constructor"
+  esbuild: {
+    keepNames: true,
+  },
   build: {
     outDir: 'dist', // Vercel hledá výsledky buildu v této složce
   },
