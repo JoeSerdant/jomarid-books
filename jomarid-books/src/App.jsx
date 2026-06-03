@@ -25,7 +25,7 @@ const XCircle = getIcon('XCircle');
 const Plus = getIcon('Plus');
 const PlusCircle = getIcon('PlusCircle');
 const Check = getIcon('Check');
-const CheckCircle = getCircle => getIcon('CheckCircle');
+const CheckCircle = getIcon('CheckCircle'); // 🔥 OPRAVENO: Odstraněna nesmyslná arrow funkce
 const RefreshCw = getIcon('RefreshCw');
 const Trash = getIcon('Trash');
 const Trash2 = getIcon('Trash2');
@@ -93,14 +93,14 @@ const Moon = getIcon('Moon');
 const Coffee = getIcon('Coffee');
 
 // ====================================================
-// 🔄 BEZPEČNÉ ALIASY PRO ZPĚTNOU KOMPATIBILITU
+// 🔄 BEZPEČNÉ OCHRANÉ ALIASY (Přejmenováno kvůli kolizím s window konstruktory)
 // ====================================================
-const Scroll = ScrollIcon;
-const Phone = PhoneIcon;
-const Type = TypeIcon;
-const Eye = EyeIcon;
-const Play = PlayIcon;
-const Pause = PauseIcon;
+const SafeScroll = ScrollIcon;
+const SafePhone = PhoneIcon;
+const SafeType = TypeIcon;
+const SafeEye = EyeIcon;
+const SafePlay = PlayIcon;
+const SafePause = PauseIcon;
 
 const THEMES = {
   saas: {
@@ -131,20 +131,20 @@ const THEMES = {
     '--bg-badge': '#2e1065',
     '--text-badge': '#a78bfa',
   },
-emerald: {
-  '--bg-body': '#2d1a10',        // Hluboká barva tmavého dřeva (mahagon/ořech)
-  '--text-body': '#f4ebd9',      // Krémový text, aby na tmavém dřevě skvěle svítil
-  '--bg-card': '#3d2518',        // Karty (trochu světlejší tmavé dřevo)
-  '--border-color': '#543523',    // Okraje karet
-  '--bg-navbar': 'rgba(45, 26, 16, 0.85)',
-  '--text-muted': '#bda691',     
-  '--bg-primary': '#246b54',     // Trochu jasnější lesní zelená pro kontrast na tmavém
-  '--text-primary': '#ffffff',
-  '--bg-secondary': '#4d3223',
-  '--text-secondary': '#246b54',
-  '--bg-badge': '#1f4237',
-  '--text-badge': '#a3cfc0',
-}
+  emerald: {
+    '--bg-body': '#2d1a10',        
+    '--text-body': '#f4ebd9',      
+    '--bg-card': '#3d2518',        
+    '--border-color': '#543523',    
+    '--bg-navbar': 'rgba(45, 26, 16, 0.85)',
+    '--text-muted': '#bda691',     
+    '--bg-primary': '#246b54',     
+    '--text-primary': '#ffffff',
+    '--bg-secondary': '#4d3223',
+    '--text-secondary': '#246b54',
+    '--bg-badge': '#1f4237',
+    '--text-badge': '#a3cfc0',
+  }
 };
 
 const ThemeContext = createContext(null);
@@ -152,6 +152,7 @@ const AuthContext = createContext(null);
 
 export const useTheme = () => useContext(ThemeContext);
 export const useAuth = () => useContext(AuthContext);
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -165,26 +166,32 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    let { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', sessionUser.id)
-      .single();
-console.log("=== SUPABASE DEBUG ===", { data, error, email: sessionUser.email });
-
-    if (error && error.code === 'PGRST116') {
-      const { data: newProfile, error: insertError } = await supabase
+    try {
+      let { data, error } = await supabase
         .from('profiles')
-        .insert([{ id: sessionUser.id, email: sessionUser.email, role: 'uživatel' }])
-        .select()
+        .select('role')
+        .eq('id', sessionUser.id)
         .single();
-      
-      if (!insertError) data = newProfile;
-    }
 
-    setUser(sessionUser);
-    setRole(data?.role || 'uživatel');
-    setLoading(false);
+      console.log("=== SUPABASE DEBUG ===", { data, error, email: sessionUser.email });
+
+      if (error && error.code === 'PGRST116') {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ id: sessionUser.id, email: sessionUser.email, role: 'uživatel' }])
+          .select()
+          .single();
+        
+        if (!insertError) data = newProfile;
+      }
+
+      setUser(sessionUser);
+      setRole(data?.role || 'uživatel');
+    } catch (catchedError) {
+      console.error("Auth sync crash:", catchedError);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
