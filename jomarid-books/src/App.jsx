@@ -2992,7 +2992,7 @@ const ReaderPage = () => {
 
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
-  const [readerProfiles, setReaderProfiles] = useState([]); // Opraveno: změna názvu z profiles
+  const [readerProfiles, setReaderProfiles] = useState([]); 
   const [pendingRequests, setPendingRequests] = useState([]); 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -3012,7 +3012,7 @@ const PublisherDashboard = () => {
     return myBooks.reduce((sum, b) => sum + (b.likesCount || 0), 0);
   };
 
-  const fetchPublisherBooks = async (username) => {
+  const fetchPublisherBooks = useCallback(async (username) => {
     try {
       const { data, error } = await supabase
         .from('books')
@@ -3039,9 +3039,9 @@ const PublisherDashboard = () => {
     } catch (err) {
       console.error("Chyba při načítání knih nakladatele:", err.message);
     }
-  };
+  }, []);
 
-  const fetchPendingRequests = async (username) => {
+  const fetchPendingRequests = useCallback(async (username) => {
     setLoadingRequests(true);
     try {
       const { data: publisherBooks, error: booksError } = await supabase
@@ -3058,7 +3058,7 @@ const PublisherDashboard = () => {
         return;
       }
 
-      // Explicitní join profiles!user_id(email) kvůli více relacím v databázi
+      // Explicitní join profiles!user_id(email)
       const { data: requests, error: requestsError } = await supabase
         .from('user_books')
         .select(`
@@ -3081,26 +3081,25 @@ const PublisherDashboard = () => {
     } finally {
       setLoadingRequests(false);
     }
-  };
+  }, []);
 
   const loadAllData = useCallback(async () => {
     if (!user) return;
     const username = getUsername(user.email);
 
     try {
-      // Paralelní načítání všech dat pro lepší performance
       await Promise.all([
         fetchPublisherBooks(username),
         fetchPendingRequests(username),
         (async () => {
           const { data, error } = await supabase.from('profiles').select('id, email');
-          if (!error) setReaderProfiles(data || []); // Opraveno na setReaderProfiles
+          if (!error) setReaderProfiles(data || []);
         })()
       ]);
     } catch (err) {
       console.error("Chyba při inicializaci dat dashboardu:", err.message);
     }
-  }, [user, getUsername]);
+  }, [user, getUsername, fetchPublisherBooks, fetchPendingRequests]);
 
   useEffect(() => {
     loadAllData();
@@ -3114,7 +3113,6 @@ const PublisherDashboard = () => {
     const username = getUsername(user.email);
 
     try {
-      // 1. Vložení nové knihy (vrací vložený řádek pro získání nového ID)
       const { data: insertedBook, error: bookError } = await supabase
         .from('books')
         .insert([{ 
@@ -3128,7 +3126,6 @@ const PublisherDashboard = () => {
 
       if (bookError) throw bookError;
 
-      // 2. AUTO-ASSIGN: Automatické přiřazení aktivní licence pro samotného nakladatele
       if (insertedBook?.id && user?.id) {
         const { error: assignError } = await supabase
           .from('user_books')
@@ -3144,7 +3141,6 @@ const PublisherDashboard = () => {
         }
       }
 
-      // Reset formuláře a refresh seznamu
       setTitle(''); 
       setContent('');
       await fetchPublisherBooks(username);
@@ -3173,6 +3169,8 @@ const PublisherDashboard = () => {
       alert('Kniha byla úspěšně přiřazena uživateli!');
       setSelectedBookId('');
       setSelectedUserId('');
+      // Refresh dat pro synchronizaci změn v UI
+      if (user) loadAllData();
     }
   };
 
@@ -3185,7 +3183,7 @@ const PublisherDashboard = () => {
     if (!error) {
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
     } else {
-      alert('Žádost se nepodařilo schválit: ' + error.message);
+      alert('Ž難ost se nepodařilo schválit: ' + error.message);
     }
   };
 
@@ -3217,7 +3215,7 @@ const PublisherDashboard = () => {
         </span>
       </div>
 
-      {/* MINI STATISTICKÝ PŘEHLED (DASHBOARD) */}
+      {/* MINI STATISTICKÝ PŘEHLED */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="p-4 flex items-center gap-4 shadow-sm border rounded-2xl">
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-current">
@@ -3262,7 +3260,7 @@ const PublisherDashboard = () => {
           </div>
         ) : pendingRequests.length === 0 ? (
           <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="text-center py-6 rounded-xl border border-dashed border-neutral-300/30">
-            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Všechny licence sono vyřízeny. Žádný čtenář nečeká.</p>
+            <p className="text-xs font-black uppercase opacity-50 m-0 tracking-wide">Všechny licence jsou vyřízeny. Žádný čtenář nečeká.</p>
           </div>
         ) : (
           <div style={{ borderColor: 'var(--border-color)' }} className="divide-y border rounded-xl overflow-hidden shadow-sm">
@@ -3274,7 +3272,8 @@ const PublisherDashboard = () => {
                   </div>
                   <div>
                     <h4 className="font-black text-sm uppercase m-0 tracking-tight">{req.books?.title}</h4>
-                    <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles!user_id?.email || req.profiles?.email}</span></p>
+                    {/* Zde byla opravena neplatná syntaxe !user_id */}
+                    <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 mt-0.5">Čtenář: <span style={{ color: 'var(--text-body)' }} className="font-bold">{req.profiles?.email || 'Neznámý uživatel'}</span></p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -3365,7 +3364,7 @@ const PublisherDashboard = () => {
                 value={selectedUserId}
               >
                 <option value="">-- Vyberte čtenáře podle e-mailu --</option>
-                {readerProfiles.map(p => ( // Opraveno na readerProfiles
+                {readerProfiles.map(p => ( 
                   <option key={p.id} value={p.id}>{p.email}</option>
                 ))}
               </select>
