@@ -2280,299 +2280,149 @@ const LoginPage = () => {
   );
 };
 
-
-
-const UserLibrary = () => {
-  const { user, logout } = useAuth();
-  const [books, setBooks] = useState([]);
-  const [likedBookIds, setLikedBookIds] = useState([]);
+const ReaderPage = () => {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [submittingId, setSubmittingId] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all'); // all | owned | pending
+  const [initialScroll, setInitialScroll] = useState(0);
 
-  // Pomocná funkce pro zjištění username uživatele
-  const getUsername = useCallback((email) => {
-    return email ? email.split('@')[0] : '';
-  }, []);
+  // 1. Načtení dat o knize a stavu čtení z DB
+  useEffect(() => {
+    const fetchBookData = async () => {
+      if (!user || !id) return;
+      setLoading(true);
+      try {
+        // Načteme detaily knihy
+        const { data: bookData, error: bookErr } = await supabase
+          .from('books')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-  const loadLibraryData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      // 🔥 STREAK - Uložení denní aktivity čtenáře
-      const todayStr = new Date().toLocaleDateString('sv');
-      await supabase
-        .from('user_daily_activity')
-        .upsert(
-          { user_id: user.id, activity_date: todayStr }, 
-          { onConflict: 'user_id,activity_date' }
-        );
+        if (bookErr) throw bookErr;
+        setBook(bookData);
 
-      // Paralelní načítání pro brutální rychlost načítání
-      const [booksRes, userBooksRes, likesRes, allLikesRes] = await Promise.all([
-        supabase.from('books').select('*'),
-        supabase.from('user_books').select('book_id, is_read, status, updated_at, scroll_position').eq('user_id', user.id),
-        supabase.from('book_likes').select('book_id').eq('user_id', user.id),
-        supabase.from('book_likes').select('book_id')
-      ]);
+        // Načteme uživatelskou pozici čtení
+        const { data: userBookData, error: ubErr } = await supabase
+          .from('user_books')
+          .select('scroll_position, status')
+          .eq('user_id', user.id)
+          .eq('book_id', id)
+          .maybeSingle();
 
-      if (booksRes.error) throw booksRes.error;
-      if (userBooksRes.error) throw userBooksRes.error;
-
-      if (likesRes.data) {
-        setLikedBookIds(likesRes.data.map(l => l.book_id));
-      }
-
-      const currentUsername = getUsername(user.email);
-
-      // 🔥 OPRAVENO: Přejmenováno z "b" na "singleBook", aby nedocházelo k chybě Illegal constructor
-      const processedBooks = (booksRes.data || []).map(singleBook => {
-        const userBookEntry = userBooksRes.data?.find(ub => ub.book_id === singleBook.id);
-        const totalLikesCount = (allLikesRes.data?.filter(l => l.book_id === singleBook.id).length || 0) + (singleBook.fake_likes || 0);
-
-        // 🌟 AUTOMATICKÝ PŘÍSTUP (Auto-assign logika na FE)
-        const isOwner = singleBook.author === currentUsername;
-        const hasAccess = isOwner || userBookEntry?.status === 'active';
-        const isPending = !isOwner && userBookEntry?.status === 'requested';
-
-        return {
-          id: singleBook.id,
-          title: singleBook.title,
-          author: singleBook.author,
-          likesCount: totalLikesCount,
-          hasAccess,
-          isPending,
-          isOwner,
-          isRead: userBookEntry?.is_read || false,
-          scrollPosition: userBookEntry?.scroll_position || 0,
-          lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
-        };
-      });
-
-      // Seřazení: Rozepsané a aktivní jdou jako první, pak podle data otevření
-      processedBooks.sort((a, b) => {
-        if (a.hasAccess && b.hasAccess) {
-          if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-          return b.lastOpened - a.lastOpened;
+        // Bezpečnostní pojistka: Pokud uživatel nemá kód 'active' ani není autor, nepustíme ho dál
+        const currentUsername = user.email ? user.email.split('@')[0] : '';
+        const isAuthor = bookData.author === currentUsername;
+        
+        if (!isAuthor && (!userBookData || userBookData.status !== 'active')) {
+          alert('K tomuto dílu nemáš aktivní licenci.');
+          navigate('/app');
+          return;
         }
-        if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
-        return 0;
-      });
+
+        if (userBookData?.scroll_position) {
+          setInitialScroll(userBookData.scroll_position);
+        }
+      } catch (err) {
+        console.error('Chyba při otevírání knihy:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookData();
+  }, [id, user, navigate]);
+
+  // 2. Sledování scrollu a automatické ukládání pozice do Supabase
+  useEffect(() => {
+    if (loading || !book || !user) return;
+
+    // Vrátíme uživatele tam, kde naposledy skončil
+    if (initialScroll > 0) {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo(0, (totalHeight * initialScroll) / 100);
+    }
+
+    let timeoutId;
+    const handleScroll = () => {
+      clearTimeout(timeoutId);
       
-      setBooks(processedBooks);
-    } catch (error) {
-      console.error("Chyba při načítání knihovny:", error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, getUsername]);
+      // Výpočet procenta proscrollování děl
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight <= 0) return;
 
-  useEffect(() => { 
-    loadLibraryData(); 
-  }, [loadLibraryData]);
+      const progress = Math.min(100, Math.max(0, (scrollTop / docHeight) * 100));
+      const isReadNow = progress >= 95; // Od 95 % považujeme knihu za přečtenou
 
-  const handleRequestLicense = async (bookId) => {
-    if (!user) return;
-    setSubmittingId(bookId);
-    try {
-      const { error } = await supabase
-        .from('user_books')
-        .insert([{ 
-          user_id: user.id, 
-          book_id: bookId, 
-          status: 'requested', 
-          is_read: false 
-        }]);
+      // Debounce – ukládáme do Supabase 1 sekundu poté, co uživatel přestane scrollovat (šetříme DB requesty)
+      timeoutId = setTimeout(async () => {
+        try {
+          await supabase
+            .from('user_books')
+            .upsert({
+              user_id: user.id,
+              book_id: id,
+              scroll_position: progress,
+              is_read: isReadNow,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,book_id' });
+        } catch (err) {
+          console.error('Nepodařilo se synchronizovat pozici čtení:', err);
+        }
+      }, 1000);
+    };
 
-      if (error) throw error;
-
-      setBooks(prev => prev.map(singleBook => singleBook.id === bookId ? { ...singleBook, isPending: true } : singleBook));
-    } catch (err) {
-      alert("Nepodařilo se odeslat žádost: " + err.message);
-    } finally { 
-      setSubmittingId(null); 
-    }
-  };
-
-  // Filtrování knih na základě vybrané záložky
-  const filteredBooks = useMemo(() => {
-    return books.filter(singleBook => {
-      if (activeFilter === 'owned') return singleBook.hasAccess;
-      if (activeFilter === 'pending') return singleBook.isPending;
-      return true; // 'all'
-    });
-  }, [books, activeFilter]);
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [loading, book, user, id, initialScroll]);
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse">
-      <Loader2 className="animate-spin mb-4" size={40} style={{ color: 'var(--bg-primary)' }} />
-      <p className="text-sm font-black uppercase tracking-wider opacity-60">Otevírám tvůj čtenářský trezor...</p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <Loader2 className="animate-spin text-[var(--bg-primary)] mb-2" size={32} />
+      <p className="text-xs font-black uppercase tracking-wider opacity-60">Načítám stránky knihy...</p>
+    </div>
+  );
+
+  if (!book) return (
+    <div className="text-center py-12">
+      <p className="font-bold uppercase text-sm">Kniha nebyla nalezena.</p>
+      <Link to="/app" className="text-xs uppercase font-black text-[var(--bg-primary)] mt-4 block">Návrat do knihovny</Link>
     </div>
   );
 
   return (
-    <div style={{ color: 'var(--text-body)' }} className="max-w-6xl mx-auto px-4 py-12 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* HLAVNÍ HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-6" style={{ borderColor: 'var(--border-color)' }}>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1 border border-amber-500/20">
-              <Sparkles size={10} /> Prémiová knihovna
-            </span>
-          </div>
-          <h2 className="text-4xl font-black uppercase tracking-tight m-0">Tvoje Knihovna</h2>
-        </div>
-        <button 
-          onClick={logout} 
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
-          className="flex items-center gap-2 px-4 py-2.5 border rounded-xl font-bold uppercase text-xs cursor-pointer hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 active:scale-95 transition-all shadow-sm"
-        >
-          <LogOut size={14} />
-          <span>Odhlásit se</span>
-        </button>
+    <div className="max-w-2xl mx-auto px-4 py-16 space-y-8 animate-in fade-in duration-300">
+      {/* HLAVIČKA ČTEČKY */}
+      <div className="border-b pb-6 text-center" style={{ borderColor: 'var(--border-color)' }}>
+        <Link to="/app" className="text-[10px] font-black uppercase tracking-wider no-underline opacity-50 hover:opacity-100 transition-all flex items-center justify-center gap-1 mb-4" style={{ color: 'var(--text-body)' }}>
+          ← Zpět do knihovny
+        </Link>
+        <h1 className="text-3xl font-black uppercase tracking-tight m-0">{book.title}</h1>
+        <p className="text-xs uppercase font-bold mt-1 opacity-60 m-0" style={{ color: 'var(--text-muted)' }}>Autor: {book.author}</p>
       </div>
 
-      {/* 🔥 GAMIFIKAČNÍ STREAK PANEL */}
-      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-            <Flame size={24} className="animate-bounce" style={{ animationDuration: '3s' }} />
-          </div>
-          <div>
-            <h4 className="font-black text-sm uppercase m-0 tracking-tight">Dnešní čtení aktivováno!</h4>
-            <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium m-0 opacity-70">Tvůj denní streak byl zaznamenán. Udržuj plamen zapálený!</p>
-          </div>
-        </div>
-        <div className="flex gap-2 self-start sm:self-auto">
-          {['all', 'owned', 'pending'].map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              style={{
-                backgroundColor: activeFilter === filter ? 'var(--text-body)' : 'var(--bg-secondary)',
-                color: activeFilter === filter ? 'var(--bg-body)' : 'var(--text-body)',
-                borderColor: 'var(--border-color)'
-              }}
-              className="px-3.5 py-2 border rounded-xl font-black text-[10px] uppercase cursor-pointer tracking-wider transition-all hover:opacity-90 active:scale-95"
-            >
-              {filter === 'all' && 'Všechny díla'}
-              {filter === 'owned' && 'Moje Knihy'}
-              {filter === 'pending' && 'V řízení'}
-            </button>
-          ))}
-        </div>
+      {/* SAMOTNÝ TEXT KNIHY */}
+      <div 
+        className="prose prose-neutral dark:prose-invert max-w-none text-base leading-relaxed tracking-wide font-serif space-y-6"
+        style={{ color: 'var(--text-body)', whiteSpace: 'pre-wrap' }}
+      >
+        {/* Předpokládáme sloupec 'content' v tabulce 'books' */}
+        {book.content || "Tato kniha zatím nemá nahraný žádný textový obsah."}
       </div>
 
-      {/* MŘÍŽKA S KNIHAMI */}
-      {filteredBooks.length === 0 ? (
-        <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl text-center py-16 px-4 shadow-inner">
-          <Compass size={40} className="mx-auto mb-3 opacity-30 animate-spin" style={{ animationDuration: '10s' }} />
-          <h4 className="font-black uppercase text-sm tracking-tight m-0">V této sekci nic není</h4>
-          <p style={{ color: 'var(--text-muted)' }} className="text-xs font-medium max-w-xs mx-auto mt-1 opacity-75">Zkus přepnout filtr nebo zažádej o novou licenci z katalogu.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {filteredBooks.map(singleBook => {
-            const isUserLiked = likedBookIds.includes(singleBook.id);
-            
-            return (
-              <div 
-                key={singleBook.id} 
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} 
-                className="border p-4 rounded-2xl flex flex-col justify-between group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[var(--bg-primary)]/30 relative"
-              >
-                <div>
-                  {/* OBÁLKA KNIHY */}
-                  <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-xl mb-4 flex flex-col items-center justify-center relative overflow-hidden group-hover:brightness-105 transition-all shadow-inner">
-                    <div className={`absolute inset-0 opacity-5 bg-gradient-to-t ${singleBook.hasAccess ? 'from-emerald-500 to-transparent' : 'from-neutral-500 to-transparent'}`} />
-                    
-                    {singleBook.hasAccess ? (
-                      <BookOpen size={36} className="opacity-40 text-[var(--bg-primary)] transition-transform duration-300 group-hover:scale-110" />
-                    ) : (
-                      <Lock size={36} className="opacity-20 transition-transform duration-300 group-hover:rotate-12" />
-                    )}
-                    
-                    {singleBook.isOwner && (
-                      <span className="absolute bottom-2 left-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-0.5 shadow-sm">
-                        <Shield size={10} /> Vlastní dílo
-                      </span>
-                    )}
-
-                    {/* Likes Badge */}
-                    <div className="absolute top-2 right-2 border px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] font-black bg-[var(--bg-card)] shadow-sm transition-transform group-hover:scale-105" style={{ borderColor: 'var(--border-color)' }}>
-                      <Heart size={11} className={`${isUserLiked ? "fill-red-500 text-red-500" : "opacity-30"}`} />
-                      <span>{singleBook.likesCount}</span>
-                    </div>
-                  </div>
-
-                  {/* INFO O KNIZE */}
-                  <h4 className="font-black uppercase text-sm tracking-tight line-clamp-2 m-0 group-hover:text-[var(--bg-primary)] transition-colors">{singleBook.title}</h4>
-                  <p className="text-xs uppercase font-bold mt-1 opacity-60 m-0" style={{ color: 'var(--text-muted)' }}>{singleBook.author}</p>
-                  
-                  {singleBook.hasAccess && (
-                    <div className="mt-4 space-y-1 bg-[var(--bg-secondary)] p-2 rounded-xl border border-dashed" style={{ borderColor: 'var(--border-color)' }}>
-                      <div className="flex justify-between text-[9px] font-black uppercase tracking-wider opacity-60">
-                        <span>{singleBook.isRead ? 'Dokončeno' : 'Rozečteno'}</span>
-                        <span>{Math.round(singleBook.scrollPosition)}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full transition-all duration-700 rounded-full" 
-                          style={{ 
-                            width: `${singleBook.isRead ? 100 : singleBook.scrollPosition}%`, 
-                            backgroundColor: singleBook.isRead ? 'var(--text-body)' : 'var(--bg-primary)' 
-                          }} 
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* AKČNÍ TLAČÍTKA */}
-                <div className="mt-4">
-                  {singleBook.hasAccess ? (
-                    <Link to={`/read/${singleBook.id}`} className="no-underline block">
-                      <button 
-                        style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} 
-                        className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider border-none cursor-pointer flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 hover:opacity-90"
-                      >
-                        <BookOpen size={13} /> {singleBook.isRead ? 'Číst znovu' : 'Pokračovat v čtení'}
-                      </button>
-                    </Link>
-                  ) : singleBook.isPending ? (
-                    <div 
-                      style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
-                      className="py-3 text-center rounded-xl border text-[10px] font-black uppercase tracking-wider opacity-60 cursor-default animate-pulse"
-                    >
-                      Čeká na schválení
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => handleRequestLicense(singleBook.id)} 
-                      disabled={submittingId === singleBook.id}
-                      style={{ backgroundColor: 'var(--bg-primary)', color: 'white' }} 
-                      className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider cursor-pointer border-none shadow-md transition-all active:scale-98 disabled:opacity-50 flex items-center justify-center gap-1.5 hover:brightness-110"
-                    >
-                      {submittingId === singleBook.id ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <>Zažádat o licenci</>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* PATIČKA */}
+      <div className="border-t pt-8 text-center" style={{ borderColor: 'var(--border-color)' }}>
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Konec kapitoly / díla</p>
+      </div>
     </div>
   );
 };
-
 
 const PublisherDashboard = () => {
   const [myBooks, setMyBooks] = useState([]);
