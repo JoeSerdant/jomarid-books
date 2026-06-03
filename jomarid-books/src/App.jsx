@@ -1,107 +1,99 @@
 import React, { useState, useEffect, createContext, useContext, useRef, useMemo, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
-import * as Icons from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-// Bezpečný getter ikon z balíčku lucide-react (při chybě vrátí Book nebo HelpCircle)
-const getIcon = (name) => Icons[name] || Icons.Book || Icons.HelpCircle;
+// 🔥 BEZPEČNÝ A EXPLICITNÍ IMPORT IKON (Zamezí kolizím v minifikátoru)
+import {
+  Book,
+  BookOpen,
+  BookMarked,
+  Library,
+  Compass,
+  Search,
+  Filter,
+  ArrowLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  XCircle,
+  Plus,
+  PlusCircle,
+  Check,
+  CheckCircle,
+  RefreshCw,
+  Trash,
+  Trash2,
+  Shield,
+  ShieldOff,
+  ShieldCheck,
+  Users,
+  UserCheck,
+  UserPlus,
+  Crown,
+  Settings,
+  Terminal,
+  Database,
+  FileText,
+  LogOut,
+  Award,
+  Flame,
+  Trophy,
+  Target,
+  Star,
+  Gem,
+  Sparkles,
+  Scroll,
+  Feather,
+  Footprints,
+  Infinity as InfinityIcon, // Přejmenováno kvůli ochraně klíčového slova
+  BarChart2,
+  BarChart3,
+  TrendingUp,
+  Gauge,
+  Calendar,
+  Zap,
+  ZapOff,
+  Heart,
+  Clock,
+  Loader2,
+  AlertTriangle,
+  HelpCircle,
+  Phone,
+  Mail,
+  Type,
+  Eye,
+  Play,
+  Pause,
+  Sun,
+  Moon,
+  Coffee
+} from 'lucide-react';
 
-// ====================================================
-// 📚 KOMPLETNÍ ICON MAP (ZÁKLADNÍ & NAVIGAČNÍ IKONY)
-// ====================================================
-const Book = getIcon('Book');
-const BookOpen = getIcon('BookOpen');
+// Bezpečné aliasy, pokud je zbytek kódu vyžaduje pod starým názvem
 const BookOpenIcon = BookOpen;
-const BookMarked = getIcon('BookMarked');
-const Library = getIcon('Library');
-const Compass = getIcon('Compass');
-const Search = getIcon('Search');
-const Filter = getIcon('Filter');
-const ArrowLeft = getIcon('ArrowLeft');
-const ChevronRight = getIcon('ChevronRight');
-const ChevronDown = getIcon('ChevronDown');
-const X = getIcon('X');
-const XCircle = getIcon('XCircle');
-const Plus = getIcon('Plus');
-const PlusCircle = getIcon('PlusCircle');
-const Check = getIcon('Check');
-const CheckCircle = getIcon('CheckCircle'); // 🔥 OPRAVENO: Odstraněna nesmyslná arrow funkce
-const RefreshCw = getIcon('RefreshCw');
-const Trash = getIcon('Trash');
-const Trash2 = getIcon('Trash2');
-
-// ====================================================
-// 🔐 ADMIN PANEL & UŽIVATELÉ
-// ====================================================
-const Shield = getIcon('Shield');
-const ShieldOff = getIcon('ShieldOff');
-const ShieldCheck = getIcon('ShieldCheck');
-const Users = getIcon('Users');
-const UserCheck = getIcon('UserCheck');
-const UserPlus = getIcon('UserPlus');
-const Crown = getIcon('Crown');
-const Settings = getIcon('Settings');
-const Terminal = getIcon('Terminal');
-const Database = getIcon('Database');
-const FileText = getIcon('FileText');
-const LogOut = getIcon('LogOut');
-
-// ====================================================
-// 🔥 GAMEFIKACE, STATISTIKY & DOSAŽENÉ ÚSPĚCHY
-// ====================================================
-const Award = getIcon('Award');
-const Flame = getIcon('Flame');
-const Trophy = getIcon('Trophy');
-const Target = getIcon('Target');
-const Star = getIcon('Star');
-const Gem = getIcon('Gem');
-const Sparkles = getIcon('Sparkles');
-const ScrollIcon = getIcon('Scroll'); 
-const Feather = getIcon('Feather');
-const Footprints = getIcon('Footprints') || getIcon('Map');
-const InfinityIcon = getIcon('Infinity');
-const BarChart2 = getIcon('BarChart2');
-const BarChart3 = getIcon('BarChart3');
-const ChartBar = getIcon('ChartBar');
-const TrendingUp = getIcon('TrendingUp');
-const Gauge = getIcon('Gauge');
-const Calendar = getIcon('Calendar');
-
-// ====================================================
-// ⚙️ UKAZATELE, SYSTÉM & INTERAKCE
-// ====================================================
-const Zap = getIcon('Zap');
-const ZapOff = getIcon('ZapOff');
-const Heart = getIcon('Heart');
 const HeartIcon = Heart;
-const Clock = getIcon('Clock');
-const Loader2 = getIcon('Loader2');
-const AlertTriangle = getIcon('AlertTriangle');
-const HelpCircle = getIcon('HelpCircle');
-const PhoneIcon = getIcon('Phone'); 
-const Mail = getIcon('Mail');
+const ScrollIcon = Scroll;
+const PhoneIcon = Phone;
+const TypeIcon = Type;
+const EyeIcon = Eye;
+const PlayIcon = Play;
+const PauseIcon = Pause;
+const SafeScroll = Scroll;
+const SafePhone = Phone;
+const SafeType = Type;
+const SafeEye = Eye;
+const SafePlay = Play;
+const SafePause = Pause;
+
+// Dynamický fallback, pokud by nějaká komponenta stále volala starou funkci
+const getIcon = (name) => {
+  const localIcons = { Book, BookOpen, Library, Compass, Loader2, HelpCircle, Shield, Flame };
+  return localIcons[name] || Book;
+};
 
 // ====================================================
-// 👀 PRÉMIOVÁ ČTEČKA (AUTO-SCROLL, CONFIG & MÓDY)
+// 🎨 DEFINICE TÉMAT (Zůstává stejná)
 // ====================================================
-const TypeIcon = getIcon('Type'); 
-const EyeIcon = getIcon('Eye');   
-const PlayIcon = getIcon('Play'); 
-const PauseIcon = getIcon('Pause'); 
-const Sun = getIcon('Sun');
-const Moon = getIcon('Moon');
-const Coffee = getIcon('Coffee');
-
-// ====================================================
-// 🔄 BEZPEČNÉ OCHRANÉ ALIASY (Přejmenováno kvůli kolizím s window konstruktory)
-// ====================================================
-const SafeScroll = ScrollIcon;
-const SafePhone = PhoneIcon;
-const SafeType = TypeIcon;
-const SafeEye = EyeIcon;
-const SafePlay = PlayIcon;
-const SafePause = PauseIcon;
-
 const THEMES = {
   saas: {
     '--bg-body': '#f8fafc',       
