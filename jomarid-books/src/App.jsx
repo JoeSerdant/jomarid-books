@@ -2,72 +2,19 @@ import React, { useState, useEffect, createContext, useContext, useRef, useMemo,
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
  
-// 🔥 BEZPEČNÝ A EXPLICITNÍ IMPORT IKON (Zamezí kolizím v minifikátoru)
-import {
-  Book,
-  BookOpen,
-  BookMarked,
-  Library,
-  Compass,
-  Search,
-  Filter,
-  ArrowLeft,
-  ChevronRight,
-  ChevronDown,
-  X,
-  XCircle,
-  Plus,
-  PlusCircle,
-  Check,
-  CheckCircle,
-  RefreshCw,
-  Trash,
-  Trash2,
-  Shield,
-  ShieldOff,
-  ShieldCheck,
-  Users,
-  UserCheck,
-  UserPlus,
-  Crown,
-  Settings,
-  Terminal,
-  Database,
-  FileText,
-  LogOut,
-  Award,
-  Flame,
-  Trophy,
-  Target,
-  Star,
-  Gem,
-  Sparkles,
-  Scroll,
-  Feather,
-  Footprints,
-  Infinity as InfinityIcon, // Přejmenováno kvůli ochraně klíčového slova
-  BarChart2,
-  BarChart3,
-  TrendingUp,
-  Gauge,
-  Calendar,
-  Zap,
-  ZapOff,
-  Heart,
-  Clock,
-  Loader2,
-  AlertTriangle,
-  HelpCircle,
-  Phone,
-  Mail,
-  Type,
-  Eye,
-  Play,
-  Pause,
-  Sun,
-  Moon,
-  Coffee
-} from 'lucide-react';
+// 1. Kompletní import celého balíku ikon pod jedním aliasem LucideIcons
+import * as LucideIcons from 'lucide-react';
+
+// 2. Vytáhnutí ikon, které potřebuješ mít přístupné napřímo bez prefixu
+const {
+  Book, BookOpen, BookMarked, Library, Compass, Search, Filter, ArrowLeft, ChevronRight,
+  ChevronDown, X, XCircle, Plus, PlusCircle, Check, CheckCircle, RefreshCw, Trash, Trash2,
+  Shield, ShieldOff, ShieldCheck, Users, UserCheck, UserPlus, Crown, Settings, Terminal,
+  Database, FileText, LogOut, Award, Flame, Trophy, Target, Star, Gem, Sparkles, Scroll,
+  Feather, Footprints, BarChart2, BarChart3, TrendingUp, Gauge, Calendar, Zap, ZapOff,
+  Heart, Clock, Loader2, AlertTriangle, HelpCircle, Phone, Mail, Type, Eye, Play, Pause,
+  Sun, Moon, Coffee
+} = LucideIcons;
 
 // Bezpečné aliasy, pokud je zbytek kódu vyžaduje pod starým názvem
 const BookOpenIcon = BookOpen;
@@ -84,59 +31,69 @@ const SafeType = Type;
 const SafeEye = Eye;
 const SafePlay = Play;
 const SafePause = Pause;
+const InfinityIcon = LucideIcons.Infinity || Book; // Bezpečný alias pro Infinity
 
-// Dynamický fallback, pokud by nějaká komponenta stále volala starou funkci
+// 🔥 CHYTRÁ A BEZPEČNÁ FUNKCE GETICON
+// Vyhledá ikonu podle textového názvu přímo v Lucide knihovně. Když nenajde, dá jako fallback ikonu Book.
 const getIcon = (name) => {
-  const localIcons = { Book, BookOpen, Library, Compass, Loader2, HelpCircle, Shield, Flame };
-  return localIcons[name] || Book;
+  if (!name) return Book;
+  
+  // Ošetření specifického přejmenování, pokud v databázi/kódu zůstala klíčová slova
+  if (name === 'Infinity') return InfinityIcon;
+  
+  return LucideIcons[name] || Book;
 };
+
+// Záskok pro ReaderPage, aby neházel chybu "ReaderPage is not defined"
+// Pokud máš ReaderPage definovanou níže v kódu jako "const ReaderPage = ...", tak tento řádek smaž.
+const ReaderPage = () => <div className="p-6">Čtečka knih</div>;
 
 // ====================================================
 // 🎨 DEFINICE TÉMAT (Zůstává stejná)
 // ====================================================
 const THEMES = {
-  saas: {
-    '--bg-body': '#f8fafc',       
-    '--text-body': '#0f172a',     
-    '--bg-card': '#ffffff',       
-    '--border-color': '#e2e8f0',  
-    '--bg-navbar': 'rgba(255, 255, 255, 0.8)',
-    '--text-muted': '#64748b',    
-    '--bg-primary': '#4f46e5',    
-    '--text-primary': '#ffffff',
-    '--bg-secondary': '#ffffff',
-    '--text-secondary': '#334155',
-    '--bg-badge': '#f5f3ff',
-    '--text-badge': '#4f46e5',
-  },
-  dark: {
-    '--bg-body': '#020617',       
-    '--text-body': '#f1f5f9',     
-    '--bg-card': '#0f172a',       
-    '--border-color': '#1e293b',  
-    '--bg-navbar': 'rgba(15, 23, 42, 0.8)',
-    '--text-muted': '#94a3b8',    
-    '--bg-primary': '#7c3aed',    
-    '--text-primary': '#ffffff',
-    '--bg-secondary': '#1e293b',
-    '--text-secondary': '#e2e8f0',
-    '--bg-badge': '#2e1065',
-    '--text-badge': '#a78bfa',
-  },
-  emerald: {
-    '--bg-body': '#2d1a10',        
-    '--text-body': '#f4ebd9',      
-    '--bg-card': '#3d2518',        
-    '--border-color': '#543523',    
-    '--bg-navbar': 'rgba(45, 26, 16, 0.85)',
-    '--text-muted': '#bda691',     
-    '--bg-primary': '#246b54',     
-    '--text-primary': '#ffffff',
-    '--bg-secondary': '#4d3223',
-    '--text-secondary': '#246b54',
-    '--bg-badge': '#1f4237',
-    '--text-badge': '#a3cfc0',
-  }
+ saas: {
+   '--bg-body': '#f8fafc',       
+   '--text-body': '#0f172a',     
+   '--bg-card': '#ffffff',       
+   '--border-color': '#e2e8f0',  
+   '--bg-navbar': 'rgba(255, 255, 255, 0.8)',
+   '--text-muted': '#64748b',    
+   '--bg-primary': '#4f46e5',    
+   '--text-primary': '#ffffff',
+   '--bg-secondary': '#ffffff',
+   '--text-secondary': '#334155',
+   '--bg-badge': '#f5f3ff',
+   '--text-badge': '#4f46e5',
+ },
+ dark: {
+   '--bg-body': '#020617',       
+   '--text-body': '#f1f5f9',     
+   '--bg-card': '#0f172a',       
+   '--border-color': '#1e293b',  
+   '--bg-navbar': 'rgba(15, 23, 42, 0.8)',
+   '--text-muted': '#94a3b8',    
+   '--bg-primary': '#7c3aed',    
+   '--text-primary': '#ffffff',
+   '--bg-secondary': '#1e293b',
+   '--text-secondary': '#e2e8f0',
+   '--bg-badge': '#2e1065',
+   '--text-badge': '#a78bfa',
+ },
+ emerald: {
+   '--bg-body': '#2d1a10',        
+   '--text-body': '#f4ebd9',      
+   '--bg-card': '#3d2518',        
+   '--border-color': '#543523',    
+   '--bg-navbar': 'rgba(45, 26, 16, 0.85)',
+   '--text-muted': '#bda691',     
+   '--bg-primary': '#246b54',     
+   '--text-primary': '#ffffff',
+   '--bg-secondary': '#4d3223',
+   '--text-secondary': '#246b54',
+   '--bg-badge': '#1f4237',
+   '--text-badge': '#a3cfc0',
+ }
 };
 
 const ThemeContext = createContext(null);
@@ -146,367 +103,307 @@ export const useTheme = () => useContext(ThemeContext);
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
+ const [user, setUser] = useState(null);
+ const [role, setRole] = useState(null);
+ const [loading, setLoading] = useState(true);
 
-  async function syncProfile(sessionUser) {
-    if (!sessionUser) {
-      setUser(null);
-      setRole(null);
-      setLoading(false);
-      return;
-    }
+ async function syncProfile(sessionUser) {
+   if (!sessionUser) {
+     setUser(null);
+     setRole(null);
+     setLoading(false);
+     return;
+   }
 
-    try {
-      let { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', sessionUser.id)
-        .single();
+   try {
+     let { data, error } = await supabase
+       .from('profiles')
+       .select('role')
+       .eq('id', sessionUser.id)
+       .single();
 
-      console.log("=== SUPABASE DEBUG ===", { data, error, email: sessionUser.email });
+     console.log("=== SUPABASE DEBUG ===", { data, error, email: sessionUser.email });
 
-      if (error && error.code === 'PGRST116') {
-        const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
-          .insert([{ id: sessionUser.id, email: sessionUser.email, role: 'uživatel' }])
-          .select()
-          .single();
-        
-        if (!insertError) data = newProfile;
-      }
+     if (error && error.code === 'PGRST116') {
+       const { data: newProfile, error: insertError } = await supabase
+         .from('profiles')
+         .insert([{ id: sessionUser.id, email: sessionUser.email, role: 'uživatel' }])
+         .select()
+         .single();
+      
+       if (!insertError) data = newProfile;
+     }
 
-      setUser(sessionUser);
-      setRole(data?.role || 'uživatel');
-    } catch (catchedError) {
-      console.error("Auth sync crash:", catchedError);
-    } finally {
-      setLoading(false);
-    }
-  }
+     setUser(sessionUser);
+     setRole(data?.role || 'uživatel');
+   } catch (catchedError) {
+     console.error("Auth sync crash:", catchedError);
+   } finally {
+     setLoading(false);
+   }
+ }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      syncProfile(session?.user ?? null);
-    });
+ useEffect(() => {
+   supabase.auth.getSession().then(({ data: { session } }) => {
+     syncProfile(session?.user ?? null);
+   });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncProfile(session?.user ?? null);
-    });
+   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+     syncProfile(session?.user ?? null);
+   });
 
-    return () => subscription.unsubscribe();
-  }, []);
+   return () => subscription.unsubscribe();
+ }, []);
 
-  const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
-  };
+ const login = async (email, password) => {
+   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+   if (error) throw error;
+   return data;
+ };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-  };
+ const logout = async () => {
+   await supabase.auth.signOut();
+ };
 
-  return (
-    <AuthContext.Provider value={{ user, role, loading, login, logout, refreshProfile: () => syncProfile(user) }}>
-      {children}
-    </AuthContext.Provider>
-  );
+ return (
+   <AuthContext.Provider value={{ user, role, loading, login, logout, refreshProfile: () => syncProfile(user) }}>
+     {children}
+   </AuthContext.Provider>
+ );
 }
 
 const ProtectedAdminRoute = ({ children }) => {
-  const { user, role, loading } = useAuth();
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
-  if (!user || role !== 'správce') return <Navigate to="/app" replace />;
-  return children;
+ const { user, role, loading } = useAuth();
+ if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
+ if (!user || role !== 'správce') return <Navigate to="/app" replace />;
+ return children;
 };
 
 const ProtectedUserRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
+ const { user, loading } = useAuth();
+ if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin" /></div>;
+ if (!user) return <Navigate to="/login" replace />;
+ return children;
 };
 
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-  const styles = variant === 'secondary' 
-    ? { backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }
-    : { backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' };
+ const styles = variant === 'secondary' 
+   ? { backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }
+   : { backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' };
 
-  if (variant === 'danger') {
-    return <button className={`px-4 py-2 rounded-lg font-bold bg-red-600 text-white flex items-center justify-center gap-2 text-sm cursor-pointer hover:bg-red-700 transition-all ${className}`} {...props}>{children}</button>;
-  }
+ if (variant === 'danger') {
+   return <button className={`px-4 py-2 rounded-lg font-bold bg-red-600 text-white flex items-center justify-center gap-2 text-sm cursor-pointer hover:bg-red-700 transition-all ${className}`} {...props}>{children}</button>;
+ }
 
-  return (
-    <button style={styles} className={`px-4 py-2 rounded-lg font-bold border transition-all flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50 ${className}`} {...props}>
-      {children}
-    </button>
-  );
+ return (
+   <button style={styles} className={`px-4 py-2 rounded-lg font-bold border transition-all flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-50 ${className}`} {...props}>
+     {children}
+   </button>
+ );
 };
 
 const Card = ({ children, className = '' }) => (
-  <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
+ <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
 );
 
 const UserStatsDropdown = () => {
-  const { user } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
-  const [stats, setStats] = useState({
-    streak: 0,
-    monthlyRead: 0,
-    monthlyGoal: 5,
-    totalRead: 0
-  });
-  const [loading, setLoading] = useState(false);
+ const { user } = useAuth();
+ const [isOpen, setIsOpen] = useState(false);
+ const [stats, setStats] = useState({
+   streak: 0,
+   monthlyRead: 0,
+   monthlyGoal: 5,
+   totalRead: 0
+ });
+ const [loading, setLoading] = useState(false);
 
-  const fetchStats = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      // 1. Načtení všech přečtených knih
-      const { data: userBooks } = await supabase
-        .from('user_books')
-        .select('updated_at, is_read')
-        .eq('user_id', user.id)
-        .eq('is_read', true);
+ const fetchStats = async () => {
+   if (!user) return;
+   setLoading(true);
+   try {
+     const { data: userBooks } = await supabase
+       .from('user_books')
+       .select('updated_at, is_read')
+       .eq('user_id', user.id)
+       .eq('is_read', true);
 
-      // 2. Načtení historie aktivity pro Streak
-      const { data: activityData } = await supabase
-        .from('user_daily_activity')
-        .select('activity_date')
-        .eq('user_id', user.id)
-        .order('activity_date', { ascending: false });
+     const { data: activityData } = await supabase
+       .from('user_daily_activity')
+       .select('activity_date')
+       .eq('user_id', user.id)
+       .order('activity_date', { ascending: false });
 
-      const totalRead = userBooks?.length || 0;
+     const totalRead = userBooks?.length || 0;
 
-      // Spočítáme knihy přečtené tento kalendářní měsíc
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth();
+     const currentYear = new Date().getFullYear();
+     const currentMonth = new Date().getMonth();
+    
+     const monthlyRead = userBooks?.filter(ub => {
+       const date = new Date(ub.updated_at);
+       return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+     }).length || 0;
+
+     let streak = 0;
+     if (activityData && activityData.length > 0) {
+       const activeDates = activityData.map(a => a.activity_date);
       
-      const monthlyRead = userBooks?.filter(ub => {
-        const date = new Date(ub.updated_at);
-        return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-      }).length || 0;
+       const todayStr = new Date().toLocaleDateString('sv');
+       const yesterday = new Date();
+       yesterday.setDate(yesterday.getDate() - 1);
+       const yesterdayStr = yesterday.toLocaleDateString('sv');
 
-      // Výpočet aktuálního Streaku
-      let streak = 0;
-      if (activityData && activityData.length > 0) {
-        const activeDates = activityData.map(a => a.activity_date);
+       if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
+         let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
         
-        const todayStr = new Date().toLocaleDateString('sv');
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toLocaleDateString('sv');
+         while (true) {
+           const checkDateStr = checkDate.toLocaleDateString('sv');
+           if (activeDates.includes(checkDateStr)) {
+             streak++;
+             checkDate.setDate(checkDate.getDate() - 1);
+           } else {
+             break;
+           }
+         }
+       }
+     }
 
-        if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
-          let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
-          
-          while (true) {
-            const checkDateStr = checkDate.toLocaleDateString('sv');
-            if (activeDates.includes(checkDateStr)) {
-              streak++;
-              checkDate.setDate(checkDate.getDate() - 1);
-            } else {
-              break;
-            }
-          }
-        }
-      }
+     setStats(prev => ({ ...prev, totalRead, monthlyRead, streak }));
+   } catch (err) {
+     console.error("Chyba při výpočtu statistik:", err);
+   } finally {
+     setLoading(false);
+   }
+ };
 
-      setStats(prev => ({ ...prev, totalRead, monthlyRead, streak }));
-    } catch (err) {
-      console.error("Chyba při výpočtu statistik:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+ useEffect(() => {
+   if (isOpen) fetchStats();
+ }, [isOpen, user]);
 
-  useEffect(() => {
-    if (isOpen) fetchStats();
-  }, [isOpen, user]);
+ const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
 
-  const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
+ return (
+   <div className="relative flex items-center">
+     <button 
+       onClick={() => setIsOpen(!isOpen)} 
+       className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none flex items-center gap-1.5"
+     >
+       <BarChart2 size={20} />
+       {stats.streak > 0 && (
+         <span className="flex items-center text-amber-500 font-black text-xs gap-0.5">
+           <Flame size={14} className="fill-amber-500 text-amber-500" /> {stats.streak}
+         </span>
+       )}
+     </button>
 
-  return (
-    <div className="relative flex items-center">
-      {/* Tlačítko v Navbaru */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none flex items-center gap-1.5"
-      >
-        <BarChart2 size={20} />
-        {stats.streak > 0 && (
-          <span className="flex items-center text-amber-500 font-black text-xs gap-0.5">
-            <Flame size={14} className="fill-amber-500 text-amber-500" /> {stats.streak}
-          </span>
-        )}
-      </button>
+     {isOpen && (
+       <>
+         <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+         <div 
+           style={{ 
+             backgroundColor: 'var(--bg-card)', 
+             borderColor: 'var(--border-color)' 
+           }}
+           className="absolute right-0 top-12 w-72 border shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+         >
+           <h3 
+             style={{ color: 'var(--text-muted)' }}
+             className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-1.5"
+           >
+             <Award size={14} style={{ color: 'var(--bg-primary)' }} /> Tvůj čtenářský profil
+           </h3>
 
-      {/* Dropdown Okno */}
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-          <div 
-            style={{ 
-              backgroundColor: 'var(--bg-card)', 
-              textColor: 'var(--text-body)', 
-              borderColor: 'var(--border-color)' 
-            }}
-            className="absolute right-0 top-12 w-72 border shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-          >
-            <h3 
-              style={{ color: 'var(--text-muted)' }}
-              className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-1.5"
-            >
-              <Award size={14} style={{ color: 'var(--bg-primary)' }} /> Tvůj čtenářský profil
-            </h3>
+           {loading ? (
+             <p style={{ color: 'var(--text-muted)' }} className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
+           ) : (
+             <div style={{ color: 'var(--text-body)' }} className="space-y-4">
+              
+               <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                 <div className="flex items-center gap-2.5">
+                   <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
+                     <Flame size={18} className={stats.streak > 0 ? "fill-amber-500 text-amber-500" : ""} />
+                   </div>
+                   <div className="text-left">
+                     <h4 className="text-xs font-black uppercase tracking-tight">Denní aktivita</h4>
+                     <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Čti denně, drž sérii!</p>
+                   </div>
+                 </div>
+                 <div className="text-right">
+                   <span className="text-xl font-black text-amber-600">{stats.streak}</span>
+                   <span className="text-[10px] block font-black uppercase opacity-40 leading-none text-amber-600">dní</span>
+                 </div>
+               </div>
 
-            {loading ? (
-              <p style={{ color: 'var(--text-muted)' }} className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
-            ) : (
-              <div style={{ color: 'var(--text-body)' }} className="space-y-4">
+               <div 
+                 style={{ backgroundColor: 'var(--bg-badge)', borderColor: 'var(--border-color)' }}
+                 className="p-3 border rounded-xl space-y-2"
+               >
+                 <div className="flex justify-between items-start">
+                   <div className="flex items-center gap-2.5">
+                     <div 
+                       style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-badge)' }}
+                       className="p-2 rounded-lg"
+                     >
+                       <Calendar size={18} />
+                     </div>
+                     <div className="text-left">
+                       <h4 className="text-xs font-black uppercase tracking-tight">Měsíční výzva</h4>
+                       <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Tento měsíc</p>
+                     </div>
+                   </div>
+                   <div style={{ color: 'var(--text-badge)' }} className="text-right font-black text-xs">
+                     {stats.monthlyRead} / {stats.monthlyGoal}
+                   </div>
+                 </div>
                 
-                {/* STREAK - Plamínek necháváme oranžový/jantarový záměrně */}
-                <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
-                      <Flame size={18} className={stats.streak > 0 ? "fill-amber-500 text-amber-500" : ""} />
-                    </div>
-                    <div className="text-left">
-                      <h4 className="text-xs font-black uppercase tracking-tight">Denní aktivita</h4>
-                      <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Čti denně, drž sérii!</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xl font-black text-amber-600">{stats.streak}</span>
-                    <span className="text-[10px] block font-black uppercase opacity-40 leading-none text-amber-600">dní</span>
-                  </div>
-                </div>
+                 <div className="space-y-1">
+                   <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
+                     <div 
+                       className="h-full rounded-full transition-all duration-500"
+                       style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}
+                     ></div>
+                   </div>
+                   <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase opacity-70 text-right">{progressPercent}% splněno</div>
+                 </div>
+               </div>
 
-                {/* MĚSÍČNÍ VÝZVA - Adaptivní barvy podle motivu */}
-                <div 
-                  style={{ backgroundColor: 'var(--bg-badge)', borderColor: 'var(--border-color)' }}
-                  className="p-3 border rounded-xl space-y-2"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2.5">
-                      <div 
-                        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-badge)' }}
-                        className="p-2 rounded-lg"
-                      >
-                        <Calendar size={18} />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-xs font-black uppercase tracking-tight">Měsíční výzva</h4>
-                        <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Tento měsíc</p>
-                      </div>
-                    </div>
-                    <div style={{ color: 'var(--text-badge)' }} className="text-right font-black text-xs">
-                      {stats.monthlyRead} / {stats.monthlyGoal}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
-                      <div 
-                        style={{ backgroundColor: 'var(--bg-primary)' }}
-                        className="h-full rounded-full transition-all duration-500" 
-                        dynamic-width={`${progressPercent}%`}
-                        // Oprava pro inline-style width v Reactu:
-                        css-style={{ width: `${progressPercent}%` }}
-                        // Správný React zápis:
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}
-                      ></div>
-                    </div>
-                    <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase opacity-70 text-right">{progressPercent}% splněno</div>
-                  </div>
-                </div>
+               <div 
+                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+                 className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold"
+               >
+                 <span style={{ color: 'var(--text-muted)' }} className="flex items-center gap-1">
+                   <CheckCircle size={12} style={{ color: 'var(--bg-primary)' }} /> Přečteno celkem:
+                 </span>
+                 <span style={{ color: 'var(--text-body)' }} className="font-black">{stats.totalRead} knih</span>
+               </div>
 
-                {/* CELKEM */}
-                <div 
-                  style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
-                  className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold"
-                >
-                  <span style={{ color: 'var(--text-muted)' }} className="flex items-center gap-1">
-                    <CheckCircle size={12} style={{ color: 'var(--bg-primary)' }} /> Přečteno celkem:
-                  </span>
-                  <span style={{ color: 'var(--text-body)' }} className="font-black">{stats.totalRead} knih</span>
-                </div>
-
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
+             </div>
+           )}
+         </div>
+       </>
+     )}
+   </div>
+ );
 };
-
-const Navbar = ({ onOpenSearch, onOpenSettings }) => {
-  const { user, role } = useAuth();
-
-  return (
-    <nav style={{ backgroundColor: 'var(--bg-navbar)', borderColor: 'var(--border-color)' }} className="h-16 border-b sticky top-0 z-50 backdrop-blur-md text-current flex items-center px-6 justify-between">
-      <Link to="/" className="flex items-center gap-2 no-underline text-current">
-        <div style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="w-8 h-8 rounded-lg flex items-center justify-center"><Library size={18} /></div>
-        <span className="font-extrabold text-xl tracking-tight uppercase">Jomarid Books</span>
-      </Link>
-      
-      <div className="flex items-center gap-4">
-        <button onClick={onOpenSearch} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Search size={20} /></button>
-        <button onClick={onOpenSettings} className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none"><Settings size={20} /></button>
-        
-        {/* 🔥 Tlačítko statistik, které hodí uživatele na samostatnou stránku /stats */}
-        {user && (
-          <Link 
-            to="/stats" 
-            className="p-2 opacity-60 hover:opacity-100 rounded-lg text-current bg-transparent border-none outline-none flex items-center"
-            title="Moje statistiky"
-          >
-            <BarChart2 size={20} />
-          </Link>
-        )}
-
-        {user ? (
-          <>
-            <Link to="/app" className="no-underline"><Button variant="secondary" className="text-xs">Moje Knihovna</Button></Link>
-            
-            {role === 'správce' && (
-              <Link to="/admin" className="no-underline"><Button className="text-xs bg-red-600 border-none text-white hover:bg-red-700">Admin Panel</Button></Link>
-            )}
-            
-            {role === 'správce' && (
-              <Link to="/publisher" className="no-underline"><Button className="text-xs bg-purple-600 border-none text-white">Nakladatel</Button></Link>
-            )}
-          </>
-        ) : (
-          <Link to="/login" className="no-underline"><Button variant="secondary" className="text-xs">Prihlášení</Button></Link>
-        )}
-      </div>
-    </nav>
-  );
-};
-
 
 const SettingsModal = ({ isOpen, onClose }) => {
-  const { currentTheme, changeTheme } = useTheme();
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex justify-center items-center p-4" onClick={onClose}>
-      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute right-4 top-4 opacity-50 hover:opacity-100 cursor-pointer text-current bg-transparent border-none"><X size={20} /></button>
-        <h3 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2"><Settings size={18} /> Změna motivu čítárny</h3>
-        <div className="space-y-3">
-          <button onClick={() => { changeTheme('saas'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-white text-slate-900 border-slate-200 ${currentTheme === 'saas' ? 'ring-2 ring-indigo-600 font-bold' : ''}`}>⚪ SaaS Minimal (Světlý)</button>
-          <button onClick={() => { changeTheme('dark'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-slate-900 text-white border-slate-800 ${currentTheme === 'dark' ? 'ring-2 ring-violet-500 font-bold' : ''}`}>⚫ Dark Slate (Tmavý)</button>
-          <button onClick={() => { changeTheme('emerald'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-[#fdfaf5] text-[#112211] border-[#D2C1B0] ${currentTheme === 'emerald' ? 'ring-2 ring-emerald-600 font-bold' : ''}`}>🪵 Zelená & Dřevo (Knižní)</button>
-        </div>
-      </div>
-    </div>
-  );
+ const { currentTheme, changeTheme } = useTheme();
+ if (!isOpen) return null;
+ return (
+   <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex justify-center items-center p-4" onClick={onClose}>
+     <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl shadow-2xl w-full max-w-sm p-6 relative" onClick={(e) => e.stopPropagation()}>
+       <button onClick={onClose} className="absolute right-4 top-4 opacity-50 hover:opacity-100 cursor-pointer text-current bg-transparent border-none"><X size={20} /></button>
+       <h3 className="text-sm font-black uppercase tracking-widest mb-6 flex items-center gap-2"><Settings size={18} /> Změna motivu čítárny</h3>
+       <div className="space-y-3">
+         <button onClick={() => { changeTheme('saas'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-white text-slate-900 border-slate-200 ${currentTheme === 'saas' ? 'ring-2 ring-indigo-600 font-bold' : ''}`}>⚪ SaaS Minimal (Světlý)</button>
+         <button onClick={() => { changeTheme('dark'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-slate-900 text-white border-slate-800 ${currentTheme === 'dark' ? 'ring-2 ring-violet-500 font-bold' : ''}`}>⚫ Dark Slate (Tmavý)</button>
+         <button onClick={() => { changeTheme('emerald'); onClose(); }} className={`w-full p-4 rounded-xl border text-left cursor-pointer bg-[#fdfaf5] text-[#112211] border-[#D2C1B0] ${currentTheme === 'emerald' ? 'ring-2 ring-emerald-600 font-bold' : ''}`}>🪵 Zelená & Dřevo (Knižní)</button>
+       </div>
+     </div>
+   </div>
+ );
 };
+
+
 
 const BOOK_BADGES = [
   // ==========================================
