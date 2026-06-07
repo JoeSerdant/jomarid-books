@@ -2282,7 +2282,7 @@ const ReaderPage = () => {
         }
       } catch (err) {
         console.error('Chyba při otevírání knihy:', err.message);
-      } finaly {
+      } finally { // 🔥 OPRAVENO: Správně napsané "finally" (původně bylo "finaly")
         setLoading(false);
       }
     };
@@ -3790,7 +3790,7 @@ export default function App() {
                 <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
                 <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
                 
-                {/* 🔥 Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
+                {/* Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
                 <Route path="/stats" element={<ProtectedUserRoute><UserStats /></ProtectedUserRoute>} />
                 
                 {/* Administrace */}
