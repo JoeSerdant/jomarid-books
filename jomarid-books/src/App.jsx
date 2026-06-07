@@ -2,21 +2,74 @@ import React, { useState, useEffect, createContext, useContext, useRef, useMemo,
 import { BrowserRouter as Router, Routes, Route, Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
  
-// 1. Kompletní import celého balíku ikon pod jedním aliasem LucideIcons
-import * as LucideIcons from 'lucide-react';
+// 🔥 EXPLICITNÍ A BEZPEČNÝ IMPORT POUZE POTŘEBNÝCH IKON
+import {
+ Book,
+ BookOpen,
+ BookMarked,
+ Library,
+ Compass,
+ Search,
+ Filter,
+ ArrowLeft,
+ ChevronRight,
+ ChevronDown,
+ X,
+ XCircle,
+ Plus,
+ PlusCircle,
+ Check,
+ CheckCircle,
+ RefreshCw,
+ Trash,
+ Trash2,
+ Shield,
+ ShieldOff,
+ ShieldCheck,
+ Users,
+ UserCheck,
+ UserPlus,
+ Crown,
+ Settings,
+ Terminal,
+ Database,
+ FileText,
+ LogOut,
+ Award,
+ Flame,
+ Trophy,
+ Target,
+ Star,
+ Gem,
+ Sparkles,
+ Scroll,
+ Feather,
+ Footprints,
+ BarChart2,
+ BarChart3,
+ TrendingUp,
+ Gauge,
+ Calendar,
+ Zap,
+ ZapOff,
+ Heart,
+ Clock,
+ Loader2,
+ AlertTriangle,
+ HelpCircle,
+ Phone,
+ Mail,
+ Type,
+ Eye,
+ Play,
+ Pause,
+ Sun,
+ Moon,
+ Coffee,
+ Infinity as InfinityIcon
+} from 'lucide-react';
 
-// 2. Vytáhnutí ikon, které potřebuješ mít přístupné napřímo bez prefixu
-const {
-  Book, BookOpen, BookMarked, Library, Compass, Search, Filter, ArrowLeft, ChevronRight,
-  ChevronDown, X, XCircle, Plus, PlusCircle, Check, CheckCircle, RefreshCw, Trash, Trash2,
-  Shield, ShieldOff, ShieldCheck, Users, UserCheck, UserPlus, Crown, Settings, Terminal,
-  Database, FileText, LogOut, Award, Flame, Trophy, Target, Star, Gem, Sparkles, Scroll,
-  Feather, Footprints, BarChart2, BarChart3, TrendingUp, Gauge, Calendar, Zap, ZapOff,
-  Heart, Clock, Loader2, AlertTriangle, HelpCircle, Phone, Mail, Type, Eye, Play, Pause,
-  Sun, Moon, Coffee
-} = LucideIcons;
-
-// Bezpečné aliasy, pokud je zbytek kódu vyžaduje pod starým názvem
+// Bezpečné aliasy pro starší části kódu
 const BookOpenIcon = BookOpen;
 const HeartIcon = Heart;
 const ScrollIcon = Scroll;
@@ -31,21 +84,27 @@ const SafeType = Type;
 const SafeEye = Eye;
 const SafePlay = Play;
 const SafePause = Pause;
-const InfinityIcon = LucideIcons.Infinity || Book; // Bezpečný alias pro Infinity
 
-// 🔥 CHYTRÁ A BEZPEČNÁ FUNKCE GETICON
-// Vyhledá ikonu podle textového názvu přímo v Lucide knihovně. Když nenajde, dá jako fallback ikonu Book.
+// 🔥 STRIGENTNÍ A BEZPEČNÝ REGISTR PRO GETICON
+// Tímto zamezíme padání Vite bundleru na Vercelu
 const getIcon = (name) => {
+  const iconRegistry = {
+    Book, BookOpen, BookMarked, Library, Compass, Search, Filter, ArrowLeft, ChevronRight,
+    ChevronDown, X, XCircle, Plus, PlusCircle, Check, CheckCircle, RefreshCw, Trash, Trash2,
+    Shield, ShieldOff, ShieldCheck, Users, UserCheck, UserPlus, Crown, Settings, Terminal,
+    Database, FileText, LogOut, Award, Flame, Trophy, Target, Star, Gem, Sparkles, Scroll,
+    Feather, Footprints, BarChart2, BarChart3, TrendingUp, Gauge, Calendar, Zap, ZapOff,
+    Heart, Clock, Loader2, AlertTriangle, HelpCircle, Phone, Mail, Type, Eye, Play, Pause,
+    Sun, Moon, Coffee,
+    Infinity: InfinityIcon,
+    InfinityIcon: InfinityIcon
+  };
+
   if (!name) return Book;
-  
-  // Ošetření specifického přejmenování, pokud v databázi/kódu zůstala klíčová slova
-  if (name === 'Infinity') return InfinityIcon;
-  
-  return LucideIcons[name] || Book;
+  return iconRegistry[name] || Book;
 };
 
 // Záskok pro ReaderPage, aby neházel chybu "ReaderPage is not defined"
-// Pokud máš ReaderPage definovanou níže v kódu jako "const ReaderPage = ...", tak tento řádek smaž.
 const ReaderPage = () => <div className="p-6">Čtečka knih</div>;
 
 // ====================================================
