@@ -104,8 +104,6 @@ const getIcon = (name) => {
   return iconRegistry[name] || Book;
 };
 
-// Záskok pro ReaderPage, aby neházel chybu "ReaderPage is not defined"
-const ReaderPage = () => React.createElement('div', { className: 'p-6' }, 'Čtečka knih');
 
 // ====================================================
 // 🎨 DEFINICE TÉMAT (Zůstává stejná)
