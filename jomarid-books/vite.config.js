@@ -2,26 +2,39 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [
-    react(),
-  ],
-  // 🔥 Esbuild nastavení pro vývojové prostředí (dev)
+  plugins: [react()],
+
   esbuild: {
     keepNames: true,
   },
+
   build: {
     outDir: 'dist',
-    // 🔥 Použijeme Terser, který umí stoprocentně zachovat názvy komponent pro odznáčky
     minify: 'terser',
     terserOptions: {
-      keep_classnames: true,
-      keep_fnames: true,
+      compress: {
+        drop_console: false,
+        keep_fnames: true,
+        keep_classnames: true,
+      },
+      mangle: {
+        keep_fnames: true,
+        keep_classnames: true,
+      },
     },
-    // Vypneme sourcemapy, což dramaticky zrychlí build na Vercelu a ušetří paměť
     sourcemap: false,
-    // Zvýšíme limit pro varování o velikosti chunků, aby build nepanikařil
     chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
   },
+
   server: {
     port: 3000,
   },
