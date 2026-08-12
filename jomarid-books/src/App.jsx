@@ -263,6 +263,261 @@ const Card = ({ children, className = '' }) => (
  <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
 );
 
+// ==========================================
+// KOMPONENTA: Navbar (Hlavní navigace)
+// ==========================================
+const Navbar = ({ onOpenSearch, onOpenSettings }) => {
+  const { user, logout } = useAuth();
+
+  const username = user?.email ? user.email.split('@')[0] : 'Čtenář';
+
+  return (
+    <nav 
+      style={{ 
+        backgroundColor: 'var(--bg-card)', 
+        borderColor: 'var(--border-color)',
+        backdropFilter: 'blur(8px)'
+      }} 
+      className="sticky top-0 z-40 w-full border-b transition-all duration-200"
+    >
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="no-underline flex items-center gap-2 group">
+            <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] flex items-center justify-center text-white font-black shadow-sm group-hover:scale-105 transition-transform">
+              J
+            </div>
+            <span style={{ color: 'var(--text-body)' }} className="font-black uppercase tracking-wider text-xs hidden sm:block">
+              Jomarid <span className="opacity-50">Books</span>
+            </span>
+          </Link>
+
+          {user && (
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Link to="/app" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                <Library size={14} className="opacity-70" />
+                <span className="hidden md:inline">Knihovna</span>
+              </Link>
+              <Link to="/stats" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                <BarChart3 size={14} className="opacity-70" />
+                <span className="hidden md:inline">Statistiky</span>
+              </Link>
+              <Link to="/publisher" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                <Compass size={14} className="opacity-70" />
+                <span className="hidden md:inline">Studio</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {user && (
+            <button onClick={onOpenSearch} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center" title="Hledat">
+              <Search size={16} />
+            </button>
+          )}
+
+          <button onClick={onOpenSettings} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center" title="Nastavení vzhledu">
+            <Settings size={16} />
+          </button>
+
+          {user ? (
+            <div className="flex items-center gap-2 pl-2 border-l" style={{ borderColor: 'var(--border-color)' }}>
+              <div className="hidden lg:block text-right">
+                <div className="text-[10px] font-black uppercase tracking-tight line-clamp-1">{username}</div>
+                <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-bold uppercase opacity-60">Čtenář</div>
+              </div>
+              <button onClick={logout} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all flex items-center justify-center sm:gap-2 sm:px-3 sm:py-2">
+                <LogOut size={14} />
+                <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Ven</span>
+              </button>
+            </div>
+          ) : (
+            <Link to="/login" className="no-underline">
+              <button style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="px-4 py-2 border-none rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 hover:opacity-90 transition-all shadow-sm">
+                Přihlásit se
+              </button>
+            </Link>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+// ==========================================
+// KOMPONENTA: UserLibrary
+// ==========================================
+export const UserLibrary = () => {
+  const { user, logout } = useAuth();
+  const [books, setBooks] = useState([]);
+  const [likedBookIds, setLikedBookIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submittingId, setSubmittingId] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const getUsername = useCallback((email) => email ? email.split('@')[0] : '', []);
+
+  const loadLibraryData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const todayStr = new Date().toLocaleDateString('sv');
+      await supabase.from('user_daily_activity').upsert({ user_id: user.id, activity_date: todayStr }, { onConflict: 'user_id,activity_date' });
+
+      const [booksRes, userBooksRes, likesRes, allLikesRes] = await Promise.all([
+        supabase.from('books').select('*'),
+        supabase.from('user_books').select('book_id, is_read, status, updated_at, scroll_position').eq('user_id', user.id),
+        supabase.from('book_likes').select('book_id').eq('user_id', user.id),
+        supabase.from('book_likes').select('book_id')
+      ]);
+
+      if (booksRes.error) throw booksRes.error;
+
+      if (likesRes.data) setLikedBookIds(likesRes.data.map(l => l.book_id));
+
+      const currentUsername = getUsername(user.email);
+
+      const processedBooks = (booksRes.data || []).map(singleBook => {
+        const userBookEntry = userBooksRes.data?.find(ub => ub.book_id === singleBook.id);
+        const totalLikesCount = (allLikesRes.data?.filter(l => l.book_id === singleBook.id).length || 0) + (singleBook.fake_likes || 0);
+
+        const isOwner = singleBook.author === currentUsername;
+        const hasAccess = isOwner || userBookEntry?.status === 'active';
+        const isPending = !isOwner && userBookEntry?.status === 'requested';
+
+        return {
+          id: singleBook.id,
+          title: singleBook.title,
+          author: singleBook.author,
+          likesCount: totalLikesCount,
+          hasAccess,
+          isPending,
+          isOwner,
+          isRead: userBookEntry?.is_read || false,
+          scrollPosition: userBookEntry?.scroll_position || 0,
+          lastOpened: userBookEntry?.updated_at ? new Date(userBookEntry.updated_at).getTime() : 0
+        };
+      });
+
+      processedBooks.sort((a, b) => {
+        if (a.hasAccess && b.hasAccess) {
+          if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+          return b.lastOpened - a.lastOpened;
+        }
+        if (a.hasAccess !== b.hasAccess) return b.hasAccess - a.hasAccess;
+        return 0;
+      });
+      
+      setBooks(processedBooks);
+    } catch (error) {
+      console.error("Chyba při načítání knihovny:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, getUsername]);
+
+  useEffect(() => { loadLibraryData(); }, [loadLibraryData]);
+
+  const handleRequestLicense = async (bookId) => {
+    if (!user) return;
+    setSubmittingId(bookId);
+    try {
+      const { error } = await supabase.from('user_books').insert([{ user_id: user.id, book_id: bookId, status: 'requested', is_read: false }]);
+      if (error) throw error;
+      setBooks(prev => prev.map(sb => sb.id === bookId ? { ...sb, isPending: true } : sb));
+    } catch (err) {
+      alert("Nepodařilo se odeslat žádost: " + err.message);
+    } finally { 
+      setSubmittingId(null); 
+    }
+  };
+
+  const filteredBooks = useMemo(() => {
+    return books.filter(sb => {
+      if (activeFilter === 'owned') return sb.hasAccess;
+      if (activeFilter === 'pending') return sb.isPending;
+      return true;
+    });
+  }, [books, activeFilter]);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] animate-pulse">
+      <Loader2 className="animate-spin mb-4" size={40} style={{ color: 'var(--bg-primary)' }} />
+      <p className="text-sm font-black uppercase tracking-wider opacity-60">Otevírám tvůj čtenářský trezor...</p>
+    </div>
+  );
+
+  return (
+    <div style={{ color: 'var(--text-body)' }} className="max-w-6xl mx-auto px-4 py-12 space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-6" style={{ borderColor: 'var(--border-color)' }}>
+        <div>
+          <span className="bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-amber-500/20 inline-flex items-center gap-1 mb-2">
+            <Sparkles size={10} /> Prémiová knihovna
+          </span>
+          <h2 className="text-4xl font-black uppercase tracking-tight m-0">Tvoje Knihovna</h2>
+        </div>
+        <button onClick={logout} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }} className="flex items-center gap-2 px-4 py-2.5 border rounded-xl font-bold uppercase text-xs cursor-pointer hover:bg-red-500/10 hover:text-red-500 transition-all">
+          <LogOut size={14} /> Odhlásit se
+        </button>
+      </div>
+
+      <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white">
+            <Flame size={20} />
+          </div>
+          <div>
+            <h4 className="font-black text-sm uppercase m-0">Dnešní čtení aktivní!</h4>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs m-0 opacity-70">Udržuj svůj denní streak.</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {['all', 'owned', 'pending'].map((filter) => (
+            <button key={filter} onClick={() => setActiveFilter(filter)} style={{ backgroundColor: activeFilter === filter ? 'var(--text-body)' : 'var(--bg-secondary)', color: activeFilter === filter ? 'var(--bg-body)' : 'var(--text-body)', borderColor: 'var(--border-color)' }} className="px-3 py-1.5 border rounded-xl font-black text-[10px] uppercase transition-all">
+              {filter === 'all' && 'Všechny'}
+              {filter === 'owned' && 'Moje Knihy'}
+              {filter === 'pending' && 'V řízení'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        {filteredBooks.map(sb => (
+          <div key={sb.id} style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border p-4 rounded-2xl flex flex-col justify-between hover:shadow-lg transition-all">
+            <div>
+              <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="aspect-[3/4] rounded-xl mb-4 flex items-center justify-center relative">
+                {sb.hasAccess ? <BookOpen size={36} className="text-[var(--bg-primary)] opacity-60" /> : <ShieldOff size={36} className="opacity-20" />}
+                <div className="absolute top-2 right-2 border px-2 py-0.5 rounded-lg text-[10px] font-black bg-[var(--bg-card)] flex items-center gap-1" style={{ borderColor: 'var(--border-color)' }}>
+                  <Heart size={10} className="fill-red-500 text-red-500" />
+                  <span>{sb.likesCount}</span>
+                </div>
+              </div>
+              <h4 className="font-black uppercase text-sm tracking-tight m-0 line-clamp-1">{sb.title}</h4>
+              <p className="text-xs font-bold opacity-60 m-0" style={{ color: 'var(--text-muted)' }}>{sb.author}</p>
+            </div>
+            <div className="mt-4">
+              {sb.hasAccess ? (
+                <Link to={`/read/${sb.id}`} className="no-underline">
+                  <button style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="w-full py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider border-none cursor-pointer flex items-center justify-center gap-1">
+                    <BookOpen size={12} /> {sb.isRead ? 'Číst znovu' : 'Číst'}
+                  </button>
+                </Link>
+              ) : sb.isPending ? (
+                <div style={{ backgroundColor: 'var(--bg-secondary)' }} className="py-2.5 text-center rounded-xl text-[10px] font-black uppercase opacity-50">V řízení</div>
+              ) : (
+                <button onClick={() => handleRequestLicense(sb.id)} disabled={submittingId === sb.id} style={{ backgroundColor: 'var(--bg-primary)', color: 'white' }} className="w-full py-2.5 rounded-xl font-black text-[10px] uppercase tracking-wider border-none cursor-pointer">
+                  {submittingId === sb.id ? <Loader2 size={12} className="animate-spin mx-auto" /> : 'Zažádat o licenci'}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const UserStatsDropdown = () => {
  const { user } = useAuth();
  const [isOpen, setIsOpen] = useState(false);
