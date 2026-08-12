@@ -264,12 +264,37 @@ const Card = ({ children, className = '' }) => (
 );
 
 // ==========================================
-// KOMPONENTA: Navbar (Hlavní navigace)
+// KOMPONENTA: Navbar (S kontrolou rolí)
 // ==========================================
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, role } = useAuth(); // načtení role z AuthContextu
+  const navigate = useNavigate();
 
+  // Pomocná funkce pro zjištění username
   const username = user?.email ? user.email.split('@')[0] : 'Čtenář';
+
+  // Zobrazení role v profilu s pěkno ikonkou
+  const renderRoleBadge = () => {
+    if (role === 'správce') {
+      return (
+        <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider flex items-center justify-end gap-1">
+          <Shield size={10} /> Správce
+        </span>
+      );
+    }
+    if (role === 'nakladatel') {
+      return (
+        <span className="text-[9px] font-black uppercase text-emerald-500 tracking-wider flex items-center justify-end gap-1">
+          <Compass size={10} /> Nakladatel
+        </span>
+      );
+    }
+    return (
+      <span style={{ color: 'var(--text-muted)' }} className="text-[9px] font-bold uppercase opacity-60">
+        Čtenář
+      </span>
+    );
+  };
 
   return (
     <nav 
@@ -281,63 +306,129 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
       className="sticky top-0 z-40 w-full border-b transition-all duration-200"
     >
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        
+        {/* LOGO / NÁZEV APKY */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="no-underline flex items-center gap-2 group">
+          <Link 
+            to="/" 
+            className="no-underline flex items-center gap-2 group"
+          >
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] flex items-center justify-center text-white font-black shadow-sm group-hover:scale-105 transition-transform">
               J
             </div>
-            <span style={{ color: 'var(--text-body)' }} className="font-black uppercase tracking-wider text-xs hidden sm:block">
+            <span 
+              style={{ color: 'var(--text-body)' }} 
+              className="font-black uppercase tracking-wider text-xs hidden sm:block"
+            >
               Jomarid <span className="opacity-50">Books</span>
             </span>
           </Link>
 
+          {/* HLAVNÍ ODKAZY PODLE ROLÍ */}
           {user && (
             <div className="flex items-center gap-1 sm:gap-2">
-              <Link to="/app" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+              {/* Vidí všichni */}
+              <Link 
+                to="/app" 
+                style={{ color: 'var(--text-body)' }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+              >
                 <Library size={14} className="opacity-70" />
                 <span className="hidden md:inline">Knihovna</span>
               </Link>
-              <Link to="/stats" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+              
+              {/* Vidí všichni */}
+              <Link 
+                to="/stats" 
+                style={{ color: 'var(--text-body)' }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+              >
                 <BarChart3 size={14} className="opacity-70" />
                 <span className="hidden md:inline">Statistiky</span>
               </Link>
-              <Link to="/publisher" style={{ color: 'var(--text-body)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all">
-                <Compass size={14} className="opacity-70" />
-                <span className="hidden md:inline">Studio</span>
-              </Link>
+
+              {/* Vidí POUZE Nakladatel */}
+              {role === 'nakladatel' && (
+                <Link 
+                  to="/publisher" 
+                  style={{ color: 'var(--text-body)' }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all text-emerald-600 dark:text-emerald-400"
+                >
+                  <Compass size={14} className="opacity-80" />
+                  <span className="hidden md:inline">Studio</span>
+                </Link>
+              )}
+
+              {/* Vidí POUZE Správce */}
+              {role === 'správce' && (
+                <Link 
+                  to="/admin" 
+                  style={{ color: 'var(--text-body)' }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all text-amber-600 dark:text-amber-400"
+                >
+                  <Shield size={14} className="opacity-80" />
+                  <span className="hidden md:inline">Admin</span>
+                </Link>
+              )}
             </div>
           )}
         </div>
 
+        {/* PRAVÁ STRANA: AKCE A PROFIL */}
         <div className="flex items-center gap-2">
+          
+          {/* TLAČÍTKO VYHLEDÁVÁNÍ */}
           {user && (
-            <button onClick={onOpenSearch} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center" title="Hledat">
+            <button
+              onClick={onOpenSearch}
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+              className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center"
+              title="Hledat knihy"
+            >
               <Search size={16} />
             </button>
           )}
 
-          <button onClick={onOpenSettings} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center" title="Nastavení vzhledu">
+          {/* TLAČÍTKO NASTAVENÍ (TÉMATA) */}
+          <button
+            onClick={onOpenSettings}
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+            className="p-2 border rounded-xl cursor-pointer hover:brightness-95 active:scale-95 transition-all flex items-center justify-center"
+            title="Nastavení vzhledu"
+          >
             <Settings size={16} />
           </button>
 
+          {/* UŽIVATELSKÉ MENU / LOGIN */}
           {user ? (
             <div className="flex items-center gap-2 pl-2 border-l" style={{ borderColor: 'var(--border-color)' }}>
               <div className="hidden lg:block text-right">
-                <div className="text-[10px] font-black uppercase tracking-tight line-clamp-1">{username}</div>
-                <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-bold uppercase opacity-60">Čtenář</div>
+                <div className="text-[10px] font-black uppercase tracking-tight line-clamp-1">
+                  {username}
+                </div>
+                {renderRoleBadge()}
               </div>
-              <button onClick={logout} style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="p-2 border rounded-xl cursor-pointer hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all flex items-center justify-center sm:gap-2 sm:px-3 sm:py-2">
+              
+              <button
+                onClick={logout}
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
+                className="p-2 border rounded-xl cursor-pointer hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 active:scale-95 transition-all flex items-center justify-center sm:gap-2 sm:px-3 sm:py-2"
+              >
                 <LogOut size={14} />
                 <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Ven</span>
               </button>
             </div>
           ) : (
             <Link to="/login" className="no-underline">
-              <button style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="px-4 py-2 border-none rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 hover:opacity-90 transition-all shadow-sm">
+              <button
+                style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }}
+                className="px-4 py-2 border-none rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 hover:opacity-90 transition-all shadow-sm"
+              >
                 Přihlásit se
               </button>
             </Link>
           )}
+
         </div>
       </div>
     </nav>
