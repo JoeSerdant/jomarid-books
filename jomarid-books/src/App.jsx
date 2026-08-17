@@ -634,12 +634,6 @@ const SettingsModal = ({ isOpen, onClose }) => {
 };
 
 
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Flame, Trophy, CheckCircle, Calendar, Sparkles, 
-  Shield, ShieldOff, TrendingUp, Users, Award, ChevronRight, Coins, Lock 
-} from 'lucide-react';
 
 // --- KONFIGURACE A DEFINICE ODZNÁČKŮ ---
 export const BOOK_BADGES = [
