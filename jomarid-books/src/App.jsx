@@ -609,184 +609,7 @@ export const UserLibrary = () => {
   );
 };
 
-const UserStatsDropdown = () => {
- const { user } = useAuth();
- const [isOpen, setIsOpen] = useState(false);
- const [stats, setStats] = useState({
-   streak: 0,
-   monthlyRead: 0,
-   monthlyGoal: 5,
-   totalRead: 0
- });
- const [loading, setLoading] = useState(false);
 
- const fetchStats = async () => {
-   if (!user) return;
-   setLoading(true);
-   try {
-     const { data: userBooks } = await supabase
-       .from('user_books')
-       .select('updated_at, is_read')
-       .eq('user_id', user.id)
-       .eq('is_read', true);
-
-     const { data: activityData } = await supabase
-       .from('user_daily_activity')
-       .select('activity_date')
-       .eq('user_id', user.id)
-       .order('activity_date', { ascending: false });
-
-     const totalRead = userBooks?.length || 0;
-
-     const currentYear = new Date().getFullYear();
-     const currentMonth = new Date().getMonth();
-    
-     const monthlyRead = userBooks?.filter(ub => {
-       const date = new Date(ub.updated_at);
-       return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-     }).length || 0;
-
-     let streak = 0;
-     if (activityData && activityData.length > 0) {
-       const activeDates = activityData.map(a => a.activity_date);
-      
-       const todayStr = new Date().toLocaleDateString('sv');
-       const yesterday = new Date();
-       yesterday.setDate(yesterday.getDate() - 1);
-       const yesterdayStr = yesterday.toLocaleDateString('sv');
-
-       if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
-         let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
-        
-         while (true) {
-           const checkDateStr = checkDate.toLocaleDateString('sv');
-           if (activeDates.includes(checkDateStr)) {
-             streak++;
-             checkDate.setDate(checkDate.getDate() - 1);
-           } else {
-             break;
-           }
-         }
-       }
-     }
-
-     setStats(prev => ({ ...prev, totalRead, monthlyRead, streak }));
-   } catch (err) {
-     console.error("Chyba při výpočtu statistik:", err);
-   } finally {
-     setLoading(false);
-   }
- };
-
- useEffect(() => {
-   if (isOpen) fetchStats();
- }, [isOpen, user]);
-
- const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
-
- return (
-   <div className="relative flex items-center">
-     <button 
-       onClick={() => setIsOpen(!isOpen)} 
-       className="p-2 opacity-60 hover:opacity-100 rounded-lg cursor-pointer text-current bg-transparent border-none outline-none flex items-center gap-1.5"
-     >
-       <BarChart2 size={20} />
-       {stats.streak > 0 && (
-         <span className="flex items-center text-amber-500 font-black text-xs gap-0.5">
-           <Flame size={14} className="fill-amber-500 text-amber-500" /> {stats.streak}
-         </span>
-       )}
-     </button>
-
-     {isOpen && (
-       <>
-         <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-         <div 
-           style={{ 
-             backgroundColor: 'var(--bg-card)', 
-             borderColor: 'var(--border-color)' 
-           }}
-           className="absolute right-0 top-12 w-72 border shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-         >
-           <h3 
-             style={{ color: 'var(--text-muted)' }}
-             className="text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-1.5"
-           >
-             <Award size={14} style={{ color: 'var(--bg-primary)' }} /> Tvůj čtenářský profil
-           </h3>
-
-           {loading ? (
-             <p style={{ color: 'var(--text-muted)' }} className="text-center py-4 text-xs font-bold opacity-50">Počítám data...</p>
-           ) : (
-             <div style={{ color: 'var(--text-body)' }} className="space-y-4">
-              
-               <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                 <div className="flex items-center gap-2.5">
-                   <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
-                     <Flame size={18} className={stats.streak > 0 ? "fill-amber-500 text-amber-500" : ""} />
-                   </div>
-                   <div className="text-left">
-                     <h4 className="text-xs font-black uppercase tracking-tight">Denní aktivita</h4>
-                     <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Čti denně, drž sérii!</p>
-                   </div>
-                 </div>
-                 <div className="text-right">
-                   <span className="text-xl font-black text-amber-600">{stats.streak}</span>
-                   <span className="text-[10px] block font-black uppercase opacity-40 leading-none text-amber-600">dní</span>
-                 </div>
-               </div>
-
-               <div 
-                 style={{ backgroundColor: 'var(--bg-badge)', borderColor: 'var(--border-color)' }}
-                 className="p-3 border rounded-xl space-y-2"
-               >
-                 <div className="flex justify-between items-start">
-                   <div className="flex items-center gap-2.5">
-                     <div 
-                       style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-badge)' }}
-                       className="p-2 rounded-lg"
-                     >
-                       <Calendar size={18} />
-                     </div>
-                     <div className="text-left">
-                       <h4 className="text-xs font-black uppercase tracking-tight">Měsíční výzva</h4>
-                       <p style={{ color: 'var(--text-muted)' }} className="text-[10px] font-semibold m-0">Tento měsíc</p>
-                     </div>
-                   </div>
-                   <div style={{ color: 'var(--text-badge)' }} className="text-right font-black text-xs">
-                     {stats.monthlyRead} / {stats.monthlyGoal}
-                   </div>
-                 </div>
-                
-                 <div className="space-y-1">
-                   <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
-                     <div 
-                       className="h-full rounded-full transition-all duration-500"
-                       style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}
-                     ></div>
-                   </div>
-                   <div style={{ color: 'var(--text-muted)' }} className="text-[9px] font-black uppercase opacity-70 text-right">{progressPercent}% splněno</div>
-                 </div>
-               </div>
-
-               <div 
-                 style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
-                 className="flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold"
-               >
-                 <span style={{ color: 'var(--text-muted)' }} className="flex items-center gap-1">
-                   <CheckCircle size={12} style={{ color: 'var(--bg-primary)' }} /> Přečteno celkem:
-                 </span>
-                 <span style={{ color: 'var(--text-body)' }} className="font-black">{stats.totalRead} knih</span>
-               </div>
-
-             </div>
-           )}
-         </div>
-       </>
-     )}
-   </div>
- );
-};
 
 const SettingsModal = ({ isOpen, onClose }) => {
  const { currentTheme, changeTheme } = useTheme();
@@ -807,644 +630,85 @@ const SettingsModal = ({ isOpen, onClose }) => {
 };
 
 
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  Flame, Trophy, CheckCircle, Calendar, Sparkles, 
+  Shield, ShieldOff, TrendingUp, Users, Award, ChevronRight, Coins, Lock 
+} from 'lucide-react';
 
-const BOOK_BADGES = [
-  // ==========================================
-  // KATEGORIE 1: POČET PŘEČTENÝCH KNIH (25 odznáčků)
-  // ==========================================
-  {
-    id: 'books_1',
-    title: 'První zářez',
-    description: 'Přečetl jsi svou první 5minutovku.',
-    icon: Footprints,
-    condition: (stats) => (stats?.totalRead || 0) >= 1,
-  },
-  {
-    id: 'books_5',
-    title: 'Rychlé menu',
-    description: 'Zvládl jsi přečíst 5 krátkých děl.',
-    icon: Feather,
-    condition: (stats) => (stats?.totalRead || 0) >= 5,
-  },
-  {
-    id: 'books_10',
-    title: 'Zasvěcený nováček',
-    description: 'Máš na kontě 10 přečtených příběhů.',
-    icon: Compass,
-    condition: (stats) => (stats?.totalRead || 0) >= 10,
-  },
-  {
-    id: 'books_15',
-    title: 'Knižní chuťovka',
-    description: 'Dokončil jsi úspěšně 15 krátkých knih.',
-    icon: BookMarked,
-    condition: (stats) => (stats?.totalRead || 0) >= 15,
-  },
-  {
-    id: 'books_20',
-    title: 'Hltoun kapitol',
-    description: 'Pokořil jsi hranici 20 přečtených knih.',
-    icon: BookMarked,
-    condition: (stats) => (stats?.totalRead || 0) >= 20,
-  },
-  {
-    id: 'books_25',
-    title: 'Čtverec příběhů',
-    description: 'Máš za sebou rovných 25 textů.',
-    icon: Scroll,
-    condition: (stats) => (stats?.totalRead || 0) >= 25,
-  },
-  {
-    id: 'books_30',
-    title: 'Měsíční ekvivalent',
-    description: 'Přečetl jsi 30 knih (jako každý den jednu).',
-    icon: Library,
-    condition: (stats) => (stats?.totalRead || 0) >= 30,
-  },
-  {
-    id: 'books_35',
-    title: 'Literární lovec',
-    description: 'Úspěšně jsi dokončil 35 knih.',
-    icon: Scroll,
-    condition: (stats) => (stats?.totalRead || 0) >= 35,
-  },
-  {
-    id: 'books_40',
-    title: 'Sběratel stránek',
-    description: 'Už jsi pokořil hranici 40 příběhů.',
-    icon: Feather,
-    condition: (stats) => (stats?.totalRead || 0) >= 40,
-  },
-  {
-    id: 'books_50',
-    title: 'Skutečný Knihomol',
-    description: 'Přečetl jsi parádních 50 knih!',
-    icon: BookOpen,
-    condition: (stats) => (stats?.totalRead || 0) >= 50,
-  },
-  {
-    id: 'books_60',
-    title: 'Příběhový klub',
-    description: '60 zářezů ve tvé knihovně.',
-    icon: Users,
-    condition: (stats) => (stats?.totalRead || 0) >= 60,
-  },
-  {
-    id: 'books_70',
-    title: 'Zkušený předčítač',
-    description: 'Dosáhl jsi milníku 70 přečtených děl.',
-    icon: ShieldCheck,
-    condition: (stats) => (stats?.totalRead || 0) >= 70,
-  },
-  {
-    id: 'books_75',
-    title: 'Strážce vědění',
-    description: 'Tvoje knihovna čítá už 75 děl.',
-    icon: ShieldCheck,
-    condition: (stats) => (stats?.totalRead || 0) >= 75,
-  },
-  {
-    id: 'books_80',
-    title: 'Vznešená knihovna',
-    description: 'Dokončil jsi už 80 textů.',
-    icon: Library,
-    condition: (stats) => (stats?.totalRead || 0) >= 80,
-  },
-  {
-    id: 'books_90',
-    title: 'Před branami stovky',
-    description: 'Už jen krůček! Máš za sebou 90 knih.',
-    icon: TrendingUp,
-    condition: (stats) => (stats?.totalRead || 0) >= 90,
-  },
-  {
-    id: 'books_100',
-    title: 'Chodící encyklopedie',
-    description: 'Dosáhl jsi magické stovky (100 knih).',
-    icon: Gem,
-    condition: (stats) => (stats?.totalRead || 0) >= 100,
-  },
-  {
-    id: 'books_120',
-    title: 'Nezastavitelný čtenář',
-    description: 'Pokořil jsi neuvěřitelných 120 děl.',
-    icon: Zap,
-    condition: (stats) => (stats?.totalRead || 0) >= 120,
-  },
-  {
-    id: 'books_150',
-    title: 'Absolutní Legenda',
-    description: 'Přelouskal jsi celkem 150 knižních titulů.',
-    icon: Crown,
-    condition: (stats) => (stats?.totalRead || 0) >= 150,
-  },
-  {
-    id: 'books_180',
-    title: 'Knižní maratonec',
-    description: 'Zvládl jsi přečíst 180 titulů.',
-    icon: Trophy,
-    condition: (stats) => (stats?.totalRead || 0) >= 180,
-  },
-  {
-    id: 'books_200',
-    title: 'Knižní magnát',
-    description: 'Dosáhl jsi monstrózního milníku 200 knih.',
-    icon: Trophy,
-    condition: (stats) => (stats?.totalRead || 0) >= 200,
-  },
-  {
-    id: 'books_250',
-    title: 'Půlmaraton příběhů',
-    description: 'Na tvém kontě svítí 250 knih.',
-    icon: BarChart2,
-    condition: (stats) => (stats?.totalRead || 0) >= 250,
-  },
-  {
-    id: 'books_300',
-    title: 'Knižní Imperátor',
-    description: 'Úctyhodných 300 přečtených 5minutovek.',
-    icon: Crown,
-    condition: (stats) => (stats?.totalRead || 0) >= 300,
-  },
-  {
-    id: 'books_400',
-    title: 'Osvícená mysl',
-    description: 'Pokořil jsi bájnou hranici 400 knih.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.totalRead || 0) >= 400,
-  },
-  {
-    id: 'books_500',
-    title: 'Půl tisícovky',
-    description: 'Přečetl jsi 500 knih! Jsi vůbec člověk?',
-    icon: Gem,
-    condition: (stats) => (stats?.totalRead || 0) >= 500,
-  },
-  {
-    id: 'books_1000',
-    title: 'Bůh literárního světa',
-    description: '1000 přečtených děl. Absolutní vrchol, dál už nic není.',
-    icon: InfinityIcon,
-    condition: (stats) => (stats?.totalRead || 0) >= 1000,
-  },
-
-  // ==========================================
-  // KATEGORIE 2: DENNÍ SÉRIE / STREAK (22 odznáčků)
-  // ==========================================
-  {
-    id: 'streak_2',
-    title: 'Zápal do čtení',
-    description: 'Udržel jsi denní sérii po dobu 2 dnů.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 2,
-  },
-  {
-    id: 'streak_3',
-    title: 'Plamenná síla',
-    description: 'Čteš poctivě 3 dny za sebou.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 3,
-  },
-  {
-    id: 'streak_4',
-    title: 'Čtyřlístek',
-    description: 'Série čtení trvá 4 dny.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 4,
-  },
-  {
-    id: 'streak_5',
-    title: 'Pravidelný režim',
-    description: 'Pětidenní série čtení je doma.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 5,
-  },
-  {
-    id: 'streak_6',
-    title: 'Skoro týden',
-    description: 'Udržel jsi plamínek po dobu 6 dní.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 6,
-  },
-  {
-    id: 'streak_7',
-    title: 'Týdenní maraton',
-    description: 'Udržel jsi plamínek po celých 7 dní.',
-    icon: Zap,
-    condition: (stats) => (stats?.streak || 0) >= 7,
-  },
-  {
-    id: 'streak_8',
-    title: 'Osmá vlna',
-    description: 'Čteš už 8 dní v řadě bez přestávky.',
-    icon: Zap,
-    condition: (stats) => (stats?.streak || 0) >= 8,
-  },
-  {
-    id: 'streak_9',
-    title: 'Devítkový mág',
-    description: 'Udržel jsi sérii po dobu 9 dní.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.streak || 0) >= 9,
-  },
-  {
-    id: 'streak_10',
-    title: 'Nezastavitelný stroj',
-    description: 'Držíš streak úctyhodných 10 dní.',
-    icon: Gauge,
-    condition: (stats) => (stats?.streak || 0) >= 10,
-  },
-  {
-    id: 'streak_11',
-    title: 'Dvojitá jednička',
-    description: 'Tvoje série dosáhla 11 dní.',
-    icon: Gauge,
-    condition: (stats) => (stats?.streak || 0) >= 11,
-  },
-  {
-    id: 'streak_12',
-    title: 'Dvanáct měsíčků',
-    description: 'Čteš nepřetržitě už 12 dní.',
-    icon: Calendar,
-    condition: (stats) => (stats?.streak || 0) >= 12,
-  },
-  {
-    id: 'streak_13',
-    title: 'Páteční štěstí',
-    description: 'Zvládl jsi 13 dní v řadě.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 13,
-  },
-  {
-    id: 'streak_14',
-    title: 'Čtrnáctidenní rituál',
-    description: 'Dva týdny bez jediného vynechaného dne.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.streak || 0) >= 14,
-  },
-  {
-    id: 'streak_15',
-    title: 'Půl měsíce v ohni',
-    description: 'Udržel jsi sérii po dobu 15 dní.',
-    icon: Flame,
-    condition: (stats) => (stats?.streak || 0) >= 15,
-  },
-  {
-    id: 'streak_20',
-    title: 'Závislost na příbězích',
-    description: '20 dní v kuse s knihou v ruce.',
-    icon: HeartIcon,
-    condition: (stats) => (stats?.streak || 0) >= 20,
-  },
-  {
-    id: 'streak_25',
-    title: 'Čtvrt století',
-    description: 'Tvoje série čtení má délku 25 dní.',
-    icon: HeartIcon,
-    condition: (stats) => (stats?.streak || 0) >= 25,
-  },
-  {
-    id: 'streak_30',
-    title: 'Měsíční fanatik',
-    description: 'Dokázal jsi číst každý den po dobu 30 dní!',
-    icon: InfinityIcon,
-    condition: (stats) => (stats?.streak || 0) >= 30,
-  },
-  {
-    id: 'streak_45',
-    title: 'Rozpálená pec',
-    description: 'Tvoje série hoří už dlouhých 45 dní.',
-    icon: Zap,
-    condition: (stats) => (stats?.streak || 0) >= 45,
-  },
-  {
-    id: 'streak_60',
-    title: 'Dva měsíce v kuse',
-    description: 'Neskutečných 60 dní každodenního čtení.',
-    icon: InfinityIcon,
-    condition: (stats) => (stats?.streak || 0) >= 60,
-  },
-  {
-    id: 'streak_75',
-    title: 'Plamenný veterán',
-    description: 'Udržel jsi streak po dobu 75 dní.',
-    icon: Trophy,
-    condition: (stats) => (stats?.streak || 0) >= 75,
-  },
-  {
-    id: 'streak_90',
-    title: 'Čtvrt roku v kuse',
-    description: 'Úctyhodných 90 dní bez jediného zaváhání.',
-    icon: Crown,
-    condition: (stats) => (stats?.streak || 0) >= 90,
-  },
-  {
-    id: 'streak_100',
-    title: 'Stovka v plamenech',
-    description: 'Dosáhl jsi bájné stovky dní nepřerušeného čtení!',
-    icon: Crown,
-    condition: (stats) => (stats?.streak || 0) >= 100,
-  },
-
-  // ==========================================
-  // KATEGORIE 3: ČTENÁŘSKÉ ÚROVNĚ / LEVEL (15 odznáčků)
-  // ==========================================
-  {
-    id: 'lvl_2',
-    title: 'Zapálený začátečník',
-    description: 'Dosáhl jsi čtenářské úrovně 2.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.level || 1) >= 2,
-  },
-  {
-    id: 'lvl_3',
-    title: 'Učeň slov',
-    description: 'Dosáhl jsi čtenářské úrovně 3.',
-    icon: Sparkles,
-    condition: (stats) => (stats?.level || 1) >= 3,
-  },
-  {
-    id: 'lvl_4',
-    title: 'Zvědavý čtenář',
-    description: 'Dosáhl jsi čtenářské úrovně 4.',
-    icon: Compass,
-    condition: (stats) => (stats?.level || 1) >= 4,
-  },
-  {
-    id: 'lvl_5',
-    title: 'Průzkumník světů',
-    description: 'Dosáhl jsi čtenářské úrovně 5.',
-    icon: Compass,
-    condition: (stats) => (stats?.level || 1) >= 5,
-  },
-  {
-    id: 'lvl_7',
-    title: 'Sběratel vědění',
-    description: 'Dosáhl jsi čtenářské úrovně 7.',
-    icon: Scroll,
-    condition: (stats) => (stats?.level || 1) >= 7,
-  },
-  {
-    id: 'lvl_10',
-    title: 'Vášnivá duše',
-    description: 'Dosáhl jsi čtenářské úrovně 10.',
-    icon: Star,
-    condition: (stats) => (stats?.level || 1) >= 10,
-  },
-  {
-    id: 'lvl_12',
-    title: 'Knižní šlechtic',
-    description: 'Dosáhl jsi čtenářské úrovně 12.',
-    icon: Star,
-    condition: (stats) => (stats?.level || 1) >= 12,
-  },
-  {
-    id: 'lvl_15',
-    title: 'Mistr literatury',
-    description: 'Dosáhl jsi čtenářské úrovně 15.',
-    icon: Award,
-    condition: (stats) => (stats?.level || 1) >= 15,
-  },
-  {
-    id: 'lvl_18',
-    title: 'Elitní akademik',
-    description: 'Dosáhl jsi čtenářské úrovně 18.',
-    icon: Award,
-    condition: (stats) => (stats?.level || 1) >= 18,
-  },
-  {
-    id: 'lvl_20',
-    title: 'Nejvyšší Mág',
-    description: 'Dosáhl jsi čtenářské úrovně 20.',
-    icon: Zap,
-    condition: (stats) => (stats?.level || 1) >= 20,
-  },
-  {
-    id: 'lvl_25',
-    title: 'Bůh příběhů',
-    description: 'Dosáhl jsi úrovně 25.',
-    icon: Crown,
-    condition: (stats) => (stats?.level || 1) >= 25,
-  },
-  {
-    id: 'lvl_30',
-    title: 'Legendární archivář',
-    description: 'Dosáhl jsi čtenářské úrovně 30.',
-    icon: Crown,
-    condition: (stats) => (stats?.level || 1) >= 30,
-  },
-  {
-    id: 'lvl_40',
-    title: 'Osvícený mudrc',
-    description: 'Dosáhl jsi čtenářské úrovně 40.',
-    icon: Gem,
-    condition: (stats) => (stats?.level || 1) >= 40,
-  },
-  {
-    id: 'lvl_50',
-    title: 'Nesmrtelný čtenář',
-    description: 'Dosáhl jsi obří čtenářské úrovně 50.',
-    icon: Gem,
-    condition: (stats) => (stats?.level || 1) >= 50,
-  },
-  {
-    id: 'lvl_100',
-    title: 'Avatar vědění',
-    description: 'Dosáhl jsi bájné úrovně 100.',
-    icon: InfinityIcon,
-    condition: (stats) => (stats?.level || 1) >= 100,
-  },
-
-  // ==========================================
-  // KATEGORIE 4: MĚSÍČNÍ VÝZVY A CÍLE (6 odznáčků)
-  // ==========================================
-  {
-    id: 'goal_first_step',
-    title: 'První úspěch',
-    description: 'Tento měsíc jsi přečetl alespoň 1 knihu.',
-    icon: Award,
-    condition: (stats) => (stats?.monthlyRead || 0) >= 1,
-  },
-  {
-    id: 'goal_halfway',
-    title: 'V polovině cesty',
-    description: 'Splnil jsi polovinu svého měsíčního cíle.',
-    icon: TrendingUp,
-    condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) / 2),
-  },
-  {
-    id: 'goal_slayer',
-    title: 'Drtič výzev',
-    description: 'Úspěšně jsi splnil svůj měsíční cíl.',
-    icon: Trophy,
-    condition: (stats) => (stats?.monthlyRead || 0) >= (stats?.monthlyGoal || 5),
-  },
-  {
-    id: 'goal_overachiever',
-    title: 'Nadplán',
-    description: 'Překonal jsi svůj měsíční cíl o 2 knihy.',
-    icon: Star,
-    condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) + 2),
-  },
-  {
-    id: 'goal_double',
-    title: 'Dvojitý zásah',
-    description: 'Zdvojnásobil jsi svůj stanovený měsíční cíl.',
-    icon: Trophy,
-    condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) * 2),
-  },
-  {
-    id: 'goal_triple',
-    title: 'Trojitá koruna',
-    description: 'Ztrojnásobil jsi svůj měsíční plán.',
-    icon: Crown,
-    condition: (stats) => (stats?.monthlyRead || 0) >= ((stats?.monthlyGoal || 5) * 3),
-  },
-
-  // ==========================================
-  // KATEGORIE 5: KALENDÁŘNÍ MĚSÍCE (12 odznáčků)
-  // ==========================================
-  {
-    id: 'month_jan',
-    title: 'Novoroční start',
-    description: 'Byl jsi aktivní během měsíce Leden.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Leden' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_feb',
-    title: 'Únorový ledoborec',
-    description: 'Byl jsi aktivní během měsíce Únor.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Únor' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_mar',
-    title: 'Březnová moudrost',
-    description: 'Byl jsi aktivní během měsíce Březen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Březen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_apr',
-    title: 'Aprílové stránky',
-    description: 'Byl jsi aktivní během měsíce Duben.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Duben' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_may',
-    title: 'Májový květ',
-    description: 'Byl jsi aktivní během měsíce Květen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Květen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_jun',
-    title: 'Slunovrat příběhů',
-    description: 'Byl jsi aktivní během měsíce Červen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Červen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_jul',
-    title: 'Letní čtení',
-    description: 'Byl jsi aktivní během měsíce Červenec.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Červenec' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_aug',
-    title: 'Srpnová pohoda',
-    description: 'Byl jsi aktivní během měsíce Srpen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Srpen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_sep',
-    title: 'Zářijová škola',
-    description: 'Byl jsi aktivní během měsíce Září.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Září' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_oct',
-    title: 'Podzimní archiv',
-    description: 'Byl jsi aktivní během měsíce Říjen.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Říjen' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_nov',
-    title: 'Listopadová melancholie',
-    description: 'Byl jsi aktivní během měsíce Listopad.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Listopad' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-  {
-    id: 'month_dec',
-    title: 'Zimní pohoda',
-    description: 'Byl jsi aktivní během měsíce Prosinec.',
-    icon: Calendar,
-    condition: (stats) => stats?.currentMonthName === 'Prosinec' && ((stats?.monthlyRead || 0) >= 1 || (stats?.streak || 0) >= 1),
-  },
-
-  // ==========================================
-  // KATEGORIE 6: ČASOVÝ FINIŠ / SPECIÁLNÍ (4 odznáčky)
-  // ==========================================
-  {
-    id: 'time_15_days',
-    title: 'Klidný čtenář',
-    description: 'Do konce měsíce zbývá víc než 15 dní a ty už pilně čteš.',
-    icon: Calendar,
-    condition: (stats) => (stats?.daysRemainingInMonth || 0) >= 15 && (stats?.monthlyRead || 0) >= 1,
-  },
-  {
-    id: 'time_last_week',
-    title: 'Finiš na obzoru',
-    description: 'Čteš v posledním týdnu kalendářního měsíce.',
-    icon: Calendar,
-    condition: (stats) => (stats?.daysRemainingInMonth || 0) <= 7 && (stats?.daysRemainingInMonth || 0) > 0,
-  },
-  {
-    id: 'time_clutch',
-    title: 'Za pět minut dvanáct',
-    description: 'Splnil jsi měsíční cíl v úplně poslední den měsíce.',
-    icon: Zap,
-    condition: (stats) => (stats?.daysRemainingInMonth || 0) === 0 && (stats?.monthlyRead || 0) >= (stats?.monthlyGoal || 5),
-  },
-  {
-    id: 'time_panic',
-    title: 'Čtenářská panika',
-    description: 'V poslední den měsíce ti chybí už jen 1 kniha do cíle.',
-    icon: ZapOff,
-    condition: (stats) => (stats?.daysRemainingInMonth || 0) === 0 && ((stats?.monthlyGoal || 5) - (stats?.monthlyRead || 0) === 1),
-  }
+// --- KONFIGURACE A DEFINICE ODZNÁČKŮ ---
+export const BOOK_BADGES = [
+  { id: 'first_book', title: 'První Průzkumník', description: 'Přečti svou 1. knihu v aplikaci', icon: CheckCircle, check: (s) => s.totalRead >= 1, rewardCoins: 50 },
+  { id: 'bookworm_5', title: 'Zapálený Čtenář', description: 'Přečti celkem 5 knih', icon: Trophy, check: (s) => s.totalRead >= 5, rewardCoins: 100 },
+  { id: 'bookworm_25', title: 'Knihomil roku', description: 'Přečti celkem 25 knih', icon: Award, check: (s) => s.totalRead >= 25, rewardCoins: 250 },
+  { id: 'streak_7', title: 'Týdenní Plamen', description: 'Udržuj čtenářskou sérii 7 dní v kuse', icon: Flame, check: (s) => s.streak >= 7, rewardCoins: 150 },
+  { id: 'streak_30', title: 'Měsíční Mág', description: 'Udržuj čtenářskou sérii 30 dní v kuse', icon: Flame, check: (s) => s.streak >= 30, rewardCoins: 500 },
+  { id: 'goal_achieved', title: 'Cíl Dosažen', description: 'Splň svůj měsíční čtenářský cíl', icon: Calendar, check: (s) => s.monthlyRead >= s.monthlyGoal && s.monthlyGoal > 0, rewardCoins: 300 }
 ];
 
-const UserStats = () => {
-  const { user } = useAuth();
+// --- POMOCNÉ FUNKCE PRO XP A COINY ---
+const calculateXpMultiplier = (streak) => {
+  if (streak >= 50) return streak * 50;
+  if (streak >= 10) return streak * 25;
+  return streak * 10;
+};
+
+const calculateLevelAndProgress = (totalXp) => {
+  const level = Math.floor(Math.sqrt(totalXp / 100)) + 1;
+  const xpCurrentLevelBase = Math.pow(level - 1, 2) * 100;
+  const xpNextLevelBase = Math.pow(level, 2) * 100;
+  const xpInCurrentLevel = totalXp - xpCurrentLevelBase;
+  const xpNeededForNext = xpNextLevelBase - xpCurrentLevelBase;
+
+  return { level, xpInCurrentLevel, xpNeededForNext };
+};
+
+const getLevelVisuals = (level) => {
+  if (level >= 20) return { name: 'Mystický Archivář', badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30', box: 'bg-purple-600 text-white' };
+  if (level >= 10) return { name: 'Sečtělý Mistr', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', box: 'bg-amber-600 text-white' };
+  if (level >= 5) return { name: 'Pokročilý Čtenář', badge: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', box: 'bg-indigo-600 text-white' };
+  return { name: 'Začínající Knihomil', badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', box: 'bg-emerald-600 text-white' };
+};
+
+// Výpočet odměn Jomarid Coins na základě milníků
+const calculateUserCoins = (level, streak, unlockedBadgesCount, goalCompleted) => {
+  let coins = 0;
+  coins += (level - 1) * 100; // 100 mincí za každý postoupený level
+  coins += Math.floor(streak / 7) * 50; // 50 mincí za každý týden sérií
+  coins += unlockedBadgesCount * 75; // Odměna za získané odznaky
+  if (goalCompleted) coins += 200; // Bonus za měsíční cíl
+  return coins;
+};
+
+// --- HLAVNÍ KOMPONENTA ---
+export const UserStats = ({ supabase, user }) => {
   const [loading, setLoading] = useState(true);
-  const [isEditingGoal, setIsEditingGoal] = useState(false);
-  const [newGoalInput, setNewGoalInput] = useState(25); // Změněno na 25
-  const [activeTab, setActiveTab] = useState('streak'); 
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
-  
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [newGoalInput, setNewGoalInput] = useState('25');
+  const [goalError, setGoalError] = useState('');
+  const [activeTab, setActiveTab] = useState('streak');
+
   const [stats, setStats] = useState({
     streak: 0,
     monthlyRead: 0,
-    monthlyGoal: 25, // Změněno na 25
+    monthlyGoal: 25,
     totalRead: 0,
     weeklyActivity: [],
     xp: 0,
     level: 1,
-    levelName: "Začínající čtenář 🌱",
-    levelBadgeClass: "",
-    levelBoxClass: "",
+    levelName: '',
+    levelBadgeClass: '',
+    levelBoxClass: '',
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
-    currentMonthName: "",
-    showInLeaderboard: true 
+    currentMonthName: '',
+    showInLeaderboard: true,
+    unlockedBadges: [],
+    jomaridCoins: 0,
+    goalLocked: false,
+    lastGoalChangeMonth: null
   });
 
   const [leaderboards, setLeaderboards] = useState({
@@ -1455,129 +719,73 @@ const UserStats = () => {
     xp: []
   });
 
-  // Pomocná funkce pro výpočet XP bonusu z winstreaku podle zadaných pravidel
-  const calculateXpMultiplier = (streakCount) => {
-    if (streakCount >= 50) {
-      return streakCount * 50; // Winstreak 50+ dní = streak * 50 XP
-    }
-    if (streakCount >= 10) {
-      return streakCount * 25; // Winstreak 10-49 dní = streak * 25 XP
-    }
-    return streakCount * 10; // Winstreak 0-9 dní = streak * 10 XP
-  };
-
-  const getLevelVisuals = (lvl) => {
-    if (lvl >= 20) return {
-      name: "Bůh zapomenutých příběhů 🌌",
-      badge: "border border-amber-500/40 text-amber-500 bg-amber-500/10 font-black animate-pulse",
-      box: "bg-gradient-to-br from-amber-500 to-amber-700 text-black shadow-lg"
-    };
-    if (lvl >= 15) return { 
-      name: "Mág nejvyšší knihovny 🧙‍♂️", 
-      badge: "border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-bold", 
-      box: "bg-emerald-700 text-white" 
-    };
-    if (lvl >= 10) return { 
-      name: "Mistr skrytých pravd 🗝️", 
-      badge: "style-badge-adaptive border border-current opacity-90", 
-      box: "style-box-adaptive bg-current text-[var(--bg-card)] opacity-90" 
-    };
-    if (lvl >= 5)  return { 
-      name: "Pravidelný knihomol 🐛", 
-      badge: "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)]", 
-      box: "bg-[var(--bg-primary)] text-[var(--text-primary)]" 
-    };
-
-    return {
-      name: "Začínající čtenář 🌱",
-      badge: "bg-[var(--bg-badge)] text-[var(--text-badge)]",
-      box: "bg-[var(--bg-primary)] text-[var(--text-primary)]"
-    };
-  };
-
-  const getRequiredXpForLevel = (lvl) => {
-    if (lvl <= 1) return 0;
-    return Math.round(100 * Math.pow(1.5, lvl - 1));
-  };
-
-  const calculateLevelAndProgress = (totalXp) => {
-    if (totalXp >= 1000000) {
-      return { level: 100, xpInCurrentLevel: 100, xpNeededForNext: 100 };
-    }
-    let currentLevel = 1;
-    while (totalXp >= getRequiredXpForLevel(currentLevel + 1) && currentLevel < 100) {
-      currentLevel++;
-    }
-    const xpForCurrentLevelStart = getRequiredXpForLevel(currentLevel);
-    const xpForNextLevelStart = getRequiredXpForLevel(currentLevel + 1);
-    const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
-    const xpNeededForNext = xpForNextLevelStart - xpForCurrentLevelStart;
-
-    return { level: currentLevel, xpInCurrentLevel, xpNeededForNext };
-  };
-
   const fetchFullStats = async () => {
     if (!user) return;
     try {
-      const savedGoal = localStorage.getItem(`monthly_goal_${user.id}`);
-      const currentGoal = savedGoal ? parseInt(savedGoal, 10) : 25; // Změněno na 25
-      setNewGoalInput(currentGoal);
-
-      // 1. Načtení dat aktuálního uživatele
-      const { data: userBooks } = await supabase
-        .from('user_books')
-        .select('updated_at, is_read')
-        .eq('user_id', user.id)
-        .eq('is_read', true);
-
-      const { data: activityData } = await supabase
-        .from('user_daily_activity')
-        .select('activity_date')
-        .eq('user_id', user.id)
-        .order('activity_date', { ascending: false });
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('fake_xp, show_in_leaderboard, email')
-        .eq('id', user.id)
-        .single();
-
-      const bonusXp = profileData?.fake_xp ? parseInt(profileData.fake_xp, 10) : 0;
-      const showInLeaderboard = profileData?.show_in_leaderboard ?? true;
-      const totalRead = userBooks?.length || 0;
-
+      setLoading(true);
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
-      
-      const monthlyRead = userBooks?.filter(ub => {
-        const date = new Date(ub.updated_at);
-        return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
-      }).length || 0;
 
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
       const daysRemainingInMonth = lastDayOfMonth - now.getDate();
-
-      const monthNames = [
-        "Leden", "Únor", "Březen", "Duben", "Květen", "Červen", 
-        "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"
-      ];
+      const monthNames = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
       const currentMonthName = monthNames[currentMonth];
 
-      let streak = 0;
-      const activeDates = activityData?.map(a => a.activity_date) || [];
+      // 1. Načtení profilu uživatele
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('show_in_leaderboard, bonus_xp, unlocked_badges, monthly_goal, last_goal_change_date')
+        .eq('id', user.id)
+        .single();
+
+      const showInLeaderboard = profile?.show_in_leaderboard ?? true;
+      const bonusXp = parseInt(profile?.bonus_xp, 10) || 0;
+      let savedUnlockedBadges = profile?.unlocked_badges || [];
+      const lastGoalChange = profile?.last_goal_change_date ? new Date(profile.last_goal_change_date) : null;
       
+      // Nastavení cíle (default 25)
+      const currentGoal = profile?.monthly_goal || parseInt(localStorage.getItem(`monthly_goal_${user.id}`), 10) || 25;
+
+      // 2. Načtení přečtených knih uživatele
+      const { data: readBooks } = await supabase
+        .from('user_books')
+        .select('updated_at')
+        .eq('user_id', user.id)
+        .eq('is_read', true);
+
+      const totalRead = readBooks?.length || 0;
+      const monthlyRead = readBooks?.filter(b => {
+        const d = new Date(b.updated_at);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      }).length || 0;
+
+      // Kontrola pravidla pro zamknutí cíle (Přečteno >= 5 knih nebo úprava tento měsíc)
+      const isChangedThisMonth = lastGoalChange && 
+        lastGoalChange.getFullYear() === currentYear && 
+        lastGoalChange.getMonth() === currentMonth;
+      const isGoalLocked = monthlyRead >= 5 || isChangedThisMonth;
+
+      // 3. Načtení denní aktivity a výpočet streaku
+      const { data: activityData } = await supabase
+        .from('user_daily_activity')
+        .select('activity_date')
+        .eq('user_id', user.id);
+
+      const activeDates = activityData?.map(a => a.activity_date) || [];
+      let streak = 0;
+
       if (activeDates.length > 0) {
-        const todayStr = new Date().toLocaleDateString('sv');
+        const todayStr = new Date().toISOString().split('T')[0];
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toLocaleDateString('sv');
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
 
         if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
           let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
           while (true) {
-            const checkDateStr = checkDate.toLocaleDateString('sv');
-            if (activeDates.includes(checkDateStr)) {
+            const checkStr = checkDate.toISOString().split('T')[0];
+            if (activeDates.includes(checkStr)) {
               streak++;
               checkDate.setDate(checkDate.getDate() - 1);
             } else {
@@ -1587,14 +795,13 @@ const UserStats = () => {
         }
       }
 
+      // Týdenní aktivita
       const czechDays = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
       const weeklyActivityGenerated = [];
-
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString('sv');
-        
+        const dateStr = d.toISOString().split('T')[0];
         weeklyActivityGenerated.push({
           dayLabel: czechDays[d.getDay()],
           isActive: activeDates.includes(dateStr),
@@ -1602,11 +809,39 @@ const UserStats = () => {
         });
       }
 
-      const baseXpFromBooks = totalRead * 100; 
-      const streakXpBonus = calculateXpMultiplier(streak); // Spočítáme bonus z winstreaku (0-9=*10, 10-49=*25, 50+=*50)
+      // Výpočet XP (S bonusem za vyšší cíl než základních 25)
+      const goalMultiplier = currentGoal > 25 ? 1 + ((currentGoal - 25) * 0.02) : 1;
+      const baseXpFromBooks = Math.round((totalRead * 100) * goalMultiplier);
+      const streakXpBonus = calculateXpMultiplier(streak);
       const totalXp = baseXpFromBooks + bonusXp + streakXpBonus;
+
       const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
       const visuals = getLevelVisuals(level);
+
+      // Trvalý zápis odznáčků
+      const currentStatsContext = { totalRead, streak, monthlyRead, monthlyGoal: currentGoal };
+      let newBadgesUnlocked = false;
+
+      BOOK_BADGES.forEach(badge => {
+        if (!savedUnlockedBadges.includes(badge.id) && badge.check(currentStatsContext)) {
+          savedUnlockedBadges.push(badge.id);
+          newBadgesUnlocked = true;
+        }
+      });
+
+      if (newBadgesUnlocked) {
+        await supabase
+          .from('profiles')
+          .update({ unlocked_badges: savedUnlockedBadges })
+          .eq('id', user.id);
+      }
+
+      const calculatedCoins = calculateUserCoins(
+        level, 
+        streak, 
+        savedUnlockedBadges.length, 
+        monthlyRead >= currentGoal
+      );
 
       setStats({
         streak,
@@ -1622,13 +857,16 @@ const UserStats = () => {
         xpNeededForNext,
         daysRemainingInMonth,
         currentMonthName,
-        showInLeaderboard
+        showInLeaderboard,
+        unlockedBadges: savedUnlockedBadges,
+        jomaridCoins: calculatedCoins,
+        goalLocked: isGoalLocked
       });
 
-      // 2. GENERUJEME LEADERBOARDY Z VEŘEJNÝCH PROFILŮ
+      // 4. Generování Síně slávy
       const { data: allProfiles } = await supabase
         .from('profiles')
-        .select('id, email, fake_xp, show_in_leaderboard')
+        .select('id, email, bonus_xp')
         .eq('show_in_leaderboard', true);
 
       if (allProfiles) {
@@ -1641,12 +879,13 @@ const UserStats = () => {
 
           let uStreak = 0;
           if (uActs.length > 0) {
-            const todayStr = new Date().toLocaleDateString('sv');
+            const todayStr = new Date().toISOString().split('T')[0];
             const yest = new Date(); yest.setDate(yest.getDate() - 1);
-            const yestStr = yest.toLocaleDateString('sv');
+            const yestStr = yest.toISOString().split('T')[0];
+
             if (uActs.includes(todayStr) || uActs.includes(yestStr)) {
               let chk = uActs.includes(todayStr) ? new Date() : yest;
-              while (uActs.includes(chk.toLocaleDateString('sv'))) {
+              while (uActs.includes(chk.toISOString().split('T')[0])) {
                 uStreak++;
                 chk.setDate(chk.getDate() - 1);
               }
@@ -1658,13 +897,12 @@ const UserStats = () => {
             return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
           }).length;
 
-          // Propis výpočtu winstreak XP násobiče i do globálního žebříčku celkových XP
           const uStreakXpBonus = calculateXpMultiplier(uStreak);
-          const uXpTotal = (uBooks.length * 100) + (parseInt(p.fake_xp, 10) || 0) + uStreakXpBonus;
+          const uXpTotal = (uBooks.length * 100) + (parseInt(p.bonus_xp, 10) || 0) + uStreakXpBonus;
           const { level: uLvl } = calculateLevelAndProgress(uXpTotal);
 
           return {
-            email: p.email || 'Anonymní čtenář',
+            email: p.email ? p.email.split('@')[0] : 'Anonymní čtenář',
             streak: uStreak,
             level: uLvl,
             totalRead: uBooks.length,
@@ -1684,7 +922,7 @@ const UserStats = () => {
       }
 
     } catch (error) {
-      console.error("Chyba při načítání kompletních statistik a žebříčků:", error);
+      console.error("Chyba při načítání statistik:", error);
     } finally {
       setLoading(false);
     }
@@ -1708,18 +946,46 @@ const UserStats = () => {
       setStats(prev => ({ ...prev, showInLeaderboard: newValue }));
       fetchFullStats();
     } catch (err) {
-      console.error("Chyba při ukládání nastavení soukromí:", err);
+      console.error("Chyba nastavení soukromí:", err);
     } finally {
       setIsUpdatingPrivacy(false);
     }
   };
-        
-  const handleSaveGoal = () => {
+
+  const handleSaveGoal = async () => {
     const goalNum = parseInt(newGoalInput, 10);
-    if (isNaN(goalNum) || goalNum < 1) return;
-    localStorage.setItem(`monthly_goal_${user.id}`, goalNum);
-    setStats(prev => ({ ...prev, monthlyGoal: goalNum }));
-    setIsEditingGoal(false);
+    setGoalError('');
+
+    if (isNaN(goalNum) || goalNum < 1) {
+      setGoalError('Zadej platné číslo.');
+      return;
+    }
+
+    if (stats.goalLocked) {
+      setGoalError('Cíl již nelze tento měsíc změnit.');
+      return;
+    }
+
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          monthly_goal: goalNum,
+          last_goal_change_date: nowIso
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      localStorage.setItem(`monthly_goal_${user.id}`, goalNum);
+      setStats(prev => ({ ...prev, monthlyGoal: goalNum, goalLocked: true }));
+      setIsEditingGoal(false);
+      fetchFullStats();
+    } catch (err) {
+      console.error("Chyba ukládání cíle:", err);
+      setGoalError('Uložení selhalo.');
+    }
   };
 
   if (loading) {
@@ -1745,7 +1011,7 @@ const UserStats = () => {
   return (
     <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in duration-300">
       
-      {/* SEKCE: NASTAVENÍ SOUKROMÍ ŽEBŘÍČKU */}
+      {/* SEKCE: NASTAVENÍ SOUKROMÍ */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
         <div className="flex items-center gap-3 text-left">
           {stats.showInLeaderboard ? (
@@ -1756,7 +1022,7 @@ const UserStats = () => {
           <div>
             <h4 className="text-sm font-black m-0">Zveřejnění v Síni slávy</h4>
             <p style={{ color: 'var(--text-muted)' }} className="text-xs m-0">
-              {stats.showInLeaderboard ? "Ostatní čtenáři tě vidí v žebříčcích. Soutěž o první místa!" : "Tvůj profil je skrytý. Výsledky vidíš pouze ty."}
+              {stats.showInLeaderboard ? "Ostatní čtenáři tě vidí v žebříčcích." : "Tvůj profil je skrytý. Výsledky vidíš pouze ty."}
             </p>
           </div>
         </div>
@@ -1769,21 +1035,26 @@ const UserStats = () => {
           }} 
           className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-sm hover:opacity-90 transition-all"
         >
-          {isUpdatingPrivacy ? 'Aktualizuji...' : stats.showInLeaderboard ? 'Skrýt mé výsledky 🔒' : 'Chci soutěžit! 🌍'}
+          {isUpdatingPrivacy ? 'Aktualizuji...' : stats.showInLeaderboard ? 'Skrýt výsledky 🔒' : 'Chci soutěžit! 🌍'}
         </button>
       </div>
 
-      {/* VELKÁ PROFILOVÁ HLAVIČKA */}
+      {/* HLAVNÍ PROFILOVÁ HLAVIČKA */}
       <div style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="text-left">
-            <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider mb-2 inline-block transition-all duration-300 ${stats.levelBadgeClass}`}>
-              {stats.levelName}
-            </span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider inline-block ${stats.levelBadgeClass}`}>
+                {stats.levelName}
+              </span>
+              <span className="text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 flex items-center gap-1">
+                <Coins size={12} /> {stats.jomaridCoins} Coins
+              </span>
+            </div>
             <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--bg-card)' }}>Moje Statistiky</h1>
-            <p className="text-sm font-medium opacity-80" style={{ color: 'var(--bg-body)' }}>Každý den jedna kapitola tě posune dál.</p>
+            <p className="text-sm font-medium opacity-80" style={{ color: 'var(--bg-body)' }}>Každá přečtená kapitola tě posouvá v žebříčku.</p>
           </div>
           
           {/* LEVEL BAR */}
@@ -1804,7 +1075,7 @@ const UserStats = () => {
         </div>
       </div>
 
-      {/* TŘI HLAVNÍ METRIKY */}
+      {/* METRIKY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* STREAK */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
@@ -1820,16 +1091,15 @@ const UserStats = () => {
             </div>
           </div>
           
-          {/* Informační pole pro motivaci uživatelů k udržení sérií a násobičům */}
           <div style={{ borderColor: 'var(--border-color)' }} className="mt-2 pt-2 border-t text-left text-[10px] space-y-0.5">
             <div className={`flex justify-between ${stats.streak < 10 ? 'font-black text-amber-600' : 'opacity-60'}`}>
-              <span>0-9 dní sére:</span><span>winstreak * 10 XP</span>
+              <span>0-9 dní série:</span><span>streak * 10 XP</span>
             </div>
             <div className={`flex justify-between ${stats.streak >= 10 && stats.streak < 50 ? 'font-black text-indigo-500' : 'opacity-60'}`}>
-              <span>10-49 dní série 🔥:</span><span>winstreak * 25 XP</span>
+              <span>10-49 dní série 🔥:</span><span>streak * 25 XP</span>
             </div>
             <div className={`flex justify-between ${stats.streak >= 50 ? 'font-black text-emerald-500 animate-pulse' : 'opacity-60'}`}>
-              <span>50+ dní série 👑:</span><span>winstreak * 50 XP</span>
+              <span>50+ dní série 👑:</span><span>streak * 50 XP</span>
             </div>
           </div>
 
@@ -1838,7 +1108,7 @@ const UserStats = () => {
           </p>
         </div>
 
-        {/* MĚSÍČNÍ VÝZVA (Natvrdo upraveno na 25) */}
+        {/* MĚSÍČNÍ VÝZVA */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
@@ -1862,23 +1132,33 @@ const UserStats = () => {
               </div>
             </div>
           </div>
-          <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-3 border-t flex items-center justify-between text-xs font-bold">
+
+          <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-3 border-t flex flex-col gap-1 text-xs font-bold">
             {isEditingGoal ? (
-              <div className="flex items-center gap-2 w-full">
-                <input 
-                  type="number" min="1" value={newGoalInput} 
-                  onChange={(e) => setNewGoalInput(e.target.value)} 
-                  style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
-                  className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center"
-                />
-                <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} onClick={handleSaveGoal} className="px-2 py-1 rounded font-black uppercase text-[10px] cursor-pointer border-none shadow-sm">Uložit</button>
-                <button style={{ color: 'var(--text-muted)' }} onClick={() => setIsEditingGoal(false)} className="px-1 py-1 font-bold cursor-pointer bg-transparent border-none">Zrušit</button>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 w-full">
+                  <input 
+                    type="number" min="1" value={newGoalInput} 
+                    onChange={(e) => setNewGoalInput(e.target.value)} 
+                    style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+                    className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center"
+                  />
+                  <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} onClick={handleSaveGoal} className="px-2 py-1 rounded font-black uppercase text-[10px] cursor-pointer border-none shadow-sm">Uložit</button>
+                  <button style={{ color: 'var(--text-muted)' }} onClick={() => { setIsEditingGoal(false); setGoalError(''); }} className="px-1 py-1 font-bold cursor-pointer bg-transparent border-none">Zrušit</button>
+                </div>
+                {goalError && <span className="text-red-500 text-[10px]">{goalError}</span>}
               </div>
             ) : (
-              <>
-                <span style={{ color: 'var(--text-muted)' }} className="opacity-70">Měsíční limit laťky:</span>
-                <button onClick={() => setIsEditingGoal(true)} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Změnit cíl</button>
-              </>
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--text-muted)' }} className="opacity-70 flex items-center gap-1">
+                  Měsíční cíl: {stats.goalLocked && <Lock size={12} className="text-amber-500" />}
+                </span>
+                {!stats.goalLocked ? (
+                  <button onClick={() => { setIsEditingGoal(true); setNewGoalInput(stats.monthlyGoal.toString()); }} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Změnit Cíl</button>
+                ) : (
+                  <span className="text-[10px] text-amber-500 font-bold uppercase">Uzamčeno</span>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1897,7 +1177,7 @@ const UserStats = () => {
             </div>
           </div>
           <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-4 pt-3 border-t text-left flex items-center gap-1">
-            <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku tvého profilu.
+            <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku profilu.
           </p>
         </div>
       </div>
@@ -1919,11 +1199,11 @@ const UserStats = () => {
         </div>
       </div>
 
-      {/* SÍŇ SLÁVY (LEADERBOARDS) */}
+      {/* SÍŇ SLÁVY */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 flex items-center gap-1.5">
-            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books (Měsíční cíl: 25 🎯)
+            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books
           </h3>
           {!stats.showInLeaderboard && (
             <span className="text-[10px] font-bold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-md uppercase">
@@ -1932,7 +1212,6 @@ const UserStats = () => {
           )}
         </div>
 
-        {/* TLAČÍTKA KATEGORIÍ */}
         <div className="flex flex-wrap gap-2 mb-6 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
           {categories.map((cat) => {
             const CatIcon = cat.icon;
@@ -1953,7 +1232,6 @@ const UserStats = () => {
           })}
         </div>
 
-        {/* VÝPIS ŽEBŘÍČKU */}
         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
           {leaderboards[activeTab]?.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold text-center py-6 opacity-60">V této kategorii zatím nikdo nesoutěží.</p>
@@ -2007,7 +1285,7 @@ const UserStats = () => {
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {BOOK_BADGES.map((badge) => {
-            const isUnlocked = badge.condition(stats);
+            const isUnlocked = stats.unlockedBadges.includes(badge.id);
             const BadgeIcon = badge.icon;
             return (
               <div key={badge.id} style={{ backgroundColor: isUnlocked ? 'var(--bg-badge)' : 'rgba(0, 0, 0, 0.04)', borderColor: isUnlocked ? 'var(--border-color)' : 'transparent', opacity: isUnlocked ? 1 : 0.4 }} className={`p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 shadow-inner ${isUnlocked ? 'scale-100' : 'scale-95'}`}>
@@ -2015,7 +1293,14 @@ const UserStats = () => {
                   <BadgeIcon size={22} className={isUnlocked ? "animate-pulse" : ""} />
                 </div>
                 <div className="text-left flex flex-col">
-                  <span style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }} className="font-black text-sm tracking-wide uppercase">{badge.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }} className="font-black text-sm tracking-wide uppercase">{badge.title}</span>
+                    {isUnlocked && (
+                      <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
+                        +{badge.rewardCoins} <Coins size={10} />
+                      </span>
+                    )}
+                  </div>
                   <span style={{ color: 'var(--text-body)' }} className="text-xs opacity-70 mt-0.5">{badge.description}</span>
                 </div>
               </div>
@@ -2024,7 +1309,7 @@ const UserStats = () => {
         </div>
       </div>
 
-      {/* TLAČÍTKA ZPĚT */}
+      {/* TLAČÍTKO ZPĚT */}
       <div className="flex justify-end">
         <Link to="/app" className="no-underline">
           <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} className="flex items-center gap-1 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:opacity-90 transition-opacity border-none cursor-pointer shadow-md">
@@ -2036,6 +1321,7 @@ const UserStats = () => {
     </div>
   );
 };
+
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('');
