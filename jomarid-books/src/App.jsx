@@ -26,7 +26,7 @@ import {
   Shield,
   ShieldOff,
   ShieldCheck,
-  ShieldAlert, // <--- 1. PŘIDÁNO SEM
+  ShieldAlert,
   Users,
   UserCheck,
   UserPlus,
@@ -39,6 +39,10 @@ import {
   Award,
   Flame,
   Trophy,
+  Medal,    // ➕ Doplněno
+  Swords,   // ➕ Doplněno
+  Lock,     // ➕ Doplněno
+  Share2,   // ➕ Doplněno
   Target,
   Star,
   Gem,
@@ -92,8 +96,8 @@ const getIcon = (name) => {
   const iconRegistry = {
     Book, BookOpen, BookMarked, Library, Compass, Search, Filter, ArrowLeft, ChevronRight,
     ChevronDown, X, XCircle, Plus, PlusCircle, Check, CheckCircle, RefreshCw, Trash, Trash2,
-    Shield, ShieldOff, ShieldCheck, ShieldAlert, Users, UserCheck, UserPlus, Crown, Settings, Terminal, // <--- 2. PŘIDÁNO I SEM
-    Database, FileText, LogOut, Award, Flame, Trophy, Target, Star, Gem, Sparkles, Scroll,
+    Shield, ShieldOff, ShieldCheck, ShieldAlert, Users, UserCheck, UserPlus, Crown, Settings, Terminal,
+    Database, FileText, LogOut, Award, Flame, Trophy, Medal, Swords, Lock, Share2, Target, Star, Gem, Sparkles, Scroll,
     Feather, Footprints, BarChart2, BarChart3, TrendingUp, Gauge, Calendar, Zap, ZapOff,
     Heart, Clock, Loader2, AlertTriangle, HelpCircle, Phone, Mail, Type, Eye, Play, Pause,
     Sun, Moon, Coffee,
