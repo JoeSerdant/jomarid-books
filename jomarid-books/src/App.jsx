@@ -634,55 +634,170 @@ const SettingsModal = ({ isOpen, onClose }) => {
 };
 
 
-
-// --- KONFIGURACE A DEFINICE ODZNÁČKŮ ---
+// ==========================================
+// 1. ŠABLONA A DEFINICE ODZNÁČKŮ (BOOK_BADGES)
+// ==========================================
+// Každý odznáček obsahuje:
+// - id: Unikátní identifikátor
+// - title: Název odznáčku
+// - description: Popis splnění
+// - icon: Ikona z Lucide
+// - rewardCoins: Odměna v Jomarid Coinech
+// - rewardXp: Odměna v XP
+// - condition: Podmínka pro odemknutí z objektu statistik
+// ==========================================
 export const BOOK_BADGES = [
-  { id: 'first_book', title: 'První Průzkumník', description: 'Přečti svou 1. knihu v aplikaci', icon: CheckCircle, check: (s) => s.totalRead >= 1, rewardCoins: 50 },
-  { id: 'bookworm_5', title: 'Zapálený Čtenář', description: 'Přečti celkem 5 knih', icon: Trophy, check: (s) => s.totalRead >= 5, rewardCoins: 100 },
-  { id: 'bookworm_25', title: 'Knihomil roku', description: 'Přečti celkem 25 knih', icon: Award, check: (s) => s.totalRead >= 25, rewardCoins: 250 },
-  { id: 'streak_7', title: 'Týdenní Plamen', description: 'Udržuj čtenářskou sérii 7 dní v kuse', icon: Flame, check: (s) => s.streak >= 7, rewardCoins: 150 },
-  { id: 'streak_30', title: 'Měsíční Mág', description: 'Udržuj čtenářskou sérii 30 dní v kuse', icon: Flame, check: (s) => s.streak >= 30, rewardCoins: 500 },
-  { id: 'goal_achieved', title: 'Cíl Dosažen', description: 'Splň svůj měsíční čtenářský cíl', icon: Calendar, check: (s) => s.monthlyRead >= s.monthlyGoal && s.monthlyGoal > 0, rewardCoins: 300 }
+  // --- KATEGORIE: PŘEČTENÉ KNIHY ---
+  {
+    id: 'first_book',
+    title: 'První Průzkumník',
+    description: 'Přečti svou 1. knihu v aplikaci.',
+    icon: Footprints,
+    rewardCoins: 50,
+    rewardXp: 100,
+    condition: (stats) => (stats?.totalRead || 0) >= 1
+  },
+  {
+    id: 'bookworm_5',
+    title: 'Zapálený Čtenář',
+    description: 'Přečti celkem 5 knih.',
+    icon: BookOpen,
+    rewardCoins: 100,
+    rewardXp: 250,
+    condition: (stats) => (stats?.totalRead || 0) >= 5
+  },
+  {
+    id: 'bookworm_25',
+    title: 'Knihomil Roku',
+    description: 'Přečti celkem 25 knih.',
+    icon: Award,
+    rewardCoins: 300,
+    rewardXp: 1000,
+    condition: (stats) => (stats?.totalRead || 0) >= 25
+  },
+  {
+    id: 'bookworm_50',
+    title: 'Pán Knihovny',
+    description: 'Pokoř hranici 50 přečtených děl.',
+    icon: Crown,
+    rewardCoins: 750,
+    rewardXp: 2500,
+    condition: (stats) => (stats?.totalRead || 0) >= 50
+  },
+
+  // --- KATEGORIE: DENNÍ SÉRIE (STREAK) ---
+  {
+    id: 'streak_3',
+    title: 'Malá Jiskra',
+    description: 'Udržuj čtenářskou sérii 3 dny v kuse.',
+    icon: Flame,
+    rewardCoins: 30,
+    rewardXp: 50,
+    condition: (stats) => (stats?.streak || 0) >= 3
+  },
+  {
+    id: 'streak_7',
+    title: 'Týdenní Plamen',
+    description: 'Udržuj čtenářskou sérii 7 dní v kuse.',
+    icon: Flame,
+    rewardCoins: 150,
+    rewardXp: 300,
+    condition: (stats) => (stats?.streak || 0) >= 7
+  },
+  {
+    id: 'streak_30',
+    title: 'Měsíční Mág',
+    description: 'Udržuj čtenářskou sérii 30 dní v kuse.',
+    icon: Zap,
+    rewardCoins: 500,
+    rewardXp: 1500,
+    condition: (stats) => (stats?.streak || 0) >= 30
+  },
+
+  // --- KATEGORIE: MĚSÍČNÍ VÝZVY ---
+  {
+    id: 'goal_achieved',
+    title: 'Cíl Dosažen',
+    description: 'Splň svůj stanovený měsíční čtenářský cíl.',
+    icon: Calendar,
+    rewardCoins: 200,
+    rewardXp: 500,
+    condition: (stats) => (stats?.monthlyRead || 0) >= (stats?.monthlyGoal || 25) && (stats?.monthlyGoal || 0) > 0
+  }
 ];
 
-// --- POMOCNÉ FUNKCE PRO XP A COINY ---
-const calculateXpMultiplier = (streak) => {
-  if (streak >= 50) return streak * 50;
-  if (streak >= 10) return streak * 25;
-  return streak * 10;
+// ==========================================
+// 2. POMOCNÉ FUNKCE PRO VÝPOČTY (XP, Levely, Coiny)
+// ==========================================
+const calculateXpMultiplier = (streakCount) => {
+  if (streakCount >= 50) return streakCount * 50;
+  if (streakCount >= 10) return streakCount * 25;
+  return streakCount * 10;
 };
 
 const calculateLevelAndProgress = (totalXp) => {
-  const level = Math.floor(Math.sqrt(totalXp / 100)) + 1;
-  const xpCurrentLevelBase = Math.pow(level - 1, 2) * 100;
-  const xpNextLevelBase = Math.pow(level, 2) * 100;
-  const xpInCurrentLevel = totalXp - xpCurrentLevelBase;
-  const xpNeededForNext = xpNextLevelBase - xpCurrentLevelBase;
+  if (totalXp >= 1000000) return { level: 100, xpInCurrentLevel: 100, xpNeededForNext: 100 };
+  
+  const getRequiredXp = (lvl) => (lvl <= 1 ? 0 : Math.round(100 * Math.pow(1.5, lvl - 1)));
+  
+  let currentLevel = 1;
+  while (totalXp >= getRequiredXp(currentLevel + 1) && currentLevel < 100) {
+    currentLevel++;
+  }
+  
+  const xpForCurrentLevelStart = getRequiredXp(currentLevel);
+  const xpForNextLevelStart = getRequiredXp(currentLevel + 1);
+  const xpInCurrentLevel = totalXp - xpForCurrentLevelStart;
+  const xpNeededForNext = xpForNextLevelStart - xpForCurrentLevelStart;
 
-  return { level, xpInCurrentLevel, xpNeededForNext };
+  return { level: currentLevel, xpInCurrentLevel, xpNeededForNext };
 };
 
-const getLevelVisuals = (level) => {
-  if (level >= 20) return { name: 'Mystický Archivář', badge: 'bg-purple-500/20 text-purple-400 border-purple-500/30', box: 'bg-purple-600 text-white' };
-  if (level >= 10) return { name: 'Sečtělý Mistr', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', box: 'bg-amber-600 text-white' };
-  if (level >= 5) return { name: 'Pokročilý Čtenář', badge: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30', box: 'bg-indigo-600 text-white' };
-  return { name: 'Začínající Knihomil', badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', box: 'bg-emerald-600 text-white' };
+const getLevelVisuals = (lvl) => {
+  if (lvl >= 20) return {
+    name: "Bůh zapomenutých příběhů 🌌",
+    badge: "border border-amber-500/40 text-amber-500 bg-amber-500/10 font-black animate-pulse",
+    box: "bg-gradient-to-br from-amber-500 to-amber-700 text-black shadow-lg"
+  };
+  if (lvl >= 15) return { 
+    name: "Mág nejvyšší knihovny 🧙‍♂️", 
+    badge: "border border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-bold", 
+    box: "bg-emerald-700 text-white" 
+  };
+  if (lvl >= 10) return { 
+    name: "Mistr skrytých pravd 🗝️", 
+    badge: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30 font-bold", 
+    box: "bg-indigo-600 text-white" 
+  };
+  if (lvl >= 5)  return { 
+    name: "Pravidelný knihomol 🐛", 
+    badge: "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-color)]", 
+    box: "bg-[var(--bg-primary)] text-[var(--text-primary)]" 
+  };
+
+  return {
+    name: "Začínající čtenář 🌱",
+    badge: "bg-[var(--bg-badge)] text-[var(--text-badge)]",
+    box: "bg-[var(--bg-primary)] text-[var(--text-primary)]"
+  };
 };
 
-// Výpočet odměn Jomarid Coins na základě milníků
 const calculateUserCoins = (level, streak, unlockedBadgesCount, goalCompleted) => {
   let coins = 0;
-  coins += (level - 1) * 100; // 100 mincí za každý postoupený level
-  coins += Math.floor(streak / 7) * 50; // 50 mincí za každý týden sérií
-  coins += unlockedBadgesCount * 75; // Odměna za získané odznaky
-  if (goalCompleted) coins += 200; // Bonus za měsíční cíl
+  coins += (level - 1) * 100;
+  coins += Math.floor(streak / 7) * 50;
+  if (goalCompleted) coins += 200;
   return coins;
 };
 
-// --- HLAVNÍ KOMPONENTA ---
-export const UserStats = ({ supabase, user }) => {
+// ==========================================
+// 3. HLAVNÍ KOMPONENTA USER STATS
+// ==========================================
+export const UserStats = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
+  
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [newGoalInput, setNewGoalInput] = useState('25');
   const [goalError, setGoalError] = useState('');
@@ -696,17 +811,16 @@ export const UserStats = ({ supabase, user }) => {
     weeklyActivity: [],
     xp: 0,
     level: 1,
-    levelName: '',
-    levelBadgeClass: '',
-    levelBoxClass: '',
+    levelName: "Začínající čtenář 🌱",
+    levelBadgeClass: "",
+    levelBoxClass: "",
     xpNeededForNext: 100,
     daysRemainingInMonth: 0,
-    currentMonthName: '',
+    currentMonthName: "",
     showInLeaderboard: true,
     unlockedBadges: [],
     jomaridCoins: 0,
-    goalLocked: false,
-    lastGoalChangeMonth: null
+    goalLocked: false
   });
 
   const [leaderboards, setLeaderboards] = useState({
@@ -719,71 +833,58 @@ export const UserStats = ({ supabase, user }) => {
 
   const fetchFullStats = async () => {
     if (!user) return;
+    
     try {
       setLoading(true);
+      
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
-
       const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
       const daysRemainingInMonth = lastDayOfMonth - now.getDate();
       const monthNames = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
       const currentMonthName = monthNames[currentMonth];
 
-      // 1. Načtení profilu uživatele
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('show_in_leaderboard, bonus_xp, unlocked_badges, monthly_goal, last_goal_change_date')
-        .eq('id', user.id)
-        .single();
+      // Paralelní stažení profilu, knih a denní aktivity
+      const [profileRes, booksRes, activityRes] = await Promise.all([
+        supabase.from('profiles').select('fake_xp, bonus_xp, show_in_leaderboard, unlocked_badges, monthly_goal, last_goal_change_date, coins').eq('id', user.id).maybeSingle(),
+        supabase.from('user_books').select('updated_at, is_read').eq('user_id', user.id).eq('is_read', true),
+        supabase.from('user_daily_activity').select('activity_date').eq('user_id', user.id).order('activity_date', { ascending: false })
+      ]);
 
-      const showInLeaderboard = profile?.show_in_leaderboard ?? true;
-      const bonusXp = parseInt(profile?.bonus_xp, 10) || 0;
-      let savedUnlockedBadges = profile?.unlocked_badges || [];
-      const lastGoalChange = profile?.last_goal_change_date ? new Date(profile.last_goal_change_date) : null;
-      
-      // Nastavení cíle (default 25)
-      const currentGoal = profile?.monthly_goal || parseInt(localStorage.getItem(`monthly_goal_${user.id}`), 10) || 25;
+      const profileData = profileRes.data || {};
+      const userBooks = booksRes.data || [];
+      const activityData = activityRes.data || [];
 
-      // 2. Načtení přečtených knih uživatele
-      const { data: readBooks } = await supabase
-        .from('user_books')
-        .select('updated_at')
-        .eq('user_id', user.id)
-        .eq('is_read', true);
-
-      const totalRead = readBooks?.length || 0;
-      const monthlyRead = readBooks?.filter(b => {
-        const d = new Date(b.updated_at);
+      // 1. ZÁKLADNÍ METRIKY
+      const totalRead = userBooks.length;
+      const monthlyRead = userBooks.filter(ub => {
+        if (!ub.updated_at) return false;
+        const d = new Date(ub.updated_at);
         return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-      }).length || 0;
+      }).length;
 
-      // Kontrola pravidla pro zamknutí cíle (Přečteno >= 5 knih nebo úprava tento měsíc)
-      const isChangedThisMonth = lastGoalChange && 
-        lastGoalChange.getFullYear() === currentYear && 
-        lastGoalChange.getMonth() === currentMonth;
+      // 2. MĚSÍČNÍ CÍL A ZAMKNUTÍ (LOCKING)
+      const currentGoal = profileData.monthly_goal || parseInt(localStorage.getItem(`monthly_goal_${user.id}`), 10) || 25;
+      const lastGoalChange = profileData.last_goal_change_date ? new Date(profileData.last_goal_change_date) : null;
+      const isChangedThisMonth = lastGoalChange && lastGoalChange.getFullYear() === currentYear && lastGoalChange.getMonth() === currentMonth;
       const isGoalLocked = monthlyRead >= 5 || isChangedThisMonth;
 
-      // 3. Načtení denní aktivity a výpočet streaku
-      const { data: activityData } = await supabase
-        .from('user_daily_activity')
-        .select('activity_date')
-        .eq('user_id', user.id);
-
-      const activeDates = activityData?.map(a => a.activity_date) || [];
+      // 3. VÝPOČET STREAKU
       let streak = 0;
-
+      const activeDates = activityData.map(a => a.activity_date);
+      
       if (activeDates.length > 0) {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = new Date().toLocaleDateString('sv');
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStr = yesterday.toLocaleDateString('sv');
 
         if (activeDates.includes(todayStr) || activeDates.includes(yesterdayStr)) {
           let checkDate = activeDates.includes(todayStr) ? new Date() : yesterday;
           while (true) {
-            const checkStr = checkDate.toISOString().split('T')[0];
-            if (activeDates.includes(checkStr)) {
+            const checkDateStr = checkDate.toLocaleDateString('sv');
+            if (activeDates.includes(checkDateStr)) {
               streak++;
               checkDate.setDate(checkDate.getDate() - 1);
             } else {
@@ -799,7 +900,7 @@ export const UserStats = ({ supabase, user }) => {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = d.toLocaleDateString('sv');
         weeklyActivityGenerated.push({
           dayLabel: czechDays[d.getDay()],
           isActive: activeDates.includes(dateStr),
@@ -807,83 +908,82 @@ export const UserStats = ({ supabase, user }) => {
         });
       }
 
-      // Výpočet XP (S bonusem za vyšší cíl než základních 25)
-      const goalMultiplier = currentGoal > 25 ? 1 + ((currentGoal - 25) * 0.02) : 1;
-      const baseXpFromBooks = Math.round((totalRead * 100) * goalMultiplier);
-      const streakXpBonus = calculateXpMultiplier(streak);
-      const totalXp = baseXpFromBooks + bonusXp + streakXpBonus;
+      // 4. TRVALÉ ODEMYKÁNÍ A ZAMYKÁNÍ ODZNÁČKŮ (BADGE LOCK-IN)
+      let savedUnlockedBadges = Array.isArray(profileData.unlocked_badges) ? [...profileData.unlocked_badges] : [];
+      let badgeBonusCoins = 0;
+      let badgeBonusXp = 0;
+      let newlyUnlockedCount = 0;
 
-      const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
-      const visuals = getLevelVisuals(level);
-
-      // Trvalý zápis odznáčků
-      const currentStatsContext = { totalRead, streak, monthlyRead, monthlyGoal: currentGoal };
-      let newBadgesUnlocked = false;
+      const evalContext = { totalRead, streak, monthlyRead, monthlyGoal: currentGoal };
 
       BOOK_BADGES.forEach(badge => {
-        if (!savedUnlockedBadges.includes(badge.id) && badge.check(currentStatsContext)) {
+        const isAlreadyUnlocked = savedUnlockedBadges.includes(badge.id);
+        
+        if (isAlreadyUnlocked) {
+          badgeBonusCoins += (badge.rewardCoins || 0);
+          badgeBonusXp += (badge.rewardXp || 0);
+        } else if (badge.condition(evalContext)) {
+          // Trvale odemknout nový odznak
           savedUnlockedBadges.push(badge.id);
-          newBadgesUnlocked = true;
+          badgeBonusCoins += (badge.rewardCoins || 0);
+          badgeBonusXp += (badge.rewardXp || 0);
+          newlyUnlockedCount++;
         }
       });
 
-      if (newBadgesUnlocked) {
+      // Pokud vznikl nový odznak, trvale ho zapíšeme do Supabase
+      if (newlyUnlockedCount > 0) {
         await supabase
           .from('profiles')
           .update({ unlocked_badges: savedUnlockedBadges })
           .eq('id', user.id);
       }
 
-      const calculatedCoins = calculateUserCoins(
-        level, 
-        streak, 
-        savedUnlockedBadges.length, 
-        monthlyRead >= currentGoal
-      );
+      // 5. FINÁLNÍ HERNÍ MATEMATIKA (XP + COINY)
+      const goalMultiplier = currentGoal > 25 ? 1 + ((currentGoal - 25) * 0.02) : 1;
+      const baseXpFromBooks = Math.round((totalRead * 100) * goalMultiplier);
+      const streakXpBonus = calculateXpMultiplier(streak);
+      const fakeXpFromDB = parseInt(profileData.fake_xp, 10) || 0;
+      const bonusXpFromDB = parseInt(profileData.bonus_xp, 10) || 0;
+      
+      const totalXp = baseXpFromBooks + fakeXpFromDB + bonusXpFromDB + streakXpBonus + badgeBonusXp;
+      const { level, xpInCurrentLevel, xpNeededForNext } = calculateLevelAndProgress(totalXp);
+      const visuals = getLevelVisuals(level);
+
+      const dbCoins = parseInt(profileData.coins, 10) || 0;
+      const calculatedCoins = dbCoins + badgeBonusCoins + calculateUserCoins(level, streak, savedUnlockedBadges.length, monthlyRead >= currentGoal);
 
       setStats({
-        streak,
-        monthlyRead,
-        monthlyGoal: currentGoal,
-        totalRead,
-        weeklyActivity: weeklyActivityGenerated,
-        xp: xpInCurrentLevel,
-        level,
-        levelName: visuals.name,
-        levelBadgeClass: visuals.badge,
-        levelBoxClass: visuals.box,
-        xpNeededForNext,
-        daysRemainingInMonth,
-        currentMonthName,
-        showInLeaderboard,
-        unlockedBadges: savedUnlockedBadges,
-        jomaridCoins: calculatedCoins,
-        goalLocked: isGoalLocked
+        streak, monthlyRead, monthlyGoal: currentGoal, totalRead, weeklyActivity: weeklyActivityGenerated,
+        xp: xpInCurrentLevel, level, levelName: visuals.name, levelBadgeClass: visuals.badge, levelBoxClass: visuals.box,
+        xpNeededForNext, daysRemainingInMonth, currentMonthName, showInLeaderboard: profileData.show_in_leaderboard ?? true,
+        unlockedBadges: savedUnlockedBadges, jomaridCoins: calculatedCoins, goalLocked: isGoalLocked
       });
 
-      // 4. Generování Síně slávy
-      const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('id, email, bonus_xp')
-        .eq('show_in_leaderboard', true);
-
-      if (allProfiles) {
-        const { data: allBooks } = await supabase.from('user_books').select('user_id, updated_at').eq('is_read', true);
-        const { data: allActivities } = await supabase.from('user_daily_activity').select('user_id, activity_date');
+      // 6. LEADERBOARDS
+      const { data: allProfiles } = await supabase.from('profiles').select('id, email, fake_xp, bonus_xp, unlocked_badges').eq('show_in_leaderboard', true);
+      if (allProfiles && allProfiles.length > 0) {
+        const [allBooksRes, allActsRes] = await Promise.all([
+          supabase.from('user_books').select('user_id, updated_at').eq('is_read', true),
+          supabase.from('user_daily_activity').select('user_id, activity_date')
+        ]);
+        
+        const allBooks = allBooksRes.data || [];
+        const allActs = allActsRes.data || [];
 
         const mappedUsers = allProfiles.map(p => {
-          const uBooks = allBooks?.filter(b => b.user_id === p.id) || [];
-          const uActs = allActivities?.filter(a => a.user_id === p.id).map(a => a.activity_date) || [];
-
+          const uBooks = allBooks.filter(b => b.user_id === p.id);
+          const uActs = allActs.filter(a => a.user_id === p.id).map(a => a.activity_date);
+          
           let uStreak = 0;
           if (uActs.length > 0) {
-            const todayStr = new Date().toISOString().split('T')[0];
+            const todayStr = new Date().toLocaleDateString('sv');
             const yest = new Date(); yest.setDate(yest.getDate() - 1);
-            const yestStr = yest.toISOString().split('T')[0];
-
+            const yestStr = yest.toLocaleDateString('sv');
+            
             if (uActs.includes(todayStr) || uActs.includes(yestStr)) {
               let chk = uActs.includes(todayStr) ? new Date() : yest;
-              while (uActs.includes(chk.toISOString().split('T')[0])) {
+              while (uActs.includes(chk.toLocaleDateString('sv'))) {
                 uStreak++;
                 chk.setDate(chk.getDate() - 1);
               }
@@ -891,16 +991,16 @@ export const UserStats = ({ supabase, user }) => {
           }
 
           const uMRead = uBooks.filter(b => {
+            if(!b.updated_at) return false;
             const d = new Date(b.updated_at);
             return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
           }).length;
 
-          const uStreakXpBonus = calculateXpMultiplier(uStreak);
-          const uXpTotal = (uBooks.length * 100) + (parseInt(p.bonus_xp, 10) || 0) + uStreakXpBonus;
+          const uXpTotal = (uBooks.length * 100) + (parseInt(p.fake_xp, 10) || 0) + (parseInt(p.bonus_xp, 10) || 0) + calculateXpMultiplier(uStreak);
           const { level: uLvl } = calculateLevelAndProgress(uXpTotal);
 
           return {
-            email: p.email ? p.email.split('@')[0] : 'Anonymní čtenář',
+            email: p.email ? p.email.split('@')[0] : 'Anonym',
             streak: uStreak,
             level: uLvl,
             totalRead: uBooks.length,
@@ -920,7 +1020,7 @@ export const UserStats = ({ supabase, user }) => {
       }
 
     } catch (error) {
-      console.error("Chyba při načítání statistik:", error);
+      console.error("Kritická chyba při výpočtu statistik:", error);
     } finally {
       setLoading(false);
     }
@@ -935,16 +1035,11 @@ export const UserStats = ({ supabase, user }) => {
     setIsUpdatingPrivacy(true);
     const newValue = !stats.showInLeaderboard;
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ show_in_leaderboard: newValue })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await supabase.from('profiles').update({ show_in_leaderboard: newValue }).eq('id', user.id);
       setStats(prev => ({ ...prev, showInLeaderboard: newValue }));
       fetchFullStats();
     } catch (err) {
-      console.error("Chyba nastavení soukromí:", err);
+      console.error(err);
     } finally {
       setIsUpdatingPrivacy(false);
     }
@@ -953,35 +1048,19 @@ export const UserStats = ({ supabase, user }) => {
   const handleSaveGoal = async () => {
     const goalNum = parseInt(newGoalInput, 10);
     setGoalError('');
-
-    if (isNaN(goalNum) || goalNum < 1) {
-      setGoalError('Zadej platné číslo.');
-      return;
-    }
-
-    if (stats.goalLocked) {
-      setGoalError('Cíl již nelze tento měsíc změnit.');
-      return;
-    }
+    if (isNaN(goalNum) || goalNum < 1) return setGoalError('Zadej platné číslo.');
+    if (stats.goalLocked) return setGoalError('Cíl již nelze tento měsíc změnit.');
 
     try {
-      const nowIso = new Date().toISOString();
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          monthly_goal: goalNum,
-          last_goal_change_date: nowIso
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
+      await supabase.from('profiles').update({ 
+        monthly_goal: goalNum, 
+        last_goal_change_date: new Date().toISOString() 
+      }).eq('id', user.id);
       localStorage.setItem(`monthly_goal_${user.id}`, goalNum);
       setStats(prev => ({ ...prev, monthlyGoal: goalNum, goalLocked: true }));
       setIsEditingGoal(false);
       fetchFullStats();
     } catch (err) {
-      console.error("Chyba ukládání cíle:", err);
       setGoalError('Uložení selhalo.');
     }
   };
@@ -989,7 +1068,7 @@ export const UserStats = ({ supabase, user }) => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <div style={{ borderTopColor: 'transparent', borderLeftColor: 'var(--bg-primary)', borderRightColor: 'var(--bg-primary)', borderBottomColor: 'var(--bg-primary)' }} className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-4"></div>
+        <div style={{ borderTopColor: 'transparent', borderLeftColor: 'var(--bg-primary)' }} className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-4"></div>
         <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold opacity-60 animate-pulse">Sestavuji tvůj kompletní přehled a síň slávy...</p>
       </div>
     );
@@ -997,7 +1076,6 @@ export const UserStats = ({ supabase, user }) => {
 
   const progressPercent = Math.min(100, Math.round((stats.monthlyRead / stats.monthlyGoal) * 100));
   const xpPercent = Math.min(100, Math.round((stats.xp / stats.xpNeededForNext) * 100));
-
   const categories = [
     { id: 'streak', label: 'Plamínky 🔥', icon: Flame, suffix: 'dní' },
     { id: 'level', label: 'Úroveň 🏆', icon: Trophy, suffix: 'lvl' },
@@ -1009,61 +1087,38 @@ export const UserStats = ({ supabase, user }) => {
   return (
     <div style={{ color: 'var(--text-body)' }} className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in duration-300">
       
-      {/* SEKCE: NASTAVENÍ SOUKROMÍ */}
+      {/* SOUKROMÍ */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
         <div className="flex items-center gap-3 text-left">
-          {stats.showInLeaderboard ? (
-            <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg"><Shield size={20} /></div>
-          ) : (
-            <div className="p-2 bg-red-500/10 text-red-500 rounded-lg"><ShieldOff size={20} /></div>
-          )}
+          {stats.showInLeaderboard ? <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg"><Shield size={20} /></div> : <div className="p-2 bg-red-500/10 text-red-500 rounded-lg"><ShieldOff size={20} /></div>}
           <div>
             <h4 className="text-sm font-black m-0">Zveřejnění v Síni slávy</h4>
-            <p style={{ color: 'var(--text-muted)' }} className="text-xs m-0">
-              {stats.showInLeaderboard ? "Ostatní čtenáři tě vidí v žebříčcích." : "Tvůj profil je skrytý. Výsledky vidíš pouze ty."}
-            </p>
+            <p style={{ color: 'var(--text-muted)' }} className="text-xs m-0">{stats.showInLeaderboard ? "Ostatní čtenáři tě vidí v žebříčcích." : "Tvůj profil je skrytý. Výsledky vidíš pouze ty."}</p>
           </div>
         </div>
-        <button 
-          onClick={togglePrivacy} 
-          disabled={isUpdatingPrivacy}
-          style={{ 
-            backgroundColor: stats.showInLeaderboard ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-primary)', 
-            color: stats.showInLeaderboard ? '#ef4444' : 'var(--text-primary)' 
-          }} 
-          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-sm hover:opacity-90 transition-all"
-        >
+        <button onClick={togglePrivacy} disabled={isUpdatingPrivacy} style={{ backgroundColor: stats.showInLeaderboard ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-primary)', color: stats.showInLeaderboard ? '#ef4444' : 'var(--text-primary)' }} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer border-none shadow-sm hover:opacity-90 transition-all">
           {isUpdatingPrivacy ? 'Aktualizuji...' : stats.showInLeaderboard ? 'Skrýt výsledky 🔒' : 'Chci soutěžit! 🌍'}
         </button>
       </div>
 
-      {/* HLAVNÍ PROFILOVÁ HLAVIČKA */}
+      {/* PROFILOVÁ HLAVIČKA */}
       <div style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
-        
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="text-left">
             <div className="flex items-center gap-2 mb-2">
-              <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider inline-block ${stats.levelBadgeClass}`}>
-                {stats.levelName}
-              </span>
-              <span className="text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 flex items-center gap-1">
-                <Coins size={12} /> {stats.jomaridCoins} Coins
-              </span>
+              <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider inline-block ${stats.levelBadgeClass}`}>{stats.levelName}</span>
+              <span className="text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 flex items-center gap-1"><Coins size={12} /> {stats.jomaridCoins} Coins</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--bg-card)' }}>Moje Statistiky</h1>
             <p className="text-sm font-medium opacity-80" style={{ color: 'var(--bg-body)' }}>Každá přečtená kapitola tě posouvá v žebříčku.</p>
           </div>
           
-          {/* LEVEL BAR */}
           <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.1)' }} className="border backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>
-              {stats.level}
-            </div>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>{stats.level}</div>
             <div className="flex-1 space-y-1 text-left">
               <div className="flex justify-between text-[10px] font-black uppercase tracking-wider opacity-60" style={{ color: 'var(--bg-body)' }}>
-                <span>Úroveň čtenáře</span>
-                <span>{stats.xp} / {stats.xpNeededForNext} XP</span>
+                <span>Úroveň čtenáře</span><span>{stats.xp} / {stats.xpNeededForNext} XP</span>
               </div>
               <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
@@ -1075,72 +1130,47 @@ export const UserStats = ({ supabase, user }) => {
 
       {/* METRIKY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* STREAK */}
+        
+        {/* Streak */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
               <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Aktuální Streak</h3>
-              <p className="text-4xl font-black text-amber-600 flex items-baseline gap-1 m-0">
-                {stats.streak} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">dní</span>
-              </p>
+              <p className="text-4xl font-black text-amber-600 flex items-baseline gap-1 m-0">{stats.streak} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">dní</span></p>
             </div>
-            <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl">
-              <Flame size={24} className={stats.streak > 0 ? "fill-amber-500" : ""} />
-            </div>
+            <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl"><Flame size={24} className={stats.streak > 0 ? "fill-amber-500" : ""} /></div>
           </div>
-          
           <div style={{ borderColor: 'var(--border-color)' }} className="mt-2 pt-2 border-t text-left text-[10px] space-y-0.5">
-            <div className={`flex justify-between ${stats.streak < 10 ? 'font-black text-amber-600' : 'opacity-60'}`}>
-              <span>0-9 dní série:</span><span>streak * 10 XP</span>
-            </div>
-            <div className={`flex justify-between ${stats.streak >= 10 && stats.streak < 50 ? 'font-black text-indigo-500' : 'opacity-60'}`}>
-              <span>10-49 dní série 🔥:</span><span>streak * 25 XP</span>
-            </div>
-            <div className={`flex justify-between ${stats.streak >= 50 ? 'font-black text-emerald-500 animate-pulse' : 'opacity-60'}`}>
-              <span>50+ dní série 👑:</span><span>streak * 50 XP</span>
-            </div>
+            <div className={`flex justify-between ${stats.streak < 10 ? 'font-black text-amber-600' : 'opacity-60'}`}><span>0-9 dní série:</span><span>streak * 10 XP</span></div>
+            <div className={`flex justify-between ${stats.streak >= 10 && stats.streak < 50 ? 'font-black text-indigo-500' : 'opacity-60'}`}><span>10-49 dní 🔥:</span><span>streak * 25 XP</span></div>
+            <div className={`flex justify-between ${stats.streak >= 50 ? 'font-black text-emerald-500 animate-pulse' : 'opacity-60'}`}><span>50+ dní 👑:</span><span>streak * 50 XP</span></div>
           </div>
-
-          <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-3 pt-2 border-t text-left">
-            {stats.streak > 0 ? "Skvělé! Dnes máš splněno, série pokračuje." : "Dnes jsi ještě nečetl. Otevři knihu a zachraň plamínek!"}
-          </p>
         </div>
 
-        {/* MĚSÍČNÍ VÝZVA */}
+        {/* Měsíční cíl */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="space-y-3">
             <div className="flex justify-between items-start">
               <div className="space-y-1 text-left">
                 <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Výzva na {stats.currentMonthName}</h3>
-                <p style={{ color: 'var(--text-badge)' }} className="text-4xl font-black m-0">
-                  {stats.monthlyRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">z {stats.monthlyGoal}</span>
-                </p>
+                <p style={{ color: 'var(--text-badge)' }} className="text-4xl font-black m-0">{stats.monthlyRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">z {stats.monthlyGoal}</span></p>
               </div>
-              <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl">
-                <Calendar size={24} />
-              </div>
+              <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl"><Calendar size={24} /></div>
             </div>
             <div className="space-y-1">
               <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
               </div>
               <div style={{ color: 'var(--text-muted)' }} className="flex justify-between text-[10px] font-black uppercase opacity-80">
-                <span>{progressPercent}% splněno</span>
-                <span>{stats.daysRemainingInMonth === 0 ? "Dnes je poslední den!" : `Zbývá ${stats.daysRemainingInMonth} dní`}</span>
+                <span>{progressPercent}% splněno</span><span>{stats.daysRemainingInMonth === 0 ? "Poslední den!" : `Zbývá ${stats.daysRemainingInMonth} dní`}</span>
               </div>
             </div>
           </div>
-
           <div style={{ borderColor: 'var(--border-color)' }} className="mt-4 pt-3 border-t flex flex-col gap-1 text-xs font-bold">
             {isEditingGoal ? (
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2 w-full">
-                  <input 
-                    type="number" min="1" value={newGoalInput} 
-                    onChange={(e) => setNewGoalInput(e.target.value)} 
-                    style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
-                    className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center"
-                  />
+                  <input type="number" min="1" value={newGoalInput} onChange={(e) => setNewGoalInput(e.target.value)} style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }} className="w-16 px-2 py-1 border rounded-md outline-none text-sm font-bold text-center" />
                   <button style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} onClick={handleSaveGoal} className="px-2 py-1 rounded font-black uppercase text-[10px] cursor-pointer border-none shadow-sm">Uložit</button>
                   <button style={{ color: 'var(--text-muted)' }} onClick={() => { setIsEditingGoal(false); setGoalError(''); }} className="px-1 py-1 font-bold cursor-pointer bg-transparent border-none">Zrušit</button>
                 </div>
@@ -1148,48 +1178,38 @@ export const UserStats = ({ supabase, user }) => {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span style={{ color: 'var(--text-muted)' }} className="opacity-70 flex items-center gap-1">
-                  Měsíční cíl: {stats.goalLocked && <Lock size={12} className="text-amber-500" />}
-                </span>
+                <span style={{ color: 'var(--text-muted)' }} className="opacity-70 flex items-center gap-1">Měsíční cíl: {stats.goalLocked && <Lock size={12} className="text-amber-500" />}</span>
                 {!stats.goalLocked ? (
                   <button onClick={() => { setIsEditingGoal(true); setNewGoalInput(stats.monthlyGoal.toString()); }} style={{ color: 'var(--text-badge)' }} className="font-black uppercase tracking-wider p-0 bg-transparent border-none cursor-pointer text-[10px]">Změnit Cíl</button>
-                ) : (
-                  <span className="text-[10px] text-amber-500 font-bold uppercase">Uzamčeno</span>
-                )}
+                ) : <span className="text-[10px] text-amber-500 font-bold uppercase">Uzamčeno</span>}
               </div>
             )}
           </div>
         </div>
 
-        {/* CELKEM PŘEČTENO */}
+        {/* Celková knihovna */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="space-y-1 text-left">
               <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider">Celková knihovna</h3>
-              <p style={{ color: 'var(--text-body)' }} className="text-4xl font-black m-0">
-                {stats.totalRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">knih</span>
-              </p>
+              <p style={{ color: 'var(--text-body)' }} className="text-4xl font-black m-0">{stats.totalRead} <span style={{ color: 'var(--text-muted)' }} className="text-xs uppercase font-bold opacity-60">knih</span></p>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl">
-              <CheckCircle size={24} />
-            </div>
+            <div style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-badge)' }} className="p-3 rounded-xl"><CheckCircle size={24} /></div>
           </div>
           <p style={{ color: 'var(--text-muted)', borderColor: 'var(--border-color)' }} className="text-xs font-medium mt-4 pt-3 border-t text-left flex items-center gap-1">
-            <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku profilu.
+            <Sparkles size={12} style={{ color: 'var(--bg-primary)' }} /> Všechna přečtená díla od začátku.
           </p>
         </div>
       </div>
 
       {/* TÝDENNÍ AKTIVITA */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
-        <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-4 text-left flex items-center gap-1.5">
-          <TrendingUp size={14} /> Tvoje aktivita v posledních dnech
-        </h3>
+        <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-4 text-left flex items-center gap-1.5"><TrendingUp size={14} /> Tvoje aktivita</h3>
         <div className="grid grid-cols-7 gap-2 md:gap-4 text-center">
           {stats.weeklyActivity.map((day, idx) => (
             <div key={idx} style={{ borderColor: day.isToday ? 'var(--bg-primary)' : 'transparent', backgroundColor: day.isToday ? 'var(--bg-badge)' : 'transparent' }} className="p-3 rounded-xl flex flex-col items-center gap-2 border">
               <span style={{ color: day.isToday ? 'var(--text-badge)' : 'var(--text-muted)' }} className={`text-xs font-black uppercase ${!day.isToday && 'opacity-60'}`}>{day.dayLabel}</span>
-              <div style={{ backgroundColor: day.isActive ? 'rgba(245, 158, 11, 1)' : 'rgba(0,0,0,0.05)', color: day.isActive ? '#ffffff' : 'var(--text-muted)' }} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm">
+              <div style={{ backgroundColor: day.isActive ? 'rgba(245, 158, 11, 1)' : 'rgba(0,0,0,0.05)', color: day.isActive ? '#ffffff' : 'var(--text-muted)' }} className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
                 {day.isActive ? <Flame size={16} className="fill-white text-white" /> : <div style={{ backgroundColor: 'currentColor' }} className="w-1.5 h-1.5 rounded-full opacity-40"></div>}
               </div>
             </div>
@@ -1200,74 +1220,32 @@ export const UserStats = ({ supabase, user }) => {
       {/* SÍŇ SLÁVY */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 flex items-center gap-1.5">
-            <Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books
-          </h3>
-          {!stats.showInLeaderboard && (
-            <span className="text-[10px] font-bold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-md uppercase">
-              Jsi v režimu inkognito 🔒
-            </span>
-          )}
+          <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider m-0 flex items-center gap-1.5"><Users size={16} style={{ color: 'var(--bg-primary)' }} /> Globální Síň Slávy Jomarid Books</h3>
+          {!stats.showInLeaderboard && <span className="text-[10px] font-bold bg-red-500/10 text-red-400 px-2.5 py-1 rounded-md uppercase">Režim inkognito 🔒</span>}
         </div>
-
         <div className="flex flex-wrap gap-2 mb-6 border-b pb-4" style={{ borderColor: 'var(--border-color)' }}>
-          {categories.map((cat) => {
-            const CatIcon = cat.icon;
-            const isSelected = activeTab === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveTab(cat.id)}
-                style={{
-                  backgroundColor: isSelected ? 'var(--bg-primary)' : 'var(--bg-badge)',
-                  color: isSelected ? 'var(--text-primary)' : 'var(--text-badge)'
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border-none cursor-pointer transition-all shadow-sm"
-              >
-                <CatIcon size={14} /> {cat.label}
-              </button>
-            );
-          })}
+          {categories.map(cat => (
+            <button key={cat.id} onClick={() => setActiveTab(cat.id)} style={{ backgroundColor: activeTab === cat.id ? 'var(--bg-primary)' : 'var(--bg-badge)', color: activeTab === cat.id ? 'var(--text-primary)' : 'var(--text-badge)' }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border-none cursor-pointer transition-all shadow-sm">
+              <cat.icon size={14} /> {cat.label}
+            </button>
+          ))}
         </div>
-
         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
           {leaderboards[activeTab]?.length === 0 ? (
             <p style={{ color: 'var(--text-muted)' }} className="text-sm font-bold text-center py-6 opacity-60">V této kategorii zatím nikdo nesoutěží.</p>
           ) : (
             leaderboards[activeTab].map((row, index) => {
-              const currentCategory = categories.find(c => c.id === activeTab);
-              const displayValue = row[activeTab];
-              
-              let medalStyle = "text-xs font-black opacity-40 w-6 text-center";
-              if (index === 0) medalStyle = "text-xl w-6 text-center animate-bounce";
-              if (index === 1) medalStyle = "text-lg w-6 text-center";
-              if (index === 2) medalStyle = "text-md w-6 text-center";
-
+              const cat = categories.find(c => c.id === activeTab);
+              let medalStyle = index === 0 ? "text-xl w-6 text-center animate-bounce" : index === 1 ? "text-lg w-6 text-center" : index === 2 ? "text-md w-6 text-center" : "text-xs font-black opacity-40 w-6 text-center";
               return (
-                <div
-                  key={index}
-                  style={{
-                    backgroundColor: row.isMe ? 'var(--bg-badge)' : 'rgba(0,0,0,0.02)',
-                    borderColor: row.isMe ? 'var(--bg-primary)' : 'transparent'
-                  }}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${row.isMe && 'font-bold shadow-sm'}`}
-                >
+                <div key={index} style={{ backgroundColor: row.isMe ? 'var(--bg-badge)' : 'rgba(0,0,0,0.02)', borderColor: row.isMe ? 'var(--bg-primary)' : 'transparent' }} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${row.isMe && 'font-bold shadow-sm'}`}>
                   <div className="flex items-center gap-4 text-left">
-                    <span className={medalStyle}>
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-sm tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
-                        {row.email} {row.isMe && <span className="text-[10px] bg-[var(--bg-primary)] text-[var(--text-primary)] px-1.5 py-0.5 rounded ml-1 uppercase font-black">Ty</span>}
-                      </span>
-                    </div>
+                    <span className={medalStyle}>{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}</span>
+                    <span className="text-sm tracking-wide truncate max-w-[200px] sm:max-w-[350px]">{row.email} {row.isMe && <span className="text-[10px] bg-[var(--bg-primary)] text-[var(--text-primary)] px-1.5 py-0.5 rounded ml-1 uppercase font-black">Ty</span>}</span>
                   </div>
-                  
                   <div className="text-right font-black text-sm flex items-center gap-1">
-                    <span>{displayValue.toLocaleString()}</span>
-                    <span style={{ color: 'var(--text-muted)' }} className="text-[10px] font-bold uppercase opacity-60">
-                      {currentCategory?.suffix}
-                    </span>
+                    <span>{row[activeTab].toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }} className="text-[10px] font-bold uppercase opacity-60">{cat?.suffix}</span>
                   </div>
                 </div>
               );
@@ -1276,7 +1254,7 @@ export const UserStats = ({ supabase, user }) => {
         </div>
       </div>
 
-      {/* ODZNÁČKY */}
+      {/* ODZNÁČKY (GRID) */}
       <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
         <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider mb-6 text-left flex items-center gap-1.5">
           <Award size={16} style={{ color: 'var(--bg-primary)' }} /> Sběratelské Odznáčky Knihovny
@@ -1294,9 +1272,18 @@ export const UserStats = ({ supabase, user }) => {
                   <div className="flex items-center gap-2">
                     <span style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }} className="font-black text-sm tracking-wide uppercase">{badge.title}</span>
                     {isUnlocked && (
-                      <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
-                        +{badge.rewardCoins} <Coins size={10} />
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {badge.rewardCoins > 0 && (
+                          <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
+                            +{badge.rewardCoins} <Coins size={10} />
+                          </span>
+                        )}
+                        {badge.rewardXp > 0 && (
+                          <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
+                            +{badge.rewardXp} XP
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span style={{ color: 'var(--text-body)' }} className="text-xs opacity-70 mt-0.5">{badge.description}</span>
