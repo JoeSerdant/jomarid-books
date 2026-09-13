@@ -268,17 +268,38 @@ const Card = ({ children, className = '' }) => (
  <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
 );
 
-// ==========================================
-// KOMPONENTA: Navbar (S kontrolou rolí)
-// ==========================================
-const Navbar = ({ onOpenSearch, onOpenSettings }) => {
+export const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, logout, role } = useAuth(); // načtení role z AuthContextu
   const navigate = useNavigate();
+  const [coins, setCoins] = useState(0);
 
   // Pomocná funkce pro zjištění username
   const username = user?.email ? user.email.split('@')[0] : 'Čtenář';
 
-  // Zobrazení role v profilu s pěkno ikonkou
+  // Načtení aktuálního počtu mincí z databáze
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchUserCoins = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('coins')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data) {
+          setCoins(data.coins || 0);
+        }
+      } catch (err) {
+        console.error("Chyba při načítání mincí v Navbaru:", err);
+      }
+    };
+
+    fetchUserCoins();
+  }, [user?.id]);
+
+  // Zobrazení role v profilu s pěknou ikonkou
   const renderRoleBadge = () => {
     if (role === 'správce') {
       return (
@@ -332,7 +353,7 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
           {/* HLAVNÍ ODKAZY PODLE ROLÍ */}
           {user && (
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Vidí všichni */}
+              {/* Vidí všichni - Knihovna */}
               <Link 
                 to="/app" 
                 style={{ color: 'var(--text-body)' }}
@@ -342,7 +363,7 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
                 <span className="hidden md:inline">Knihovna</span>
               </Link>
               
-              {/* Vidí všichni */}
+              {/* Vidí všichni - Statistiky */}
               <Link 
                 to="/stats" 
                 style={{ color: 'var(--text-body)' }}
@@ -350,6 +371,16 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
               >
                 <BarChart3 size={14} className="opacity-70" />
                 <span className="hidden md:inline">Statistiky</span>
+              </Link>
+
+              {/* Vidí všichni - RocketGame */}
+              <Link 
+                to="/rocketgame" 
+                style={{ color: 'var(--text-body)' }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider no-underline hover:bg-black/5 dark:hover:bg-white/5 transition-all text-purple-600 dark:text-purple-400"
+              >
+                <Rocket size={14} className="opacity-80 animate-pulse" />
+                <span className="hidden md:inline">Raketa</span>
               </Link>
 
               {/* Vidí POUZE Nakladatel */}
@@ -379,9 +410,25 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
           )}
         </div>
 
-        {/* PRAVÁ STRANA: AKCE A PROFIL */}
+        {/* PRAVÁ STRANA: COINY, AKCE A PROFIL */}
         <div className="flex items-center gap-2">
           
+          {/* ZOBRAZENÍ JOMARID COINŮ */}
+          {user && (
+            <div 
+              style={{ 
+                backgroundColor: 'var(--bg-badge)', 
+                borderColor: 'var(--border-color)', 
+                color: 'var(--text-badge)' 
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black shadow-sm"
+              title="Tvoje Jomarid Coins"
+            >
+              <Coins size={14} className="text-amber-500 fill-amber-500/20" />
+              <span>{coins.toLocaleString()}</span>
+            </div>
+          )}
+
           {/* TLAČÍTKO VYHLEDÁVÁNÍ */}
           {user && (
             <button
