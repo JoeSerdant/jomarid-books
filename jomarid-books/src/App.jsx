@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronDown,
   X,
+  Coins,
   XCircle,
   Plus,
   PlusCircle,
