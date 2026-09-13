@@ -40,10 +40,10 @@ import {
   Award,
   Flame,
   Trophy,
-  Medal,    // ➕ Doplněno
-  Swords,   // ➕ Doplněno
-  Lock,     // ➕ Doplněno
-  Share2,   // ➕ Doplněno
+  Medal,    
+  Swords,   
+  Lock,     
+  Share2,   
   Target,
   Star,
   Gem,
@@ -1735,7 +1735,7 @@ const HomePage = () => {
           <span className="opacity-90 tracking-normal text-[9px] font-bold">Aplikace Ověřena</span>
           <span className="text-sm font-black tracking-tight">JOMARID BOOKS</span>
           <div className="w-full h-[1px] bg-current my-0.5 opacity-30" />
-          <span className="text-[9px] tracking-wider">STABLE CORE v2.5</span>
+          <span className="text-[9px] tracking-wider">STABLE CORE v28.2</span>
         </div>
       </div>
 
