@@ -19,6 +19,7 @@ import {
   XCircle,
   Plus,
   PlusCircle,
+  Rocket,
   Check,
   CheckCircle,
   RefreshCw,
