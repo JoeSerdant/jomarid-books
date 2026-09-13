@@ -647,85 +647,322 @@ const SettingsModal = ({ isOpen, onClose }) => {
 // - rewardXp: Odměna v XP
 // - condition: Podmínka pro odemknutí z objektu statistik
 // ==========================================
+// Ujisti se, že máš v importech z 'lucide-react': 
+// Footprints, BookOpen, Trophy, Scroll, Award, Crown, Flame, Zap, Sparkles, Gem, Target, Shield, Star
+
 export const BOOK_BADGES = [
-  // --- KATEGORIE: PŘEČTENÉ KNIHY ---
-  {
-    id: 'first_book',
-    title: 'První Průzkumník',
-    description: 'Přečti svou 1. knihu v aplikaci.',
-    icon: Footprints,
-    rewardCoins: 50,
-    rewardXp: 100,
-    condition: (stats) => (stats?.totalRead || 0) >= 1
-  },
-  {
-    id: 'bookworm_5',
-    title: 'Zapálený Čtenář',
-    description: 'Přečti celkem 5 knih.',
-    icon: BookOpen,
-    rewardCoins: 100,
-    rewardXp: 250,
-    condition: (stats) => (stats?.totalRead || 0) >= 5
-  },
-  {
-    id: 'bookworm_25',
-    title: 'Knihomil Roku',
-    description: 'Přečti celkem 25 knih.',
-    icon: Award,
-    rewardCoins: 300,
-    rewardXp: 1000,
-    condition: (stats) => (stats?.totalRead || 0) >= 25
-  },
-  {
-    id: 'bookworm_50',
-    title: 'Pán Knihovny',
-    description: 'Pokoř hranici 50 přečtených děl.',
-    icon: Crown,
-    rewardCoins: 750,
-    rewardXp: 2500,
-    condition: (stats) => (stats?.totalRead || 0) >= 50
-  },
+  // --- KATEGORIE: KNIHY (30) ---
+  { id: 'bookworm_1', title: 'První Průzkumník', description: 'Přečti celkem 1 knih.', icon: Footprints, category: 'books', rewardCoins: 50, rewardXp: 100, condition: (s) => (s?.totalRead || 0) >= 1 },
+  { id: 'bookworm_2', title: 'Stránkový Učeň', description: 'Přečti celkem 2 knih.', icon: BookOpen, category: 'books', rewardCoins: 60, rewardXp: 120, condition: (s) => (s?.totalRead || 0) >= 2 },
+  { id: 'bookworm_3', title: 'Nedočkavý Čtenář', description: 'Přečti celkem 3 knih.', icon: BookOpen, category: 'books', rewardCoins: 75, rewardXp: 150, condition: (s) => (s?.totalRead || 0) >= 3 },
+  { id: 'bookworm_4', title: 'Kapitolový Lovec', description: 'Přečti celkem 4 knih.', icon: Scroll, category: 'books', rewardCoins: 90, rewardXp: 180, condition: (s) => (s?.totalRead || 0) >= 4 },
+  { id: 'bookworm_5', title: 'Zapálený Čtenář', description: 'Přečti celkem 5 knih.', icon: Trophy, category: 'books', rewardCoins: 120, rewardXp: 250, condition: (s) => (s?.totalRead || 0) >= 5 },
+  { id: 'bookworm_7', title: 'Čtenářský Entuziasta', description: 'Přečti celkem 7 knih.', icon: BookOpen, category: 'books', rewardCoins: 150, rewardXp: 300, condition: (s) => (s?.totalRead || 0) >= 7 },
+  { id: 'bookworm_10', title: 'Knihovní Štamgast', description: 'Přečti celkem 10 knih.', icon: Scroll, category: 'books', rewardCoins: 200, rewardXp: 400, condition: (s) => (s?.totalRead || 0) >= 10 },
+  { id: 'bookworm_12', title: 'Průkopník Příběhů', description: 'Přečti celkem 12 knih.', icon: BookOpen, category: 'books', rewardCoins: 220, rewardXp: 450, condition: (s) => (s?.totalRead || 0) >= 12 },
+  { id: 'bookworm_15', title: 'Sběratel Svazků', description: 'Přečti celkem 15 knih.', icon: Award, category: 'books', rewardCoins: 250, rewardXp: 500, condition: (s) => (s?.totalRead || 0) >= 15 },
+  { id: 'bookworm_18', title: 'Strážce Znalostí', description: 'Přečti celkem 18 knih.', icon: Shield, category: 'books', rewardCoins: 280, rewardXp: 550, condition: (s) => (s?.totalRead || 0) >= 18 },
+  { id: 'bookworm_20', title: 'Knižní Vášnivec', description: 'Přečti celkem 20 knih.', icon: Trophy, category: 'books', rewardCoins: 300, rewardXp: 600, condition: (s) => (s?.totalRead || 0) >= 20 },
+  { id: 'bookworm_25', title: 'Knihomil Roku', description: 'Přečti celkem 25 knih.', icon: Award, category: 'books', rewardCoins: 350, rewardXp: 800, condition: (s) => (s?.totalRead || 0) >= 25 },
+  { id: 'bookworm_30', title: 'Archivář Příběhů', description: 'Přečti celkem 30 knih.', icon: Scroll, category: 'books', rewardCoins: 400, rewardXp: 900, condition: (s) => (s?.totalRead || 0) >= 30 },
+  { id: 'bookworm_35', title: 'Mistr svazků', description: 'Přečti celkem 35 knih.', icon: Award, category: 'books', rewardCoins: 450, rewardXp: 1000, condition: (s) => (s?.totalRead || 0) >= 35 },
+  { id: 'bookworm_40', title: 'Knihovní Doyenne', description: 'Přečti celkem 40 knih.', icon: Crown, category: 'books', rewardCoins: 500, rewardXp: 1200, condition: (s) => (s?.totalRead || 0) >= 40 },
+  { id: 'bookworm_45', title: 'Vládce Stránek', description: 'Přečti celkem 45 knih.', icon: Shield, category: 'books', rewardCoins: 600, rewardXp: 1400, condition: (s) => (s?.totalRead || 0) >= 45 },
+  { id: 'bookworm_50', title: 'Pán Příběhů', description: 'Přečti celkem 50 knih.', icon: Crown, category: 'books', rewardCoins: 800, rewardXp: 2000, condition: (s) => (s?.totalRead || 0) >= 50 },
+  { id: 'bookworm_60', title: 'Mystický Čtenář', description: 'Přečti celkem 60 knih.', icon: Sparkles, category: 'books', rewardCoins: 900, rewardXp: 2200, condition: (s) => (s?.totalRead || 0) >= 60 },
+  { id: 'bookworm_70', title: 'Dobyvatel Knihovny', description: 'Přečti celkem 70 knih.', icon: Trophy, category: 'books', rewardCoins: 1000, rewardXp: 2500, condition: (s) => (s?.totalRead || 0) >= 70 },
+  { id: 'bookworm_80', title: 'Legendární Knihomol', description: 'Přečti celkem 80 knih.', icon: Award, category: 'books', rewardCoins: 1200, rewardXp: 2800, condition: (s) => (s?.totalRead || 0) >= 80 },
+  { id: 'bookworm_90', title: 'Velmistr Četby', description: 'Přečti celkem 90 knih.', icon: Crown, category: 'books', rewardCoins: 1400, rewardXp: 3200, condition: (s) => (s?.totalRead || 0) >= 90 },
+  { id: 'bookworm_100', title: 'Stoletý Archivář', description: 'Přečti celkem 100 knih.', icon: Gem, category: 'books', rewardCoins: 2000, rewardXp: 5000, condition: (s) => (s?.totalRead || 0) >= 100 },
+  { id: 'bookworm_125', title: 'Absolutní Knihomol', description: 'Přečti celkem 125 knih.', icon: Gem, category: 'books', rewardCoins: 2300, rewardXp: 5500, condition: (s) => (s?.totalRead || 0) >= 125 },
+  { id: 'bookworm_150', title: 'Bůh Litery', description: 'Přečti celkem 150 knih.', icon: Crown, category: 'books', rewardCoins: 2600, rewardXp: 6000, condition: (s) => (s?.totalRead || 0) >= 150 },
+  { id: 'bookworm_175', title: 'Císař Svazků', description: 'Přečti celkem 175 knih.', icon: Crown, category: 'books', rewardCoins: 3000, rewardXp: 7000, condition: (s) => (s?.totalRead || 0) >= 175 },
+  { id: 'bookworm_200', title: 'Nezničitelný Čtenář', description: 'Přečti celkem 200 knih.', icon: Shield, category: 'books', rewardCoins: 3500, rewardXp: 8000, condition: (s) => (s?.totalRead || 0) >= 200 },
+  { id: 'bookworm_250', title: 'Věčný Čtenář', description: 'Přečti celkem 250 knih.', icon: Sparkles, category: 'books', rewardCoins: 4000, rewardXp: 9000, condition: (s) => (s?.totalRead || 0) >= 250 },
+  { id: 'bookworm_300', title: 'Kosmický Čtenář', description: 'Přečti celkem 300 knih.', icon: Star, category: 'books', rewardCoins: 5000, rewardXp: 10000, condition: (s) => (s?.totalRead || 0) >= 300 },
+  { id: 'bookworm_400', title: 'Nekonečný Archivář', description: 'Přečti celkem 400 knih.', icon: Zap, category: 'books', rewardCoins: 7500, rewardXp: 15000, condition: (s) => (s?.totalRead || 0) >= 400 },
+  { id: 'bookworm_500', title: 'Živoucí Knihovna', description: 'Přečti celkem 500 knih.', icon: Gem, category: 'books', rewardCoins: 10000, rewardXp: 20000, condition: (s) => (s?.totalRead || 0) >= 500 },
 
-  // --- KATEGORIE: DENNÍ SÉRIE (STREAK) ---
-  {
-    id: 'streak_3',
-    title: 'Malá Jiskra',
-    description: 'Udržuj čtenářskou sérii 3 dny v kuse.',
-    icon: Flame,
-    rewardCoins: 30,
-    rewardXp: 50,
-    condition: (stats) => (stats?.streak || 0) >= 3
-  },
-  {
-    id: 'streak_7',
-    title: 'Týdenní Plamen',
-    description: 'Udržuj čtenářskou sérii 7 dní v kuse.',
-    icon: Flame,
-    rewardCoins: 150,
-    rewardXp: 300,
-    condition: (stats) => (stats?.streak || 0) >= 7
-  },
-  {
-    id: 'streak_30',
-    title: 'Měsíční Mág',
-    description: 'Udržuj čtenářskou sérii 30 dní v kuse.',
-    icon: Zap,
-    rewardCoins: 500,
-    rewardXp: 1500,
-    condition: (stats) => (stats?.streak || 0) >= 30
-  },
+  // --- KATEGORIE: STREAK (25) ---
+  { id: 'streak_1', title: 'Jiskra Touhy', description: 'Čti 1 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 20, rewardXp: 30, condition: (s) => (s?.streak || 0) >= 1 },
+  { id: 'streak_2', title: 'Dvoudenní Plamínek', description: 'Čti 2 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 30, rewardXp: 45, condition: (s) => (s?.streak || 0) >= 2 },
+  { id: 'streak_3', title: 'Malá Jiskra', description: 'Čti 3 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 40, rewardXp: 60, condition: (s) => (s?.streak || 0) >= 3 },
+  { id: 'streak_4', title: 'Rozhořívající se Plameň', description: 'Čti 4 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 50, rewardXp: 80, condition: (s) => (s?.streak || 0) >= 4 },
+  { id: 'streak_5', title: 'Pětidenní Žár', description: 'Čti 5 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 70, rewardXp: 100, condition: (s) => (s?.streak || 0) >= 5 },
+  { id: 'streak_6', title: 'Šestidenní Vytrvalost', description: 'Čti 6 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 90, rewardXp: 130, condition: (s) => (s?.streak || 0) >= 6 },
+  { id: 'streak_7', title: 'Týdenní Plamen', description: 'Čti 7 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 150, rewardXp: 300, condition: (s) => (s?.streak || 0) >= 7 },
+  { id: 'streak_10', title: 'Desetidenní Záře', description: 'Čti 10 dní v kuse bez přerušení.', icon: Zap, category: 'streak', rewardCoins: 200, rewardXp: 400, condition: (s) => (s?.streak || 0) >= 10 },
+  { id: 'streak_14', title: 'Hořící Odhodlání', description: 'Čti 14 dní v kuse bez přerušení.', icon: Zap, category: 'streak', rewardCoins: 300, rewardXp: 600, condition: (s) => (s?.streak || 0) >= 14 },
+  { id: 'streak_21', title: 'Třítýdenní Rituál', description: 'Čti 21 dní v kuse bez přerušení.', icon: Sparkles, category: 'streak', rewardCoins: 450, rewardXp: 900, condition: (s) => (s?.streak || 0) >= 21 },
+  { id: 'streak_30', title: 'Měsíční Mág', description: 'Čti 30 dní v kuse bez přerušení.', icon: Sparkles, category: 'streak', rewardCoins: 600, rewardXp: 1500, condition: (s) => (s?.streak || 0) >= 30 },
+  { id: 'streak_40', title: 'Nezlomný Čtenář', description: 'Čti 40 dní v kuse bez přerušení.', icon: Shield, category: 'streak', rewardCoins: 800, rewardXp: 1800, condition: (s) => (s?.streak || 0) >= 40 },
+  { id: 'streak_50', title: 'Padesátidenní Oheň', description: 'Čti 50 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 1000, rewardXp: 2200, condition: (s) => (s?.streak || 0) >= 50 },
+  { id: 'streak_60', title: 'Nezastavitelný Žár', description: 'Čti 60 dní v kuse bez přerušení.', icon: Gem, category: 'streak', rewardCoins: 1200, rewardXp: 3000, condition: (s) => (s?.streak || 0) >= 60 },
+  { id: 'streak_75', title: 'Plamenná Sféra', description: 'Čti 75 dní v kuse bez přerušení.', icon: Sparkles, category: 'streak', rewardCoins: 1500, rewardXp: 3500, condition: (s) => (s?.streak || 0) >= 75 },
+  { id: 'streak_90', title: 'Čtvrtletní Legenda', description: 'Čti 90 dní v kuse bez přerušení.', icon: Trophy, category: 'streak', rewardCoins: 1800, rewardXp: 4000, condition: (s) => (s?.streak || 0) >= 90 },
+  { id: 'streak_100', title: 'Sto Dní Oznámení', description: 'Čti 100 dní v kuse bez přerušení.', icon: Crown, category: 'streak', rewardCoins: 2500, rewardXp: 5000, condition: (s) => (s?.streak || 0) >= 100 },
+  { id: 'streak_120', title: 'Knižní Fénix', description: 'Čti 120 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 3000, rewardXp: 6000, condition: (s) => (s?.streak || 0) >= 120 },
+  { id: 'streak_150', title: 'Nezničitelný Plamen', description: 'Čti 150 dní v kuse bez přerušení.', icon: Shield, category: 'streak', rewardCoins: 3500, rewardXp: 7000, condition: (s) => (s?.streak || 0) >= 150 },
+  { id: 'streak_180', title: 'Půlroční Šampion', description: 'Čti 180 dní v kuse bez přerušení.', icon: Award, category: 'streak', rewardCoins: 4000, rewardXp: 8000, condition: (s) => (s?.streak || 0) >= 180 },
+  { id: 'streak_200', title: 'Magický Oheň', description: 'Čti 200 dní v kuse bez přerušení.', icon: Sparkles, category: 'streak', rewardCoins: 4500, rewardXp: 9000, condition: (s) => (s?.streak || 0) >= 200 },
+  { id: 'streak_250', title: 'Čtenářská Supernova', description: 'Čti 250 dní v kuse bez přerušení.', icon: Star, category: 'streak', rewardCoins: 5500, rewardXp: 11000, condition: (s) => (s?.streak || 0) >= 250 },
+  { id: 'streak_300', title: 'Věčný Plamen', description: 'Čti 300 dní v kuse bez přerušení.', icon: Flame, category: 'streak', rewardCoins: 7000, rewardXp: 14000, condition: (s) => (s?.streak || 0) >= 300 },
+  { id: 'streak_365', title: 'Roční Čtenářský Bůh', description: 'Čti 365 dní v kuse bez přerušení.', icon: Crown, category: 'streak', rewardCoins: 10000, rewardXp: 25000, condition: (s) => (s?.streak || 0) >= 365 },
+  { id: 'streak_500', title: 'Kosmický Oheň Znalostí', description: 'Čti 500 dní v kuse bez přerušení.', icon: Gem, category: 'streak', rewardCoins: 15000, rewardXp: 35000, condition: (s) => (s?.streak || 0) >= 500 },
 
-  // --- KATEGORIE: MĚSÍČNÍ VÝZVY ---
-  {
-    id: 'goal_achieved',
-    title: 'Cíl Dosažen',
-    description: 'Splň svůj stanovený měsíční čtenářský cíl.',
-    icon: Calendar,
-    rewardCoins: 200,
-    rewardXp: 500,
-    condition: (stats) => (stats?.monthlyRead || 0) >= (stats?.monthlyGoal || 25) && (stats?.monthlyGoal || 0) > 0
-  }
+  // --- KATEGORIE: ÚROVNĚ (25) ---
+  { id: 'level_2', title: 'Nováček Archivu', description: 'Dosáhni úrovně 2.', icon: Footprints, category: 'levels', rewardCoins: 30, rewardXp: 50, condition: (s) => (s?.level || 0) >= 2 },
+  { id: 'level_3', title: 'Učeň Slova', description: 'Dosáhni úrovně 3.', icon: BookOpen, category: 'levels', rewardCoins: 50, rewardXp: 80, condition: (s) => (s?.level || 0) >= 3 },
+  { id: 'level_4', title: 'Průzkumník Svazků', description: 'Dosáhni úrovně 4.', icon: Scroll, category: 'levels', rewardCoins: 80, rewardXp: 120, condition: (s) => (s?.level || 0) >= 4 },
+  { id: 'level_5', title: 'Pokročilý Adept', description: 'Dosáhni úrovně 5.', icon: Shield, category: 'levels', rewardCoins: 150, rewardXp: 200, condition: (s) => (s?.level || 0) >= 5 },
+  { id: 'level_6', title: 'Odhodlaný Čtenář', description: 'Dosáhni úrovně 6.', icon: Trophy, category: 'levels', rewardCoins: 200, rewardXp: 250, condition: (s) => (s?.level || 0) >= 6 },
+  { id: 'level_7', title: 'Adept Tajemství', description: 'Dosáhni úrovně 7.', icon: Sparkles, category: 'levels', rewardCoins: 250, rewardXp: 300, condition: (s) => (s?.level || 0) >= 7 },
+  { id: 'level_8', title: 'Čtenářský Znalec', description: 'Dosáhni úrovně 8.', icon: Award, category: 'levels', rewardCoins: 300, rewardXp: 350, condition: (s) => (s?.level || 0) >= 8 },
+  { id: 'level_9', title: 'Strážce Textu', description: 'Dosáhni úrovně 9.', icon: Shield, category: 'levels', rewardCoins: 350, rewardXp: 400, condition: (s) => (s?.level || 0) >= 9 },
+  { id: 'level_10', title: 'Mistr Sečtělosti', description: 'Dosáhni úrovně 10.', icon: Star, category: 'levels', rewardCoins: 400, rewardXp: 500, condition: (s) => (s?.level || 0) >= 10 },
+  { id: 'level_12', title: 'Strážce Znaného', description: 'Dosáhni úrovně 12.', icon: Scroll, category: 'levels', rewardCoins: 500, rewardXp: 600, condition: (s) => (s?.level || 0) >= 12 },
+  { id: 'level_14', title: 'Elitní Čtenář', description: 'Dosáhni úrovně 14.', icon: Trophy, category: 'levels', rewardCoins: 600, rewardXp: 700, condition: (s) => (s?.level || 0) >= 14 },
+  { id: 'level_15', title: 'Mág Nejvyšší Knihovny', description: 'Dosáhni úrovně 15.', icon: Zap, category: 'levels', rewardCoins: 800, rewardXp: 1000, condition: (s) => (s?.level || 0) >= 15 },
+  { id: 'level_18', title: 'Geniální Archivář', description: 'Dosáhni úrovně 18.', icon: Sparkles, category: 'levels', rewardCoins: 1000, rewardXp: 1200, condition: (s) => (s?.level || 0) >= 18 },
+  { id: 'level_20', title: 'Legenda Archivu', description: 'Dosáhni úrovně 20.', icon: Crown, category: 'levels', rewardCoins: 1200, rewardXp: 1500, condition: (s) => (s?.level || 0) >= 20 },
+  { id: 'level_25', title: 'Vševědoucí Čtenář', description: 'Dosáhni úrovně 25.', icon: Crown, category: 'levels', rewardCoins: 1600, rewardXp: 2000, condition: (s) => (s?.level || 0) >= 25 },
+  { id: 'level_30', title: 'Mystický Šampion', description: 'Dosáhni úrovně 30.', icon: Gem, category: 'levels', rewardCoins: 2000, rewardXp: 2500, condition: (s) => (s?.level || 0) >= 30 },
+  { id: 'level_35', title: 'Transcendentní Čtenář', description: 'Dosáhni úrovně 35.', icon: Sparkles, category: 'levels', rewardCoins: 2500, rewardXp: 3000, condition: (s) => (s?.level || 0) >= 35 },
+  { id: 'level_40', title: 'Vládce Písmen', description: 'Dosáhni úrovně 40.', icon: Shield, category: 'levels', rewardCoins: 3000, rewardXp: 4000, condition: (s) => (s?.level || 0) >= 40 },
+  { id: 'level_45', title: 'Věčný Učenec', description: 'Dosáhni úrovně 45.', icon: BookOpen, category: 'levels', rewardCoins: 3500, rewardXp: 4500, condition: (s) => (s?.level || 0) >= 45 },
+  { id: 'level_50', title: 'Polobůh Knihovny', description: 'Dosáhni úrovně 50.', icon: Crown, category: 'levels', rewardCoins: 5000, rewardXp: 6000, condition: (s) => (s?.level || 0) >= 50 },
+  { id: 'level_60', title: 'Archivář Všehomíra', description: 'Dosáhni úrovně 60.', icon: Gem, category: 'levels', rewardCoins: 6500, rewardXp: 8000, condition: (s) => (s?.level || 0) >= 60 },
+  { id: 'level_70', title: 'Absolutní Mistr', description: 'Dosáhni úrovně 70.', icon: Star, category: 'levels', rewardCoins: 8000, rewardXp: 10000, condition: (s) => (s?.level || 0) >= 70 },
+  { id: 'level_80', title: 'Strážce Věčnosti', description: 'Dosáhni úrovně 80.', icon: Shield, category: 'levels', rewardCoins: 10000, rewardXp: 12000, condition: (s) => (s?.level || 0) >= 80 },
+  { id: 'level_90', title: 'Kosmický Šampion', description: 'Dosáhni úrovně 90.', icon: Zap, category: 'levels', rewardCoins: 12500, rewardXp: 15000, condition: (s) => (s?.level || 0) >= 90 },
+  { id: 'level_100', title: 'Bůh Zapomenutých Příběhů', description: 'Dosáhni úrovně 100.', icon: Crown, category: 'levels', rewardCoins: 20000, rewardXp: 25000, condition: (s) => (s?.level || 0) >= 100 },
+
+  // --- KATEGORIE: VÝZVY (10) ---
+  { id: 'goal_1', title: 'První Měsíční Cíl', description: 'Splň měsíční čtenářský cíl.', icon: Target, category: 'monthly', rewardCoins: 250, rewardXp: 500, condition: (s) => (s?.monthlyRead || 0) >= (s?.monthlyGoal || 25) && (s?.monthlyGoal || 0) > 0 },
+  { id: 'monthly_1', title: 'Jednička Měsíce', description: 'Přečti alespoň 1 knihu v aktuálním měsíci.', icon: BookOpen, category: 'monthly', rewardCoins: 50, rewardXp: 100, condition: (s) => (s?.monthlyRead || 0) >= 1 },
+  { id: 'monthly_2', title: 'Dva Svazky Měsíce', description: 'Přečti alespoň 2 knihy v aktuálním měsíci.', icon: BookOpen, category: 'monthly', rewardCoins: 80, rewardXp: 150, condition: (s) => (s?.monthlyRead || 0) >= 2 },
+  { id: 'monthly_5', title: 'Pět v Měsíci', description: 'Přečti alespoň 5 knih během jednoho měsíce.', icon: Calendar, category: 'monthly', rewardCoins: 150, rewardXp: 300, condition: (s) => (s?.monthlyRead || 0) >= 5 },
+  { id: 'monthly_7', title: 'Týdenní Dávka Měsíce', description: 'Přečti alespoň 7 knih v aktuálním měsíci.', icon: Award, category: 'monthly', rewardCoins: 200, rewardXp: 400, condition: (s) => (s?.monthlyRead || 0) >= 7 },
+  { id: 'monthly_10', title: 'Měsíční Smršť', description: 'Přečti alespoň 10 knih během jednoho měsíce.', icon: Zap, category: 'monthly', rewardCoins: 300, rewardXp: 600, condition: (s) => (s?.monthlyRead || 0) >= 10 },
+  { id: 'monthly_15', title: 'Extrémní Měsíc', description: 'Přečti alespoň 15 knih během jednoho měsíce.', icon: Trophy, category: 'monthly', rewardCoins: 500, rewardXp: 1000, condition: (s) => (s?.monthlyRead || 0) >= 15 },
+  { id: 'monthly_20', title: 'Knižní Maraton', description: 'Přečti alespoň 20 knih během jednoho měsíce.', icon: Crown, category: 'monthly', rewardCoins: 800, rewardXp: 1500, condition: (s) => (s?.monthlyRead || 0) >= 20 },
+  { id: 'goal_high', 'title': 'Ambitiózní Cíl', description: 'Měj měsíční cíl nastaven na 30+ knih a splň ho.', icon: Target, category: 'monthly', rewardCoins: 600, rewardXp: 1200, condition: (s) => (s?.monthlyRead || 0) >= (s?.monthlyGoal || 0) && (s?.monthlyGoal || 0) >= 30 },
+  { id: 'goal_master', 'title': 'Super Cíl', description: 'Měj měsíční cíl nastaven na 50+ knih a splň ho.', icon: Crown, category: 'monthly', rewardCoins: 1500, rewardXp: 3000, condition: (s) => (s?.monthlyRead || 0) >= (s?.monthlyGoal || 0) && (s?.monthlyGoal || 0) >= 50 },
+
+  // --- KATEGORIE: SPECIÁLNÍ (10) ---
+  { id: 'coins_100', title: 'Spořivý Čtenář', description: 'Nasmírej celkem 100 Jomarid Coinů.', icon: Coins, category: 'special', rewardCoins: 50, rewardXp: 100, condition: (s) => (s?.jomaridCoins || 0) >= 100 },
+  { id: 'coins_500', title: 'Mincový Sběratel', description: 'Nasmírej celkem 500 Jomarid Coinů.', icon: Coins, category: 'special', rewardCoins: 150, rewardXp: 300, condition: (s) => (s?.jomaridCoins || 0) >= 500 },
+  { id: 'coins_1000', title: 'Boháč Knihovny', description: 'Nasmírej celkem 1,000 Jomarid Coinů.', icon: Coins, category: 'special', rewardCoins: 300, rewardXp: 600, condition: (s) => (s?.jomaridCoins || 0) >= 1000 },
+  { id: 'coins_5000', title: 'Zlatý Archivář', description: 'Nasmírej celkem 5,000 Jomarid Coinů.', icon: Gem, category: 'special', rewardCoins: 1000, rewardXp: 2000, condition: (s) => (s?.jomaridCoins || 0) >= 5000 },
+  { id: 'badge_collector_5', title: 'Začínající Sběratel', description: 'Odemkni alespoň 5 odznaků.', icon: Award, category: 'special', rewardCoins: 100, rewardXp: 200, condition: (s) => (s?.unlockedBadges?.length || 0) >= 5 },
+  { id: 'badge_collector_10', title: 'Vášnivý Sběratel', description: 'Odemkni alespoň 10 odznaků.', icon: Award, category: 'special', rewardCoins: 200, rewardXp: 400, condition: (s) => (s?.unlockedBadges?.length || 0) >= 10 },
+  { id: 'badge_collector_25', title: 'Mistr Odznaků', description: 'Odemkni alespoň 25 odznaků.', icon: Trophy, category: 'special', rewardCoins: 500, rewardXp: 1000, condition: (s) => (s?.unlockedBadges?.length || 0) >= 25 },
+  { id: 'badge_collector_50', title: 'Legendární Sběratel', description: 'Odemkni alespoň 50 odznaků.', icon: Crown, category: 'special', rewardCoins: 1500, rewardXp: 3000, condition: (s) => (s?.unlockedBadges?.length || 0) >= 50 },
+  { id: 'badge_collector_75', title: 'Elitní Sběratel', description: 'Odemkni alespoň 75 odznaků.', icon: Gem, category: 'special', rewardCoins: 3000, rewardXp: 6000, condition: (s) => (s?.unlockedBadges?.length || 0) >= 75 },
+  { id: 'badge_collector_100', title: 'Absolutní Sběratel 100+', description: 'Odemkni 100 a více odznaků!', icon: Crown, category: 'special', rewardCoins: 10000, rewardXp: 20000, condition: (s) => (s?.unlockedBadges?.length || 0) >= 100 }
 ];
+
+
+// ==========================================
+// 2. PODKOMPONENTA PRO ODZNÁČKY (S FILTRY, HLEDÁNÍM A ŘAZENÍM)
+// ==========================================
+export const BadgesSection = ({ stats }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [sortBy, setSortBy] = useState('recent'); // 'default', 'recent', 'unlocked', 'locked', 'rewards'
+
+  // Pomocná funkce pro vyhledávání odolné vůči diakritice
+  const normalizeText = (text) => 
+    (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const categoriesList = [
+    { id: 'all', label: 'Vše' },
+    { id: 'books', label: '📚 Knihy' },
+    { id: 'streak', label: '🔥 Streak' },
+    { id: 'levels', label: '🏆 Úrovně' },
+    { id: 'monthly', label: '📅 Výzvy' },
+    { id: 'special', label: '⭐ Speciální' }
+  ];
+
+  // Výpočet odemčených odznaků
+  const unlockedBadgesSet = useMemo(() => new Set(stats?.unlockedBadges || []), [stats?.unlockedBadges]);
+  const totalUnlockedCount = unlockedBadgesSet.size;
+  const progressPercent = Math.round((totalUnlockedCount / BOOK_BADGES.length) * 100);
+
+  // Filtrování a řazení
+  const filteredBadges = useMemo(() => {
+    const query = normalizeText(searchQuery.trim());
+    const unlockedArray = stats?.unlockedBadges || [];
+
+    return BOOK_BADGES.filter(badge => {
+      // 1. Filtr podle kategorie
+      if (selectedCategory !== 'all' && badge.category !== selectedCategory) return false;
+      
+      // 2. Vyhledávání s autocorrectem / diakritikou
+      if (query) {
+        const titleNorm = normalizeText(badge.title);
+        const descNorm = normalizeText(badge.description);
+        return titleNorm.includes(query) || descNorm.includes(query);
+      }
+      return true;
+    }).sort((a, b) => {
+      const isUnlockedA = unlockedBadgesSet.has(a.id);
+      const isUnlockedB = unlockedBadgesSet.has(b.id);
+
+      if (sortBy === 'recent') {
+        if (!isUnlockedA && !isUnlockedB) return 0;
+        if (isUnlockedA && !isUnlockedB) return -1;
+        if (!isUnlockedA && isUnlockedB) return 1;
+        // Obě odemčené: vyšší index v unlockedBadges = nedávno odemčeno
+        return unlockedArray.indexOf(b.id) - unlockedArray.indexOf(a.id);
+      }
+      if (sortBy === 'unlocked') {
+        return (isUnlockedB ? 1 : 0) - (isUnlockedA ? 1 : 0);
+      }
+      if (sortBy === 'locked') {
+        return (isUnlockedA ? 1 : 0) - (isUnlockedB ? 1 : 0);
+      }
+      if (sortBy === 'rewards') {
+        return b.rewardCoins - a.rewardCoins;
+      }
+      return 0; // Výchozí pořadí v poli
+    });
+  }, [searchQuery, selectedCategory, sortBy, unlockedBadgesSet, stats?.unlockedBadges]);
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-6 shadow-sm mb-8">
+      
+      {/* HLAVIČKA A PROGRESS BAR */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h3 style={{ color: 'var(--text-muted)' }} className="text-xs font-black uppercase tracking-wider text-left flex items-center gap-1.5 m-0">
+            <Award size={16} style={{ color: 'var(--bg-primary)' }} /> Sběratelské Odznáčky Knihovny ({BOOK_BADGES.length})
+          </h3>
+          <p style={{ color: 'var(--text-muted)' }} className="text-xs mt-1 m-0 opacity-70">
+            Odemčeno {totalUnlockedCount} ze {BOOK_BADGES.length} odznaků ({progressPercent}%)
+          </p>
+        </div>
+
+        {/* PROGRESS BAR */}
+        <div className="w-full sm:w-48 bg-black/5 dark:bg-white/10 h-3 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
+        </div>
+      </div>
+
+      {/* OVLÁDACÍ PANELY: VYHLEDÁVÁNÍ A ŘAZENÍ */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 mb-4">
+        
+        {/* VYHLEDÁVAČ */}
+        <div className="relative w-full md:w-72">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+          <input
+            type="text"
+            placeholder="Hledat odznak..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+            className="w-full pl-9 pr-4 py-2 text-xs font-bold rounded-xl border outline-none transition-all focus:border-[var(--bg-primary)]"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50 hover:opacity-100 bg-transparent border-none cursor-pointer">
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* SELECT ŘAZENÍ */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <ArrowUpDown size={14} className="opacity-60 shrink-0" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{ backgroundColor: 'var(--bg-badge)', color: 'var(--text-body)', borderColor: 'var(--border-color)' }}
+            className="w-full md:w-auto px-3 py-2 text-xs font-bold rounded-xl border outline-none cursor-pointer"
+          >
+            <option value="recent">Nedávno odemčené 🕒</option>
+            <option value="unlocked">Odemčené prvotně 🔓</option>
+            <option value="locked">Nezamčené prvotně 🔒</option>
+            <option value="rewards">Nejvyšší odměny 💰</option>
+            <option value="default">Výchozí pořadí 📜</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ZÁLOŽKY KATEGORIÍ */}
+      <div className="flex flex-wrap gap-1.5 mb-6 border-b pb-3" style={{ borderColor: 'var(--border-color)' }}>
+        {categoriesList.map(cat => {
+          const isActive = selectedCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              style={{
+                backgroundColor: isActive ? 'var(--bg-primary)' : 'var(--bg-badge)',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-badge)'
+              }}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border-none cursor-pointer transition-all shadow-sm"
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* GRID ODZNAKŮ */}
+      {filteredBadges.length === 0 ? (
+        <div className="py-12 text-center opacity-60">
+          <p className="text-sm font-bold m-0">Žádné odznaky neodpovídají tvému vyhledávání.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-1">
+          {filteredBadges.map((badge) => {
+            const isUnlocked = unlockedBadgesSet.has(badge.id);
+            const BadgeIcon = badge.icon;
+            
+            return (
+              <div 
+                key={badge.id} 
+                style={{ 
+                  backgroundColor: isUnlocked ? 'var(--bg-badge)' : 'rgba(0, 0, 0, 0.04)', 
+                  borderColor: isUnlocked ? 'var(--border-color)' : 'transparent', 
+                  opacity: isUnlocked ? 1 : 0.45 
+                }} 
+                className={`p-3.5 rounded-xl border flex items-center gap-3 transition-all duration-300 shadow-inner ${isUnlocked ? 'scale-100' : 'scale-95'}`}
+              >
+                <div 
+                  style={{ 
+                    backgroundColor: isUnlocked ? 'var(--bg-primary)' : 'rgba(255,255,255,0.05)', 
+                    color: isUnlocked ? 'var(--text-primary)' : 'var(--text-muted)' 
+                  }} 
+                  className="w-11 h-11 rounded-full flex items-center justify-center shadow-md shrink-0 transition-transform duration-500"
+                >
+                  <BadgeIcon size={20} className={isUnlocked ? "animate-pulse" : ""} />
+                </div>
+                
+                <div className="text-left flex flex-col flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span style={{ color: isUnlocked ? 'var(--text-badge)' : 'var(--text-muted)' }} className="font-black text-xs tracking-wide uppercase truncate">
+                      {badge.title}
+                    </span>
+                    {isUnlocked && (
+                      <span className="text-[9px] bg-amber-500/20 text-amber-500 px-1 py-0.5 rounded font-bold flex items-center gap-0.5">
+                        +{badge.rewardCoins} <Coins size={9} />
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ color: 'var(--text-body)' }} className="text-[11px] opacity-75 mt-0.5 leading-tight line-clamp-2">
+                    {badge.description}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+    </div>
+  );
+};
 
 // ==========================================
 // 2. POMOCNÉ FUNKCE PRO VÝPOČTY (XP, Levely, Coiny)
@@ -1102,33 +1339,43 @@ export const UserStats = () => {
         </button>
       </div>
 
-      {/* PROFILOVÁ HLAVIČKA */}
-      <div style={{ backgroundColor: 'var(--text-body)', color: 'var(--bg-body)' }} className="rounded-3xl p-6 md:p-8 shadow-xl mb-8 relative overflow-hidden">
-        <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div className="text-left">
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider inline-block ${stats.levelBadgeClass}`}>{stats.levelName}</span>
-              <span className="text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 flex items-center gap-1"><Coins size={12} /> {stats.jomaridCoins} Coins</span>
-            </div>
-            <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--bg-card)' }}>Moje Statistiky</h1>
-            <p className="text-sm font-medium opacity-80" style={{ color: 'var(--bg-body)' }}>Každá přečtená kapitola tě posouvá v žebříčku.</p>
-          </div>
-          
-          <div style={{ backgroundColor: 'rgba(255,255,255,0.07)', borderColor: 'rgba(255,255,255,0.1)' }} className="border backdrop-blur-md rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>{stats.level}</div>
-            <div className="flex-1 space-y-1 text-left">
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-wider opacity-60" style={{ color: 'var(--bg-body)' }}>
-                <span>Úroveň čtenáře</span><span>{stats.xp} / {stats.xpNeededForNext} XP</span>
-              </div>
-              <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
-              </div>
-            </div>
-          </div>
+     {/* HLAVNÍ PROFILOVÁ HLAVIČKA (TMAVÝ KONZISTENTNÍ VZHLED) */}
+<div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className="border rounded-3xl p-6 md:p-8 shadow-sm mb-8 relative overflow-hidden">
+  <div style={{ backgroundColor: 'var(--bg-primary)' }} className="absolute -right-10 -top-10 w-40 h-40 opacity-10 rounded-full blur-2xl"></div>
+  
+  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+    <div className="text-left">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider inline-block ${stats.levelBadgeClass}`}>
+          {stats.levelName}
+        </span>
+        <span className="text-xs px-3 py-1 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 flex items-center gap-1">
+          <Coins size={12} /> {stats.jomaridCoins} Coins
+        </span>
+      </div>
+      <h1 className="text-3xl font-black tracking-tight mb-1" style={{ color: 'var(--text-body)' }}>Moje Statistiky</h1>
+      <p style={{ color: 'var(--text-muted)' }} className="text-sm font-medium opacity-80">Každá přečtená kapitola tě posouvá v žebříčku.</p>
+    </div>
+    
+    {/* LEVEL BAR */}
+    <div style={{ backgroundColor: 'var(--bg-badge)', borderColor: 'var(--border-color)' }} className="border rounded-2xl p-4 flex items-center gap-4 min-w-[250px]">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black shadow-lg transition-all duration-300 ${stats.levelBoxClass}`}>
+        {stats.level}
+      </div>
+      <div className="flex-1 space-y-1 text-left">
+        <div className="flex justify-between text-[10px] font-black uppercase tracking-wider opacity-60" style={{ color: 'var(--text-body)' }}>
+          <span>Úroveň čtenáře</span>
+          <span>{stats.xp} / {stats.xpNeededForNext} XP</span>
+        </div>
+        <div className="w-full bg-black/20 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${xpPercent}%`, backgroundColor: 'var(--bg-primary)' }}></div>
         </div>
       </div>
+    </div>
+  </div>
+</div> 
 
+    
       {/* METRIKY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
