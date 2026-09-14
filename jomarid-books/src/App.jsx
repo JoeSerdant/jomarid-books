@@ -3673,6 +3673,12 @@ const AdminDashboard = () => {
   );
 };
 
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// ... tvé ostatní importy (HomePage, UserLibrary, ReaderPage, atd.)
+import { RocketGame } from './RocketGame'; // Nezapomeň importovat hru (nebo použi kód níže)
+
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -3701,8 +3707,11 @@ export default function App() {
                 <Route path="/read/:id" element={<ProtectedUserRoute><ReaderPage /></ProtectedUserRoute>} />
                 <Route path="/publisher" element={<ProtectedUserRoute><PublisherDashboard /></ProtectedUserRoute>} />
                 
-                {/* Statistiky jsou nyní bezpečně pod uživatelskou ochranou */}
+                {/* Statistiky */}
                 <Route path="/stats" element={<ProtectedUserRoute><UserStats /></ProtectedUserRoute>} />
+                
+                {/* Raketová hra */}
+                <Route path="/rocketgame" element={<ProtectedUserRoute><RocketGame /></ProtectedUserRoute>} />
                 
                 {/* Administrace */}
                 <Route path="/admin" element={<ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>} />
