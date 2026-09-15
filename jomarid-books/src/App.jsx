@@ -489,6 +489,38 @@ export const Navbar = ({ onOpenSearch, onOpenSettings }) => {
 };
 
 // ==========================================
+// KOMPONENTA: RocketGame (Přímo v App.jsx)
+// ==========================================
+const RocketGame = () => {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-16 text-center animate-in fade-in duration-300">
+      <div 
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }} 
+        className="border rounded-3xl p-12 shadow-xl flex flex-col items-center justify-center gap-6"
+      >
+        <div className="w-20 h-20 bg-purple-500/10 text-purple-500 rounded-full flex items-center justify-center animate-bounce">
+          <Rocket size={40} />
+        </div>
+        
+        <div>
+          <h1 className="text-3xl font-black uppercase tracking-tight mb-2" style={{ color: 'var(--text-body)' }}>
+            Jomarid Rocket Game 🚀
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }} className="text-sm max-w-md mx-auto">
+            Připrav se na start! Zde bude tvoje raketová mini-hra pro získávání bonusových Jomarid Coinů.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider">
+          <Sparkles size={14} /> Výhry v Jomarid Coinech již brzy
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ==========================================
 // KOMPONENTA: UserLibrary
 // ==========================================
 export const UserLibrary = () => {
