@@ -269,53 +269,38 @@ const Card = ({ children, className = '' }) => (
  <div style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }} className={`border rounded-xl shadow-xl p-6 transition-all ${className}`}>{children}</div>
 );
 
-export const Navbar = ({ onOpenSearch, onOpenSettings }) => {
-  const { user, logout, role } = useAuth(); // načtení role z AuthContextu
+// ==========================================
+// KOMPONENTA: Navbar (Čistá verze bez chyby)
+// ==========================================
+const Navbar = ({ onOpenSearch, onOpenSettings }) => {
+  const { user, logout, role } = useAuth();
   const navigate = useNavigate();
   const [coins, setCoins] = useState(0);
 
-  // Pomocná funkce pro zjištění username
   const username = user?.email ? user.email.split('@')[0] : 'Čtenář';
 
-  // Načtení aktuálního počtu mincí z databáze
   useEffect(() => {
     if (!user?.id) return;
 
-useEffect(() => {
-  if (!user?.id) return;
+    const fetchUserCoins = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('coins')
+          .eq('id', user.id)
+          .single();
 
-  const fetchUserCoins = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('coins')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (data) setCoins(data.coins || 0);
-  };
-
-  fetchUserCoins();
-
-  // Supabase Realtime subscription pro okamžitou změnu mincí nahoře v liště
-  const channel = supabase
-    .channel('profile-coins-changes')
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-      (payload) => {
-        if (payload.new && payload.new.coins !== undefined) {
-          setCoins(payload.new.coins);
+        if (!error && data) {
+          setCoins(data.coins || 0);
         }
+      } catch (err) {
+        console.error("Chyba při načítání mincí v Navbaru:", err);
       }
-    )
-    .subscribe();
+    };
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [user?.id]);
+    fetchUserCoins();
+  }, [user?.id]);
 
-  // Zobrazení role v profilu s pěknou ikonkou
   const renderRoleBadge = () => {
     if (role === 'správce') {
       return (
@@ -349,7 +334,7 @@ useEffect(() => {
     >
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         
-        {/* LOGO / NÁZEV APKY */}
+        {/* LOGO */}
         <div className="flex items-center gap-6">
           <Link 
             to="/" 
@@ -366,10 +351,9 @@ useEffect(() => {
             </span>
           </Link>
 
-          {/* HLAVNÍ ODKAZY PODLE ROLÍ */}
+          {/* ODKAZY */}
           {user && (
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Vidí všichni - Knihovna */}
               <Link 
                 to="/app" 
                 style={{ color: 'var(--text-body)' }}
@@ -379,7 +363,6 @@ useEffect(() => {
                 <span className="hidden md:inline">Knihovna</span>
               </Link>
               
-              {/* Vidí všichni - Statistiky */}
               <Link 
                 to="/stats" 
                 style={{ color: 'var(--text-body)' }}
@@ -389,7 +372,6 @@ useEffect(() => {
                 <span className="hidden md:inline">Statistiky</span>
               </Link>
 
-              {/* Vidí všichni - RocketGame */}
               <Link 
                 to="/rocketgame" 
                 style={{ color: 'var(--text-body)' }}
@@ -399,7 +381,6 @@ useEffect(() => {
                 <span className="hidden md:inline">Raketa</span>
               </Link>
 
-              {/* Vidí POUZE Nakladatel */}
               {role === 'nakladatel' && (
                 <Link 
                   to="/publisher" 
@@ -411,7 +392,6 @@ useEffect(() => {
                 </Link>
               )}
 
-              {/* Vidí POUZE Správce */}
               {role === 'správce' && (
                 <Link 
                   to="/admin" 
@@ -426,10 +406,8 @@ useEffect(() => {
           )}
         </div>
 
-        {/* PRAVÁ STRANA: COINY, AKCE A PROFIL */}
+        {/* PRAVÁ STRANA */}
         <div className="flex items-center gap-2">
-          
-          {/* ZOBRAZENÍ JOMARID COINŮ */}
           {user && (
             <div 
               style={{ 
@@ -445,7 +423,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* TLAČÍTKO VYHLEDÁVÁNÍ */}
           {user && (
             <button
               onClick={onOpenSearch}
@@ -457,7 +434,6 @@ useEffect(() => {
             </button>
           )}
 
-          {/* TLAČÍTKO NASTAVENÍ (TÉMATA) */}
           <button
             onClick={onOpenSettings}
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-body)' }}
@@ -467,7 +443,6 @@ useEffect(() => {
             <Settings size={16} />
           </button>
 
-          {/* UŽIVATELSKÉ MENU / LOGIN */}
           {user ? (
             <div className="flex items-center gap-2 pl-2 border-l" style={{ borderColor: 'var(--border-color)' }}>
               <div className="hidden lg:block text-right">
@@ -503,9 +478,6 @@ useEffect(() => {
   );
 };
 
-// ==========================================
-// KOMPONENTA: RocketGame (Přímo v App.jsx)
-// ==========================================
 const RocketGame = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16 text-center animate-in fade-in duration-300">
