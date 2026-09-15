@@ -3705,11 +3705,6 @@ const AdminDashboard = () => {
   );
 };
 
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-
-// ... tvé ostatní importy (HomePage, UserLibrary, ReaderPage, atd.)
-import { RocketGame } from './RocketGame'; // Nezapomeň importovat hru (nebo použi kód níže)
 
 export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
