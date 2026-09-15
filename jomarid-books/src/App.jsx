@@ -507,7 +507,7 @@ const RocketGame = () => {
             Jomarid Rocket Game 🚀
           </h1>
           <p style={{ color: 'var(--text-muted)' }} className="text-sm max-w-md mx-auto">
-            Připrav se na start! Zde bude tvoje raketová mini-hra pro získávání bonusových Jomarid Coinů.
+            Připrav se na start! Zde bude raketová mini-hra pro získávání bonusových Jomarid Coinů.
           </p>
         </div>
 
