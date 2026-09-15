@@ -270,7 +270,7 @@ const Card = ({ children, className = '' }) => (
 );
 
 // ==========================================
-// KOMPONENTA: Navbar (Čistá verze bez chyby)
+// KOMPONENTA: Navbar (S Realtime synchronizací mincí)
 // ==========================================
 const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   const { user, logout, role } = useAuth();
@@ -282,13 +282,14 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   useEffect(() => {
     if (!user?.id) return;
 
+    // 1. Načtení mincí z DB při načtení
     const fetchUserCoins = async () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('coins')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           setCoins(data.coins || 0);
@@ -299,6 +300,29 @@ const Navbar = ({ onOpenSearch, onOpenSettings }) => {
     };
 
     fetchUserCoins();
+
+    // 2. Realtime posluchač – okamžitě aktualizuje mince v liště při změně v DB
+    const channel = supabase
+      .channel('navbar-coins-sync')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          if (payload.new && payload.new.coins !== undefined) {
+            setCoins(payload.new.coins);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const renderRoleBadge = () => {
@@ -1089,17 +1113,11 @@ const getLevelVisuals = (lvl) => {
 
 /**
  * Vypočítá celkový nárok na Jomarid Coins na základě dosažených milníků.
- * 
- * @param {number} level - Aktuální úroveň uživatele (od 1 výše)
- * @param {number} streak - Počet dní v čtenářské sérii
- * @param {number|Array} unlockedBadges - Počet odemčených odznaků nebo pole jejich ID
- * @param {boolean} goalCompleted - Zda je splněn měsíční cíl
- * @returns {number} Celkový počet mincí
  */
 export const calculateUserCoins = (
   level = 1, 
   streak = 0, 
-  unlockedBadges = 0, 
+  unlockedBadges = [], 
   goalCompleted = false
 ) => {
   let coins = 0;
@@ -1110,7 +1128,7 @@ export const calculateUserCoins = (
   // 50 mincí za každý dokončený týden sérií (7 dní = 50, 14 dní = 100, ...)
   coins += Math.floor(Math.max(0, streak) / 7) * 50;
 
-  // 75 mincí za každý získaný odznak (akceptuje číslo i pole odznaků)
+  // 75 mincí za každý získaný odznak
   const badgesCount = Array.isArray(unlockedBadges) ? unlockedBadges.length : (unlockedBadges || 0);
   coins += Math.max(0, badgesCount) * 75;
 
