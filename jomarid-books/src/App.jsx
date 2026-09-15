@@ -281,24 +281,39 @@ export const Navbar = ({ onOpenSearch, onOpenSettings }) => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const fetchUserCoins = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('coins')
-          .eq('id', user.id)
-          .single();
+useEffect(() => {
+  if (!user?.id) return;
 
-        if (!error && data) {
-          setCoins(data.coins || 0);
+  const fetchUserCoins = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('coins')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (data) setCoins(data.coins || 0);
+  };
+
+  fetchUserCoins();
+
+  // Supabase Realtime subscription pro okamžitou změnu mincí nahoře v liště
+  const channel = supabase
+    .channel('profile-coins-changes')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+      (payload) => {
+        if (payload.new && payload.new.coins !== undefined) {
+          setCoins(payload.new.coins);
         }
-      } catch (err) {
-        console.error("Chyba při načítání mincí v Navbaru:", err);
       }
-    };
+    )
+    .subscribe();
 
-    fetchUserCoins();
-  }, [user?.id]);
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user?.id]);
 
   // Zobrazení role v profilu s pěknou ikonkou
   const renderRoleBadge = () => {
@@ -1100,11 +1115,38 @@ const getLevelVisuals = (lvl) => {
   };
 };
 
-const calculateUserCoins = (level, streak, unlockedBadgesCount, goalCompleted) => {
+/**
+ * Vypočítá celkový nárok na Jomarid Coins na základě dosažených milníků.
+ * 
+ * @param {number} level - Aktuální úroveň uživatele (od 1 výše)
+ * @param {number} streak - Počet dní v čtenářské sérii
+ * @param {number|Array} unlockedBadges - Počet odemčených odznaků nebo pole jejich ID
+ * @param {boolean} goalCompleted - Zda je splněn měsíční cíl
+ * @returns {number} Celkový počet mincí
+ */
+export const calculateUserCoins = (
+  level = 1, 
+  streak = 0, 
+  unlockedBadges = 0, 
+  goalCompleted = false
+) => {
   let coins = 0;
-  coins += (level - 1) * 100;
-  coins += Math.floor(streak / 7) * 50;
-  if (goalCompleted) coins += 200;
+
+  // 100 mincí za každý postoupený level (Level 1 = 0 mincí)
+  coins += Math.max(0, level - 1) * 100;
+
+  // 50 mincí za každý dokončený týden sérií (7 dní = 50, 14 dní = 100, ...)
+  coins += Math.floor(Math.max(0, streak) / 7) * 50;
+
+  // 75 mincí za každý získaný odznak (akceptuje číslo i pole odznaků)
+  const badgesCount = Array.isArray(unlockedBadges) ? unlockedBadges.length : (unlockedBadges || 0);
+  coins += Math.max(0, badgesCount) * 75;
+
+  // Bonus 200 mincí za splněný měsíční cíl
+  if (goalCompleted) {
+    coins += 200;
+  }
+
   return coins;
 };
 
